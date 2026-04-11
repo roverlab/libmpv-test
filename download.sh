@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh
 
 # Change to preferred versions
 # Updated versions for compatibility with modern Xcode/Clang
@@ -18,20 +18,46 @@ HARFBUZZ_URL="https://github.com/harfbuzz/harfbuzz/releases/download/$HARFBUZZ_V
 FRIBIDI_URL="https://github.com/fribidi/fribidi/releases/download/v$FRIBIDI_VERSION/fribidi-$FRIBIDI_VERSION.tar.bz2"
 UCHARDET_URL="https://github.com/BYVoid/uchardet/archive/v$UCHARDET_VERSION.tar.gz"
 
+echo "=== Downloading sources ==="
+echo "mpv: $MPV_VERSION"
+echo "FFmpeg: $FFMPEG_VERSION"
+echo "libass: $LIBASS_VERSION"
+echo "freetype: $FREETYPE_VERSION"
+echo "harfbuzz: $HARFBUZZ_VERSION"
+echo "fribidi: $FRIBIDI_VERSION"
+echo "uchardet: $UCHARDET_VERSION"
+echo ""
+
 rm -rf src
 mkdir -p src downloads
 for URL in $UCHARDET_URL $FREETYPE_URL $HARFBUZZ_URL $FRIBIDI_URL $LIBASS_URL $FFMPEG_URL $MPV_URL; do
 	TARNAME=${URL##*/}
+	echo ""
+	echo ">>> Processing: $TARNAME"
+	echo "    URL: $URL"
     if [ ! -f "downloads/$TARNAME" ]; then
+	    echo "    Downloading..."
 	    # Use -k for SourceForge due to SSL certificate issues
 	    if echo "$URL" | grep -q "sourceforge.net"; then
 	        curl -f -L -k -- $URL > downloads/$TARNAME
 	    else
 	        curl -f -L -- $URL > downloads/$TARNAME
 	    fi
+	    if [ $? -ne 0 ]; then
+	        echo "    ERROR: Failed to download $TARNAME"
+	        exit 1
+	    fi
+	    echo "    Downloaded successfully"
+    else
+	    echo "    Using cached file"
     fi
-    echo "$TARNAME"
+    echo "    Extracting..."
     tar xvf downloads/$TARNAME -C src
+    if [ $? -ne 0 ]; then
+        echo "    ERROR: Failed to extract $TARNAME"
+        exit 1
+    fi
+    echo "    Done"
 done
 
 echo "\033[1;32mDownloaded: \033[0m\n mpv: $MPV_VERSION \
