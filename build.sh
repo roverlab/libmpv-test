@@ -21,6 +21,8 @@ export CXXFLAGS
 export COMMON_OPTIONS
 export ENVIRONMENT
 export ARCH
+export SCRATCH
+export SDKPATH
 
 STEP=""
 while getopts "e:s:" OPTION; do
