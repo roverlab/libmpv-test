@@ -33,8 +33,6 @@ cpu = 'aarch64'
 endian = 'little'
 
 [built-in options]
-c_args = ['$CFLAGS']
-cpp_args = ['$CXXFLAGS']
 prefix = '$PREFIX'
 libdir = 'lib'
 default_library = 'static'
@@ -47,6 +45,8 @@ meson setup "$LIBPLACEBO_DIR"/build "$LIBPLACEBO_DIR" \
 	-Dd3d11=disabled \
 	-Ddemos=false \
 	-Dtests=false \
+	-Dc_args="$CFLAGS" \
+	-Dcpp_args="$CXXFLAGS" \
 	-Dc_link_args="$LDFLAGS"
 
 rm -f "$CROSS_FILE"
