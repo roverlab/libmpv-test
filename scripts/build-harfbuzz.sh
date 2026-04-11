@@ -206,6 +206,16 @@ cd "$BUILD_WORK_DIR"
 
 # Create Meson cross-file for iOS
 CROSS_FILE="$BUILD_WORK_DIR/ios-cross.txt"
+
+# Adjust flags for simulator vs device
+if [ "$TARGET" = "simulator" ]; then
+    IOS_VERSION_FLAG="-mios-simulator-version-min=$MIN_IOS_VERSION"
+    BITCODE_FLAG=""
+else
+    IOS_VERSION_FLAG="-mios-version-min=$MIN_IOS_VERSION"
+    BITCODE_FLAG="-fembed-bitcode"
+fi
+
 cat > "$CROSS_FILE" << EOF
 [binaries]
 c = '$CC'
@@ -214,14 +224,14 @@ ar = '$AR'
 strip = '$STRIP'
 pkgconfig = 'pkg-config'
 
+[built-in options]
+c_args = ['-arch', '$ARCH', '$IOS_VERSION_FLAG', '$BITCODE_FLAG']
+cpp_args = ['-arch', '$ARCH', '$IOS_VERSION_FLAG', '$BITCODE_FLAG']
+c_link_args = ['-arch', '$ARCH', '$IOS_VERSION_FLAG']
+cpp_link_args = ['-arch', '$ARCH', '$IOS_VERSION_FLAG']
+
 [properties]
 sys_root = '$SDK_PATH'
-pkg_config_libdir = '$BUILD_DIR/lib/pkgconfig'
-pkg_config_path = '$BUILD_DIR/lib/pkgconfig'
-c_args = ['-arch', '$ARCH', '-mios-version-min=$MIN_IOS_VERSION', '-fembed-bitcode']
-cpp_args = ['-arch', '$ARCH', '-mios-version-min=$MIN_IOS_VERSION', '-fembed-bitcode']
-c_link_args = ['-arch', '$ARCH', '-mios-version-min=$MIN_IOS_VERSION']
-cpp_link_args = ['-arch', '$ARCH', '-mios-version-min=$MIN_IOS_VERSION']
 
 [host_machine]
 system = 'darwin'
@@ -235,10 +245,24 @@ log_info "Created Meson cross-file: $CROSS_FILE"
 # Debug: Check if freetype2.pc exists
 if [ -f "$BUILD_DIR/lib/pkgconfig/freetype2.pc" ]; then
     log_info "✓ Found freetype2.pc at: $BUILD_DIR/lib/pkgconfig/freetype2.pc"
+    log_info "Content of freetype2.pc:"
+    cat "$BUILD_DIR/lib/pkgconfig/freetype2.pc" | head -n 10
 else
     log_error "freetype2.pc not found at: $BUILD_DIR/lib/pkgconfig/freetype2.pc"
     log_error "Available .pc files:"
     ls -la "$BUILD_DIR/lib/pkgconfig/" || log_error "pkgconfig directory not found"
+    exit 1
+fi
+
+# Test pkg-config can find freetype2
+log_info "Testing pkg-config for freetype2..."
+if pkg-config --exists freetype2; then
+    log_info "✓ pkg-config can find freetype2"
+    log_info "  CFLAGS: $(pkg-config --cflags freetype2)"
+    log_info "  LIBS: $(pkg-config --libs freetype2)"
+else
+    log_error "pkg-config cannot find freetype2"
+    log_error "PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
     exit 1
 fi
 
@@ -248,7 +272,6 @@ MESON_ARGS=(
     --prefix="$BUILD_DIR"
     --default-library=static
     --wrap-mode=nofallback
-    --pkg-config-path="$BUILD_DIR/lib/pkgconfig"
     -Dfreetype=enabled
     -Dglib=disabled
     -Dgobject=disabled
@@ -260,9 +283,12 @@ MESON_ARGS=(
     -Dbenchmark=disabled
 )
 
-# Set PKG_CONFIG environment for meson
-export PKG_CONFIG="pkg-config"
+# Ensure PKG_CONFIG_PATH is set for meson
+log_info "Final PKG_CONFIG_PATH: $PKG_CONFIG_PATH"
 
+# Run meson setup with explicit environment
+PKG_CONFIG_PATH="$BUILD_DIR/lib/pkgconfig" \
+PKG_CONFIG_LIBDIR="$BUILD_DIR/lib/pkgconfig" \
 meson setup "${MESON_ARGS[@]}" "$SOURCE_DIR" 2>&1 | tee configure.log
 if [ ${PIPESTATUS[0]} -ne 0 ]; then
     log_error "Meson configuration failed"
