@@ -9,7 +9,7 @@ echo "Building mpv with meson (libplacebo as subproject)..."
 PYTHON3=$(which python3.13 2>/dev/null || which python3.12 2>/dev/null || echo "")
 if [ -n "$PYTHON3" ]; then
     echo "Using Python: $PYTHON3 (for libplacebo code generation compatibility)"
-    export PATH "$(dirname $PYTHON3):$PATH"
+    export PATH="$(dirname $PYTHON3):$PATH"
 else
     echo "WARNING: Python 3.12/3.13 not found, using system default"
 fi
