@@ -61,17 +61,10 @@ env:
   UCHARDET_VERSION: ${{ github.event.inputs.uchardet_version || '0.0.5' }}
 
 jobs:
-  build:
-    name: Build libmpv for iOS (${{ matrix.environment }})
+  # Job 1: 编译所有依赖库（字体库、uchardet、ffmpeg），缓存结果
+  dependencies:
+    name: Build dependencies
     runs-on: macos-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        environment:
-          - distribution
-        include:
-          - environment: distribution
-            build_type: release
 
     steps:
       - name: Checkout repository
@@ -87,7 +80,6 @@ jobs:
           brew install pkg-config
           brew install nasm
           brew install meson
-          # Use brew-installed meson instead of pip
 
       - name: Install gas-preprocessor
         run: |
@@ -105,90 +97,80 @@ jobs:
           chmod +x clean.sh
           chmod +x scripts/*-build
 
-      # === Step 1: 字体库（可缓存）===
-      - name: Cache font libraries
-        if: matrix.environment == 'distribution'
-        id: cache-font-libs
+      # === 缓存：检查是否已有编译好的依赖 ===
+      - name: Cache dependencies
+        id: cache-deps
         uses: actions/cache@v4
         with:
           path: |
-            scratch/arm64/lib/libfreetype.a
-            scratch/arm64/lib/libharfbuzz.a
-            scratch/arm64/lib/libfribidi.a
-            scratch/arm64/lib/libass.a
-            scratch/arm64/include/freetype2
-            scratch/arm64/include/harfbuzz
-            scratch/arm64/include/fribidi
-            scratch/arm64/include/ass
-            scratch/arm64/lib/pkgconfig
-          key: ios-font-libs-${{ runner.os }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.LIBASS_VERSION }}
+            scratch
+          key: ios-deps-${{ runner.os }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.LIBASS_VERSION }}-${{ env.UCHARDET_VERSION }}-${{ env.FFMPEG_VERSION }}
           restore-keys: |
-            ios-font-libs-${{ runner.os }}-
+            ios-deps-${{ runner.os }}-
 
-      - name: Build font libraries
-        if: matrix.environment == 'distribution' && steps.cache-font-libs.outputs.cache-hit != 'true'
+      # === 编译所有依赖（mpv 除外）===
+      - name: Build dependencies (Step 1-3)
+        if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
-          echo "=== Step 1: Building font libraries (freetype, harfbuzz, fribidi, libass) ==="
+          echo "=== Building all dependencies (font libs, uchardet, ffmpeg) ==="
           ./build.sh -e distribution -s 1
-
-      # === Step 2: uchardet（可缓存）===
-      - name: Cache uchardet
-        if: matrix.environment == 'distribution'
-        id: cache-uchardet
-        uses: actions/cache@v4
-        with:
-          path: |
-            scratch/arm64/lib/libuchardet.a
-            scratch/arm64/include/uchardet
-            scratch/arm64/lib/pkgconfig
-          key: ios-uchardet-${{ runner.os }}-${{ env.UCHARDET_VERSION }}
-          restore-keys: |
-            ios-uchardet-${{ runner.os }}-
-
-      - name: Build uchardet
-        if: matrix.environment == 'distribution' && steps.cache-uchardet.outputs.cache-hit != 'true'
-        run: |
-          echo "=== Step 2: Building uchardet ==="
           ./build.sh -e distribution -s 2
-
-      # === Step 3: FFmpeg（可独立缓存，耗时最长）===
-      - name: Cache FFmpeg
-        if: matrix.environment == 'distribution'
-        id: cache-ffmpeg
-        uses: actions/cache@v4
-        with:
-          path: |
-            scratch/arm64/lib/libavcodec.a
-            scratch/arm64/lib/libavformat.a
-            scratch/arm64/lib/libavutil.a
-            scratch/arm64/lib/libswresample.a
-            scratch/arm64/lib/libswscale.a
-            scratch/arm64/lib/libavfilter.a
-            scratch/arm64/lib/libavdevice.a
-            scratch/arm64/lib/libpostproc.a
-            scratch/arm64/lib/pkgconfig
-          key: ios-ffmpeg-${{ runner.os }}-${{ env.FFMPEG_VERSION }}
-          restore-keys: |
-            ios-ffmpeg-${{ runner.os }}-
-
-      - name: Build FFmpeg
-        if: matrix.environment == 'distribution' && steps.cache-ffmpeg.outputs.cache-hit != 'true'
-        run: |
-          echo "=== Step 3: Building FFmpeg (this takes a while...) ==="
           ./build.sh -e distribution -s 3
 
-      # === Step 4: libmpv（最后编译，通常不需要缓存）===
-      - name: Build libmpv
-        if: matrix.environment == 'distribution'
+      # === 上传依赖作为 artifact，供 mpv job 使用 ===
+      - name: Upload dependencies artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-dependencies
+          path: scratch/
+          retention-days: 30
+
+  # Job 2: 编译 mpv（依赖 Job 1 的结果）
+  build:
+    name: Build libmpv for iOS
+    runs-on: macos-latest
+    needs: dependencies
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install dependencies
         run: |
-          echo "=== Step 4: Building libmpv ==="
+          brew install pkg-config
+          brew install nasm
+          brew install meson
+
+      - name: Download sources
+        run: |
+          chmod +x download.sh
+          ./download.sh
+
+      - name: Make build scripts executable
+        run: |
+          chmod +x build.sh
+          chmod +x clean.sh
+          chmod +x scripts/*-build
+
+      # === 下载依赖 artifact ===
+      - name: Download dependencies
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-dependencies
+          path: scratch/
+
+      # === 编译 mpv ===
+      - name: Build libmpv
+        run: |
+          echo "=== Building libmpv ==="
           ./build.sh -e distribution -s 4
 
-      - name: Build libmpv (Development)
-        if: matrix.environment == 'development'
-        run: |
-          ./build.sh -e development
-
+      # === 准备最终产物 ===
       - name: Prepare artifacts
         run: |
           mkdir -p artifacts
@@ -199,27 +181,24 @@ jobs:
             mkdir -p artifacts/arm64
             cp -r scratch/arm64/lib/*.a artifacts/arm64/ 2>/dev/null || true
           fi
-          # Copy shared libraries if exist
-          if [ -d "scratch/arm64/lib" ]; then
-            find scratch/arm64/lib -name "*.dylib" -exec cp {} artifacts/ \; 2>/dev/null || true
-          fi
+          find scratch/arm64/lib -name "*.dylib" -exec cp {} artifacts/ \; 2>/dev/null || true
 
       - name: Create distribution archive
         run: |
           cd artifacts
-          tar -czvf libmpv-ios-${{ matrix.environment }}.tar.gz *
+          tar -czvf libmpv-ios-distribution.tar.gz *
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: libmpv-ios-${{ matrix.environment }}
-          path: artifacts/libmpv-ios-${{ matrix.environment }}.tar.gz
+          name: libmpv-ios-distribution
+          path: artifacts/libmpv-ios-distribution.tar.gz
           retention-days: 30
 
       - name: Upload library files
         uses: actions/upload-artifact@v4
         with:
-          name: libmpv-libraries-${{ matrix.environment }}
+          name: libmpv-libraries-distribution
           path: |
             lib/*.a
           retention-days: 30
