@@ -6,7 +6,9 @@ FONT_LIBRARIES="libfreetype libharfbuzz libfribidi libass"
 OTHER_LIBRARIES="libuchardet"
 # 第3步：FFmpeg（可独立缓存）
 FFMPEG_LIBRARIES="ffmpeg"
-# 第4步：libmpv（最后编译）
+# 第4步：libplacebo（mpv 依赖）
+LIBPLACEBO_LIBRARIES="libplacebo"
+# 第5步：libmpv（最后编译）
 MPV_LIBRARIES="libmpv"
 # 所有库（默认）
 ALL_LIBRARIES="$FONT_LIBRARIES $OTHER_LIBRARIES"
@@ -54,16 +56,20 @@ case $STEP in
 		LIBRARIES="$FFMPEG_LIBRARIES"
 		echo "=== Step 3: Building FFmpeg ==="
 		;;
-	4|mpv)
+	4|libplacebo)
+		LIBRARIES="$LIBPLACEBO_LIBRARIES"
+		echo "=== Step 4: Building libplacebo ==="
+		;;
+	5|mpv)
 		LIBRARIES="$MPV_LIBRARIES"
-		echo "=== Step 4: Building libmpv ==="
+		echo "=== Step 5: Building libmpv ==="
 		;;
 	"")
 		LIBRARIES="$ALL_LIBRARIES"
 		echo "=== Building all libraries ==="
 		;;
 	*)
-		echo "Invalid step: $STEP (use 1-4 or omit for all)"
+		echo "Invalid step: $STEP (use 1-5 or omit for all)"
 		exit 1
 		;;
 esac
@@ -129,7 +135,10 @@ for ARCH in $ARCHS; do
 				;;
             "libfreetype" )
 				mkdir -p $SCRATCH/$ARCH/freetype && cd $_ && $SCRIPTS/freetype-build
-				;;
+			;;
+            "libplacebo" )
+				mkdir -p $SCRATCH/$ARCH/libplacebo && cd $_ && $SCRIPTS/libplacebo-build
+			;;
             "libharfbuzz" )
 				mkdir -p $SCRATCH/$ARCH/harfbuzz && cd $_ && $SCRIPTS/harfbuzz-build
 				;;
@@ -155,13 +164,13 @@ done
 
 if [[ "$ENVIRONMENT" = "development" ]]; then
     for LIBRARY in $LIBRARIES; do
-        if [[ "$LIBRARY" != "ffmpeg" ]]; then
+        if [[ "$LIBRARY" != "ffmpeg" ]] && [[ "$LIBRARY" != "libplacebo" ]]; then
             lipo -create $SCRATCH/arm64/lib/$LIBRARY.a $SCRATCH/x86_64/lib/$LIBRARY.a -o $LIB/$LIBRARY.a
         fi
     done
 else
     for LIBRARY in $LIBRARIES; do
-        if [[ "$LIBRARY" != "ffmpeg" ]]; then
+        if [[ "$LIBRARY" != "ffmpeg" ]] && [[ "$LIBRARY" != "libplacebo" ]]; then
             cp $SCRATCH/arm64/lib/$LIBRARY.a $LIB/$LIBRARY.a
         fi
     done

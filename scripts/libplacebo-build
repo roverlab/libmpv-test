@@ -1,0 +1,63 @@
+#!/bin/sh
+set -e
+
+# Extract prefix from COMMON_OPTIONS
+PREFIX="${COMMON_OPTIONS%% *}"
+PREFIX="${PREFIX##*=}"
+
+LIBPLACEBO_DIR=$(ls -d $SRC/libplacebo-* 2>/dev/null | head -1)
+
+if [ -z "$LIBPLACEBO_DIR" ] || [ ! -d "$LIBPLACEBO_DIR" ]; then
+    echo "ERROR: libplacebo source directory not found in $SRC"
+    exit 1
+fi
+
+echo "Building libplacebo with meson..."
+echo "  Source: $LIBPLACEBO_DIR"
+echo "  Prefix: $PREFIX"
+
+# Create cross-file for iOS
+CROSS_FILE=$(mktemp)
+cat > "$CROSS_FILE" << EOF
+[binaries]
+c = ['$(xcrun -sdk iphoneos --find clang)', '-target', 'arm64-apple-ios', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
+cpp = ['$(xcrun -sdk iphoneos --find clang++)', '-target', 'arm64-apple-ios', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
+ar = '$(xcrun --find ar)'
+strip = '$(xcrun --find strip)'
+pkgconfig = 'pkg-config'
+
+[properties]
+c_args = ['$CFLAGS']
+cpp_args = ['$CXXFLAGS']
+c_link_args = ['$LDFLAGS']
+needs_exe_wrapper = true
+
+[host_machine]
+system = 'darwin'
+cpu_family = 'aarch64'
+cpu = 'aarch64'
+endian = 'little'
+
+[paths]
+prefix = '$PREFIX'
+libdir = 'lib'
+
+[built_options]
+default_library = 'static'
+EOF
+
+meson setup "$LIBPLACEBO_DIR"/build "$LIBPLACEBO_DIR" \
+	--cross-file "$CROSS_FILE" \
+	-Ddefault_library=static \
+	-Dopengl=enabled \
+	-Dvulkan=disabled \
+	-Dd3d11=disabled \
+	-Ddemos=false \
+	-Dtests=false \
+	-Dfuzzers=false \
+	-Dinstall=true
+
+rm -f "$CROSS_FILE"
+
+ninja -C "$LIBPLACEBO_DIR"/build -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
+ninja -C "$LIBPLACEBO_DIR"/build install

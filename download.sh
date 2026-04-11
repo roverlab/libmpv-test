@@ -2,7 +2,8 @@
 
 # Change to preferred versions
 # Updated versions for compatibility with modern Xcode/Clang
-MPV_VERSION="0.38.0"
+MPV_VERSION="0.39.0"
+LIBPLACEBO_VERSION="6.338.0"
 FFMPEG_VERSION="7.0"
 LIBASS_VERSION="0.17.3"
 FREETYPE_VERSION="2.13.2"
@@ -17,6 +18,7 @@ FREETYPE_URL="https://github.com/freetype/freetype/archive/refs/tags/VER-${FREET
 HARFBUZZ_URL="https://github.com/harfbuzz/harfbuzz/releases/download/$HARFBUZZ_VERSION/harfbuzz-$HARFBUZZ_VERSION.tar.xz"
 FRIBIDI_URL="https://github.com/fribidi/fribidi/releases/download/v$FRIBIDI_VERSION/fribidi-$FRIBIDI_VERSION.tar.xz"
 UCHARDET_URL="https://github.com/BYVoid/uchardet/archive/v$UCHARDET_VERSION.tar.gz"
+LIBPLACEBO_URL="https://code.videolan.org/videolan/libplacebo/archive/v$LIBPLACEBO_VERSION.tar.gz"
 
 echo "=== Downloading sources ==="
 echo "mpv: $MPV_VERSION"
@@ -26,11 +28,12 @@ echo "freetype: $FREETYPE_VERSION"
 echo "harfbuzz: $HARFBUZZ_VERSION"
 echo "fribidi: $FRIBIDI_VERSION"
 echo "uchardet: $UCHARDET_VERSION"
+echo "libplacebo: $LIBPLACEBO_VERSION"
 echo ""
 
 rm -rf src
 mkdir -p src downloads
-for URL in $UCHARDET_URL $FREETYPE_URL $HARFBUZZ_URL $FRIBIDI_URL $LIBASS_URL $FFMPEG_URL $MPV_URL; do
+for URL in $UCHARDET_URL $FREETYPE_URL $LIBPLACEBO_URL $HARFBUZZ_URL $FRIBIDI_URL $LIBASS_URL $FFMPEG_URL $MPV_URL; do
 	TARNAME=${URL##*/}
 	echo ""
 	echo ">>> Processing: $TARNAME"
@@ -66,4 +69,5 @@ echo "\033[1;32mDownloaded: \033[0m\n mpv: $MPV_VERSION \
                             \n freetype: $FREETYPE_VERSION \
                             \n harfbuzz: $HARFBUZZ_VERSION \
                             \n fribidi: $FRIBIDI_VERSION \
-                            \n uchardet: $UCHARDET_VERSION "
+                            \n uchardet: $UCHARDET_VERSION \
+                            \n libplacebo: $LIBPLACEBO_VERSION "
