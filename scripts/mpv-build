@@ -34,18 +34,42 @@ EOF
 
 meson setup build \
 	--cross-file "$CROSS_FILE" \
+	--buildtype=release \
+	--wrap-mode=nodownload \
+	-Ddefault_library=static \
 	-Dcplayer=false \
 	-Dgpl=false \
 	-Dlibmpv=true \
-	-Dgl=disabled \
-	-Dios-gl=enabled \
 	-Dlua=disabled \
 	-Djavascript=disabled \
+	-Dcocoa=disabled \
+	-Dswift-build=disabled \
+	-Dmacos-cocoa-cb=disabled \
+	-Dcoreaudio=disabled \
+	-Daudiounit=enabled \
+	-Davfoundation=disabled \
+	-Dvideotoolbox-pl=disabled \
+	-Dvideotoolbox-gl=disabled \
+	-Dgl=disabled \
+	-Degl=disabled \
+	-Dvulkan=disabled \
+	-Dplain-gl=disabled \
+	-Dx11=disabled \
+	-Dwayland=disabled \
+	-Dalsa=disabled \
+	-Dios-gl=disabled \
+	-Dmanpage-build=disabled \
+	-Dhtml-build=disabled \
+	-Dpdf-build=disabled \
+	-Dlibplacebo:opengl=disabled \
+	-Dlibplacebo:vulkan=disabled \
+	-Dlibass:require-system-font-provider=false \
+	-Dfreetype2:harfbuzz=disabled \
+	-Dfreetype2:hvf=disabled \
+	-Diconv=disabled \
 	-Dlibarchive=disabled \
 	-Duchardet=enabled \
-	-Dlibplacebo:vulkan=disabled \
-	-Dmacos-media-player=disabled \
-	-Dmacos-cocoa-cb=disabled
+	-Dmacos-media-player=disabled
 
 # Keep cross-file for ninja (don't delete it - needed for reconfigure)
 
