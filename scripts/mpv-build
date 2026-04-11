@@ -7,10 +7,38 @@ cd $SRC/mpv*
 if [ -f "meson.build" ]; then
 	echo "Building mpv with meson..."
 
+	# Create cross-file for iOS cross-compilation
+	CROSS_FILE=$(mktemp)
+	cat > "$CROSS_FILE" << EOF
+[binaries]
+c = '$(xcrun -sdk iphoneos --find clang)'
+cpp = '$(xcrun -sdk iphoneos --find clang++)'
+ar = '$(xcrun --find ar)'
+strip = '$(xcrun --find strip)'
+pkgconfig = 'pkg-config'
+
+[properties]
+c_args = ['$CFLAGS']
+cpp_args = ['$CXXFLAGS']
+c_link_args = ['$LDFLAGS']
+needs_exe_wrapper = true
+
+[host_machine]
+system = 'darwin'
+cpu_family = '$ARCH'
+cpu = '$ARCH'
+endian = 'little'
+
+[paths]
+prefix = '$SCRATCH/$ARCH'
+libdir = 'lib'
+
+[built_options]
+default_library = 'static'
+EOF
+
 	meson setup build \
-		--prefix="$SCRATCH/$ARCH" \
-		--libdir="lib" \
-		--default-library=static \
+		--cross-file "$CROSS_FILE" \
 		-Dcplayer=false \
 		-Dlcms2=disabled \
 		-Dlua=disabled \
@@ -22,7 +50,9 @@ if [ -f "meson.build" ]; then
 		-Djavascript=disabled \
 		-Dlibbluray=disabled \
 		-Dvapoursynth=disabled \
-		-Duchardet=enabled \
+		-Duchardet=enabled
+
+	rm -f "$CROSS_FILE"
 
 	if [[ "$ENVIRONMENT" = "development" ]]; then
 		meson configure build -Dbuildtype=debug
@@ -32,7 +62,7 @@ if [ -f "meson.build" ]; then
 	ninja -C build install
 
 	# Copy libmpv.a to lib directory
-	cp build/libmpv/static/libmpv.a "$SCRATCH/$ARCH/lib/" 2>/dev/null || true
+	find "$SCRATCH/$ARCH" -name "libmpv.a" -exec cp {} "$SCRATCH/$ARCH/lib/" \; 2>/dev/null || true
 else
 	echo "Building mpv with waf (legacy)..."
 
