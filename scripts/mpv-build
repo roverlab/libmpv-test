@@ -43,7 +43,7 @@ meson setup build \
 	-Djavascript=disabled \
 	-Dlibarchive=disabled \
 	-Duchardet=enabled \
-	-Dvulkan=disabled
+	-Dlibplacebo:vulkan=disabled
 
 # Keep cross-file for ninja (don't delete it - needed for reconfigure)
 
