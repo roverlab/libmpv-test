@@ -156,6 +156,9 @@ jobs:
           brew install pkg-config
           brew install nasm
           brew install meson
+          # Python 3.14 breaks libplacebo's utils_gen.py (ElementTree API change)
+          # Install Python 3.13 for meson/subproject code generation
+          brew install python@3.13
 
       - name: Download sources
         run: |
@@ -234,6 +237,9 @@ jobs:
           brew install pkg-config
           brew install nasm
           brew install meson
+          # Python 3.14 breaks libplacebo's utils_gen.py (ElementTree API change)
+          # Install Python 3.13 for meson/subproject code generation
+          brew install python@3.13
           # Use brew-installed meson instead of pip
 
       - name: Install gas-preprocessor
