@@ -23,7 +23,12 @@ mkdir -p src downloads
 for URL in $UCHARDET_URL $FREETYPE_URL $HARFBUZZ_URL $FRIBIDI_URL $LIBASS_URL $FFMPEG_URL $MPV_URL; do
 	TARNAME=${URL##*/}
     if [ ! -f "downloads/$TARNAME" ]; then
-	    curl -f -L -- $URL > downloads/$TARNAME
+	    # Use -k for SourceForge due to SSL certificate issues
+	    if echo "$URL" | grep -q "sourceforge.net"; then
+	        curl -f -L -k -- $URL > downloads/$TARNAME
+	    else
+	        curl -f -L -- $URL > downloads/$TARNAME
+	    fi
     fi
     echo "$TARNAME"
     tar xvf downloads/$TARNAME -C src
