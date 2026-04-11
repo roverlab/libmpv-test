@@ -94,17 +94,7 @@ jobs:
           sudo curl -L https://github.com/libav/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl
           sudo chmod +x /usr/local/bin/gas-preprocessor.pl
 
-      - name: Cache downloaded sources
-        id: cache-sources
-        uses: actions/cache@v4
-        with:
-          path: |
-            downloads
-            src
-          key: ios-sources-v2-${{ env.MPV_VERSION }}-${{ env.FFMPEG_VERSION }}-${{ env.LIBASS_VERSION }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.UCHARDET_VERSION }}
-
       - name: Download sources
-        if: steps.cache-sources.outputs.cache-hit != 'true'
         run: |
           chmod +x download.sh
           ./download.sh
@@ -187,17 +177,7 @@ jobs:
           sudo curl -L https://github.com/libav/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl
           sudo chmod +x /usr/local/bin/gas-preprocessor.pl
 
-      - name: Cache downloaded sources
-        id: cache-sources
-        uses: actions/cache@v4
-        with:
-          path: |
-            downloads
-            src
-          key: ios-sources-v2-${{ env.MPV_VERSION }}-${{ env.FFMPEG_VERSION }}-${{ env.LIBASS_VERSION }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.UCHARDET_VERSION }}
-
       - name: Download sources
-        if: steps.cache-sources.outputs.cache-hit != 'true'
         run: |
           chmod +x download.sh
           ./download.sh
