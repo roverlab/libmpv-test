@@ -179,11 +179,17 @@ fi
 export PKG_CONFIG_PATH="$BUILD_DIR/lib/pkgconfig:$PKG_CONFIG_PATH"
 export PKG_CONFIG_LIBDIR="$BUILD_DIR/lib/pkgconfig"
 
+# Help meson find freetype by setting additional environment variables
+export FREETYPE_CFLAGS="-I$BUILD_DIR/include/freetype2"
+export FREETYPE_LIBS="-L$BUILD_DIR/lib -lfreetype"
+
 log_info "Compiler: $CC"
 log_info "CFLAGS: $CFLAGS"
 log_info "LDFLAGS: $LDFLAGS"
 log_info "PKG_CONFIG_PATH: $PKG_CONFIG_PATH"
 log_info "PKG_CONFIG_LIBDIR: $PKG_CONFIG_LIBDIR"
+log_info "FREETYPE_CFLAGS: $FREETYPE_CFLAGS"
+log_info "FREETYPE_LIBS: $FREETYPE_LIBS"
 
 # Verify freetype dependency is available
 if [ ! -f "$BUILD_DIR/lib/libfreetype.a" ]; then
@@ -242,6 +248,7 @@ MESON_ARGS=(
     --prefix="$BUILD_DIR"
     --default-library=static
     --wrap-mode=nofallback
+    --pkg-config-path="$BUILD_DIR/lib/pkgconfig"
     -Dfreetype=enabled
     -Dglib=disabled
     -Dgobject=disabled
