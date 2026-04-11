@@ -175,13 +175,6 @@ if [ ! -f "$DEPS_PATH/lib/libavcodec.a" ]; then
 fi
 log_info "✓ FFmpeg dependency found"
 
-if [ ! -f "$DEPS_PATH/lib/libass.a" ]; then
-    log_error "libass dependency not found at: $DEPS_PATH/lib/libass.a"
-    log_error "Please build libass first"
-    exit 1
-fi
-log_info "✓ libass dependency found"
-
 # Set PKG_CONFIG_PATH to find all dependencies
 export PKG_CONFIG_PATH="$DEPS_PATH/lib/pkgconfig"
 log_info "PKG_CONFIG_PATH: $PKG_CONFIG_PATH"
@@ -251,6 +244,7 @@ meson setup "$MESON_BUILD_DIR" \
     -Dmanpage-build=disabled \
     -Dhtml-build=disabled \
     -Dpdf-build=disabled \
+    -Dlibass=disabled \
     2>&1 | tee configure.log
 
 if [ ${PIPESTATUS[0]} -ne 0 ]; then
