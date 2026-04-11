@@ -1,6 +1,11 @@
 #!/bin/sh -e
 
-LIBRARIES="libuchardet libfribidi libfreetype libharfbuzz libass ffmpeg libmpv"
+# 第1步：字体相关库（容易出错）
+FONT_LIBRARIES="libfreetype libharfbuzz libfribidi libass"
+# 第2步：其他库
+OTHER_LIBRARIES="libuchardet ffmpeg libmpv"
+# 所有库（默认）
+ALL_LIBRARIES="$FONT_LIBRARIES $OTHER_LIBRARIES"
 # LGPL licensed projects should be built as dynamic framework bundles (todo: automate that in this script)
 # FRAMEWORKS="libmpv ffmpeg libfribidi"
 
@@ -12,10 +17,14 @@ export COMMON_OPTIONS
 export ENVIRONMENT
 export ARCH
 
-while getopts "e:" OPTION; do
+STEP=""
+while getopts "e:s:" OPTION; do
 case $OPTION in
 		e )
 			ENVIRONMENT=$(echo "$OPTARG" | awk '{print tolower($0)}')
+			;;
+		s )
+			STEP=$OPTARG
 			;;
 		? )
 			echo "Invalid option"
@@ -23,6 +32,26 @@ case $OPTION in
 			;;
 	esac
 done
+
+# 根据步骤选择要编译的库
+case $STEP in
+	1|font)
+		LIBRARIES="$FONT_LIBRARIES"
+		echo "=== Step 1: Building font libraries ==="
+		;;
+	2|other)
+		LIBRARIES="$OTHER_LIBRARIES"
+		echo "=== Step 2: Building other libraries ==="
+		;;
+	"")
+		LIBRARIES="$ALL_LIBRARIES"
+		echo "=== Building all libraries ==="
+		;;
+	*)
+		echo "Invalid step: $STEP (use 1/font, 2/other, or omit for all)"
+		exit 1
+		;;
+esac
 
 export PATH="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/:$PATH"
 DEPLOYMENT_TARGET="11.0"

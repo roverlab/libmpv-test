@@ -105,10 +105,17 @@ jobs:
           chmod +x clean.sh
           chmod +x scripts/*-build
 
-      - name: Build libmpv (Distribution)
+      - name: Build Step 1 - Font libraries
         if: matrix.environment == 'distribution'
         run: |
-          ./build.sh -e distribution
+          echo "=== Step 1: Building font libraries (freetype, harfbuzz, fribidi, libass) ==="
+          ./build.sh -e distribution -s 1
+
+      - name: Build Step 2 - Other libraries
+        if: matrix.environment == 'distribution'
+        run: |
+          echo "=== Step 2: Building other libraries (uchardet, ffmpeg, libmpv) ==="
+          ./build.sh -e distribution -s 2
 
       - name: Build libmpv (Development)
         if: matrix.environment == 'development'
