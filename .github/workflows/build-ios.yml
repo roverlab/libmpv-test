@@ -179,10 +179,11 @@ jobs:
           path: scratch/
 
       # === 编译 mpv（libplacebo 作为 subproject 自动编译）===
+      # 使用 development 模式以同时编译 arm64 + x86_64（x86_64 供模拟器测试使用）
       - name: Build libmpv
         run: |
           echo "=== Building libmpv (with libplacebo subproject) ==="
-          ./build.sh -e distribution -s 4
+          ./build.sh -e development -s 4
 
       # === 准备最终产物 ===
       - name: Prepare artifacts
@@ -217,6 +218,16 @@ jobs:
             lib/*.a
           retention-days: 30
           if-no-files-found: warn
+
+      # === 上传完整 scratch 目录（含头文件和库，供测试 job 使用）===
+      - name: Upload build artifacts for testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmpv-build-artifacts
+          path: |
+            scratch/
+            src/
+          retention-days: 30
 
   build-development:
     name: Build libmpv for iOS (Development)
@@ -281,11 +292,11 @@ jobs:
           path: artifacts/libmpv-ios-development.tar.gz
           retention-days: 30
 
-  # Job 4: 截图功能测试（编译 libmpv 模拟器版本 + 运行 XCTest）
+  # Job 4: 截图功能测试（复用 build job 的编译产物，运行 XCTest）
   test-screenshot:
     name: Test Screenshot (iOS Simulator)
     runs-on: macos-latest
-    needs: dependencies
+    needs: build
 
     steps:
       - name: Checkout repository
@@ -296,52 +307,21 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      - name: Install dependencies
+      - name: Make scripts executable
         run: |
-          brew install pkg-config
-          brew install nasm
-          brew install meson
-          brew install python@3.13
-
-      - name: Install gas-preprocessor
-        run: |
-          sudo curl -L https://github.com/libav/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl
-          sudo chmod +x /usr/local/bin/gas-preprocessor.pl
-
-      - name: Download sources
-        run: |
-          chmod +x download.sh
-          ./download.sh
-
-      - name: Make build scripts executable
-        run: |
-          chmod +x build.sh
-          chmod +x clean.sh
-          chmod +x scripts/*-build
           chmod +x scripts/create-framework.sh
-          chmod +x scripts/download-test-video.sh
 
-      # === 下载依赖 artifact ===
-      - name: Download dependencies
+      # === 下载 build job 的完整编译产物（含 scratch 和 src）===
+      - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: ios-dependencies
-          path: scratch/
+          name: libmpv-build-artifacts
+          path: ./
 
-      # === 编译模拟器版 libmpv (x86_64) ===
-      - name: Build libmpv for iOS Simulator (x86_64)
-        run: |
-          echo "=== Building libmpv for iOS Simulator ==="
-          # 只编译 x86_64 模拟器架构（用于 CI 测试）
-          export ARCH=x86_64
-          export SDKPATH="$(xcodebuild -sdk iphonesimulator -version Path)"
-          export ENVIRONMENT=development
-          ./build.sh -e development -s 4
-
-      # === 创建 Libmpv.framework ===
+      # === 创建 Libmpv.framework（使用已编译好的产物）===
       - name: Create Libmpv.framework
         run: |
-          echo "=== Creating Libmpv.framework for Xcode testing ==="
+          echo "=== Creating Libmpv.framework from build artifacts ==="
           ./scripts/create-framework.sh
 
       # === 下载测试视频 ===

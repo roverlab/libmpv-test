@@ -4,37 +4,85 @@ set -e
 cd $SRC/mpv*
 
 echo "Building mpv with meson (libplacebo as subproject)..."
+echo "  ARCH=$ARCH"
+echo "  SDKPATH=$SDKPATH"
+echo "  SCRATCH=$SCRATCH"
+
+# Validate required environment variables
+if [ -z "$ARCH" ] || [ -z "$SDKPATH" ] || [ -z "$SCRATCH" ]; then
+    echo "ERROR: Required environment variables not set"
+    echo "  ARCH=$ARCH"
+    echo "  SDKPATH=$SDKPATH"
+    echo "  SCRATCH=$SCRATCH"
+    exit 1
+fi
+
+# Determine target based on architecture
+if [ "$ARCH" = "arm64" ]; then
+    TARGET_TRIPLE="arm64-apple-ios"
+    SDK_NAME="iphoneos"
+    CPU_FAMILY="aarch64"
+    CPU="aarch64"
+elif [ "$ARCH" = "x86_64" ]; then
+    TARGET_TRIPLE="x86_64-apple-ios13.0-simulator"
+    SDK_NAME="iphonesimulator"
+    CPU_FAMILY="x86_64"
+    CPU="x86_64"
+else
+    echo "ERROR: Unsupported architecture: $ARCH"
+    exit 1
+fi
 
 # Create cross-file for iOS cross-compilation
 CROSS_FILE=$(mktemp)
 cat > "$CROSS_FILE" << EOF
 [binaries]
-c = ['$(xcrun -sdk iphoneos --find clang)', '-target', 'arm64-apple-ios', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
-cpp = ['$(xcrun -sdk iphoneos --find clang++)', '-target', 'arm64-apple-ios', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
-objc = ['$(xcrun -sdk iphoneos --find clang)', '-target', 'arm64-apple-ios', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
-objcpp = ['$(xcrun -sdk iphoneos --find clang++)', '-target', 'arm64-apple-ios', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
-ar = '$(xcrun --find ar)'
-strip = '$(xcrun --find strip)'
+c = ['\$(xcrun -sdk $SDK_NAME --find clang)', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
+cpp = ['\$(xcrun -sdk $SDK_NAME --find clang++)', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
+objc = ['\$(xcrun -sdk $SDK_NAME --find clang)', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
+objcpp = ['\$(xcrun -sdk $SDK_NAME --find clang++)', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
+ar = '\$(xcrun --find ar)'
+strip = '\$(xcrun --find strip)'
 pkg-config = 'pkg-config'
 
 [host_machine]
 system = 'darwin'
-cpu_family = 'aarch64'
-cpu = 'aarch64'
+cpu_family = '$CPU_FAMILY'
+cpu = '$CPU'
 endian = 'little'
 
 [built-in options]
-c_args = ['-fembed-bitcode', '-Os']
-cpp_args = ['-fembed-bitcode', '-Os']
-c_link_args = ['-lbz2', '-fembed-bitcode', '-Os']
 prefix = '$SCRATCH/$ARCH'
 libdir = 'lib'
 default_library = 'static'
 EOF
 
+# Set buildtype and compiler flags based on environment
+BUILDTYPE="release"
+C_ARGS="-fembed-bitcode -Os"
+CPP_ARGS="-fembed-bitcode -Os"
+C_LINK_ARGS="-lbz2 -fembed-bitcode -Os"
+
+if [[ "$ENVIRONMENT" = "development" ]]; then
+    BUILDTYPE="debug"
+    C_ARGS="-fembed-bitcode -g2 -Og"
+    CPP_ARGS="-fembed-bitcode -g2 -Og"
+    C_LINK_ARGS="-lbz2 -fembed-bitcode -g2 -Og"
+fi
+
+# Write build options to cross-file (c_args, cpp_args, c_link_args)
+cat >> "$CROSS_FILE" << EOF
+c_args = [$C_ARGS]
+cpp_args = [$CPP_ARGS]
+c_link_args = [$C_LINK_ARGS]
+EOF
+
+echo "Cross-file created at: $CROSS_FILE"
+cat "$CROSS_FILE" | head -20
+
 meson setup build \
 	--cross-file "$CROSS_FILE" \
-	--buildtype=release \
+	--buildtype=$BUILDTYPE \
 	--wrap-mode=nodownload \
 	-Ddefault_library=static \
 	-Dcplayer=false \
@@ -70,12 +118,6 @@ meson setup build \
 	-Dlibarchive=disabled \
 	-Duchardet=disabled \
 	-Dmacos-media-player=disabled
-
-# Keep cross-file for ninja (don't delete it - needed for reconfigure)
-
-if [[ "$ENVIRONMENT" = "development" ]]; then
-	meson configure build -Dbuildtype=debug
-fi
 
 ninja -C build -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
 ninja -C build install
