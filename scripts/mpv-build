@@ -37,7 +37,6 @@ meson setup build \
 	-Dlibmpv=true \
 	-Dgl=disabled \
 	-Dios-gl=enabled \
-	-Dplain-gl=enabled \
 	-Dlua=disabled \
 	-Djavascript=disabled \
 	-Dlibarchive=disabled \
