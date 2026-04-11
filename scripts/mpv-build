@@ -5,6 +5,15 @@ cd $SRC/mpv*
 
 echo "Building mpv with meson (libplacebo as subproject)..."
 
+# Force Python 3.13 for meson (Python 3.14 breaks libplacebo's utils_gen.py)
+PYTHON3=$(which python3.13 2>/dev/null || which python3.12 2>/dev/null || echo "")
+if [ -n "$PYTHON3" ]; then
+    echo "Using Python: $PYTHON3 (for libplacebo code generation compatibility)"
+    export PATH "$(dirname $PYTHON3):$PATH"
+else
+    echo "WARNING: Python 3.12/3.13 not found, using system default"
+fi
+
 # Create cross-file for iOS cross-compilation
 CROSS_FILE=$(mktemp)
 cat > "$CROSS_FILE" << EOF
