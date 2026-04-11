@@ -13,6 +13,7 @@ c = ['$(xcrun -sdk iphoneos --find clang)', '-target', 'arm64-apple-ios', '-isys
 cpp = ['$(xcrun -sdk iphoneos --find clang++)', '-target', 'arm64-apple-ios', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
 objc = ['$(xcrun -sdk iphoneos --find clang)', '-target', 'arm64-apple-ios', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
 objcpp = ['$(xcrun -sdk iphoneos --find clang++)', '-target', 'arm64-apple-ios', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
+swift = ['$(xcrun -sdk iphoneos --find swift)', '-target', 'arm64-apple-ios', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
 ar = '$(xcrun --find ar)'
 strip = '$(xcrun --find strip)'
 pkg-config = 'pkg-config'
@@ -43,7 +44,10 @@ meson setup build \
 	-Djavascript=disabled \
 	-Dlibarchive=disabled \
 	-Duchardet=enabled \
-	-Dlibplacebo:vulkan=disabled
+	-Dlibplacebo:vulkan=disabled \
+	-Dmacos-media-player=disabled \
+	-Dmacos-cocoa-cb=disabled \
+	-Dswift=disabled
 
 # Keep cross-file for ninja (don't delete it - needed for reconfigure)
 
