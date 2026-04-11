@@ -18,7 +18,7 @@ if [ -f "meson.build" ]; then
 		-Dzimg=disabled \
 		-Dlibmpv=true \
 		-Dios-gl=enabled \
-		Dgl=enabled \
+		-Dgl=enabled \
 		-Djavascript=disabled \
 		-Dlibbluray=disabled \
 		-Dvapoursynth=disabled \
