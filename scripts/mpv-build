@@ -70,11 +70,22 @@ if [[ "$ENVIRONMENT" = "development" ]]; then
     C_LINK_ARGS="-lbz2 -fembed-bitcode -g2 -Og"
 fi
 
+# Convert space-separated flags to meson array format: ['-a', '-b', '-c']
+to_meson_array() {
+    local input="$1"
+    local result=""
+    for word in $input; do
+        if [ -n "$result" ]; then result="$result, "; fi
+        result="'$word'"
+    done
+    echo "[$result]"
+}
+
 # Write build options to cross-file (c_args, cpp_args, c_link_args)
 cat >> "$CROSS_FILE" << EOF
-c_args = [$C_ARGS]
-cpp_args = [$CPP_ARGS]
-c_link_args = [$C_LINK_ARGS]
+c_args = $(to_meson_array "$C_ARGS")
+cpp_args = $(to_meson_array "$CPP_ARGS")
+c_link_args = $(to_meson_array "$C_LINK_ARGS")
 EOF
 
 echo "Cross-file created at: $CROSS_FILE"
