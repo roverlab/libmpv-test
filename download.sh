@@ -18,7 +18,7 @@ FREETYPE_URL="https://github.com/freetype/freetype/archive/refs/tags/VER-${FREET
 HARFBUZZ_URL="https://github.com/harfbuzz/harfbuzz/releases/download/$HARFBUZZ_VERSION/harfbuzz-$HARFBUZZ_VERSION.tar.xz"
 FRIBIDI_URL="https://github.com/fribidi/fribidi/releases/download/v$FRIBIDI_VERSION/fribidi-$FRIBIDI_VERSION.tar.xz"
 UCHARDET_URL="https://github.com/BYVoid/uchardet/archive/v$UCHARDET_VERSION.tar.gz"
-LIBPLACEBO_URL="https://code.videolan.org/videolan/libplacebo/archive/v$LIBPLACEBO_VERSION.tar.gz"
+LIBPLACEBO_URL="https://github.com/haasn/libplacebo/archive/refs/tags/v$LIBPLACEBO_VERSION.tar.gz"
 
 echo "=== Downloading sources ==="
 echo "mpv: $MPV_VERSION"
