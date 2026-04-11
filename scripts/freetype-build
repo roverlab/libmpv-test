@@ -10,12 +10,16 @@ if [ -z "$FREETYPE_DIR" ] || [ ! -d "$FREETYPE_DIR" ]; then
     exit 1
 fi
 
+# Extract prefix from COMMON_OPTIONS (same approach as uchardet-build)
+PREFIX="${COMMON_OPTIONS%% *}"
+PREFIX="${PREFIX##*=}"
+
 echo "Building freetype with CMake..."
 echo "  Source: $FREETYPE_DIR"
-echo "  Prefix: $SCRATCH/$ARCH"
+echo "  Prefix: $PREFIX"
 
 cmake -S "$FREETYPE_DIR" -B . \
-	-DCMAKE_INSTALL_PREFIX="$SCRATCH/$ARCH" \
+	-DCMAKE_INSTALL_PREFIX="$PREFIX" \
 	-DCMAKE_SYSTEM_NAME=Darwin \
 	-DCMAKE_C_FLAGS="$CFLAGS" \
 	-DCMAKE_CXX_FLAGS="$CXXFLAGS" \
