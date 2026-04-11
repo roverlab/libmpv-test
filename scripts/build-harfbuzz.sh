@@ -164,9 +164,16 @@ export RANLIB=$(xcrun -f ranlib)
 export STRIP=$(xcrun -f strip)
 
 # Set compiler flags for iOS cross-compilation
-export CFLAGS="-arch $ARCH -mios-version-min=$MIN_IOS_VERSION -isysroot $SDK_PATH -fembed-bitcode"
-export CXXFLAGS="$CFLAGS"
-export LDFLAGS="-arch $ARCH -mios-version-min=$MIN_IOS_VERSION -isysroot $SDK_PATH"
+# For simulator, use -mios-simulator-version-min instead of -mios-version-min
+if [ "$TARGET" = "simulator" ]; then
+    export CFLAGS="-arch $ARCH -mios-simulator-version-min=$MIN_IOS_VERSION -isysroot $SDK_PATH"
+    export CXXFLAGS="$CFLAGS"
+    export LDFLAGS="-arch $ARCH -mios-simulator-version-min=$MIN_IOS_VERSION -isysroot $SDK_PATH"
+else
+    export CFLAGS="-arch $ARCH -mios-version-min=$MIN_IOS_VERSION -isysroot $SDK_PATH -fembed-bitcode"
+    export CXXFLAGS="$CFLAGS"
+    export LDFLAGS="-arch $ARCH -mios-version-min=$MIN_IOS_VERSION -isysroot $SDK_PATH"
+fi
 
 # Set PKG_CONFIG_PATH to find freetype dependency
 export PKG_CONFIG_PATH="$BUILD_DIR/lib/pkgconfig:$PKG_CONFIG_PATH"
@@ -234,6 +241,7 @@ MESON_ARGS=(
     --cross-file="$CROSS_FILE"
     --prefix="$BUILD_DIR"
     --default-library=static
+    --wrap-mode=nofallback
     -Dfreetype=enabled
     -Dglib=disabled
     -Dgobject=disabled
@@ -244,6 +252,9 @@ MESON_ARGS=(
     -Ddocs=disabled
     -Dbenchmark=disabled
 )
+
+# Set PKG_CONFIG environment for meson
+export PKG_CONFIG="pkg-config"
 
 meson setup "${MESON_ARGS[@]}" "$SOURCE_DIR" 2>&1 | tee configure.log
 if [ ${PIPESTATUS[0]} -ne 0 ]; then

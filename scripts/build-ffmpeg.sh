@@ -164,9 +164,16 @@ export RANLIB=$(xcrun -f ranlib)
 export STRIP=$(xcrun -f strip)
 
 # Set compiler flags for iOS cross-compilation
-export CFLAGS="-arch $ARCH -mios-version-min=$MIN_IOS_VERSION -isysroot $SDK_PATH -fembed-bitcode"
-export CXXFLAGS="$CFLAGS"
-export LDFLAGS="-arch $ARCH -mios-version-min=$MIN_IOS_VERSION -isysroot $SDK_PATH"
+# For simulator, use -mios-simulator-version-min instead of -mios-version-min
+if [ "$TARGET" = "simulator" ]; then
+    export CFLAGS="-arch $ARCH -mios-simulator-version-min=$MIN_IOS_VERSION -isysroot $SDK_PATH"
+    export CXXFLAGS="$CFLAGS"
+    export LDFLAGS="-arch $ARCH -mios-simulator-version-min=$MIN_IOS_VERSION -isysroot $SDK_PATH"
+else
+    export CFLAGS="-arch $ARCH -mios-version-min=$MIN_IOS_VERSION -isysroot $SDK_PATH -fembed-bitcode"
+    export CXXFLAGS="$CFLAGS"
+    export LDFLAGS="-arch $ARCH -mios-version-min=$MIN_IOS_VERSION -isysroot $SDK_PATH"
+fi
 
 log_info "Compiler: $CC"
 log_info "CFLAGS: $CFLAGS"
