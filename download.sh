@@ -63,6 +63,31 @@ for URL in $UCHARDET_URL $FREETYPE_URL $LIBPLACEBO_URL $HARFBUZZ_URL $FRIBIDI_UR
     echo "    Done"
 done
 
+# libplacebo uses git submodules (glad, etc.) which are not included in the tar.gz
+# Download glad manually into the extracted libplacebo source directory
+LIBPLACEBO_DIR=$(ls -d src/libplacebo-* 2>/dev/null | head -1)
+if [ -n "$LIBPLACEBO_DIR" ] && [ -d "$LIBPLACEBO_DIR" ]; then
+    echo ""
+    echo ">>> Fetching libplacebo submodules..."
+    GLAD_DIR="$LIBPLACEBO_DIR/3rdparty/glad"
+    if [ ! -d "$GLAD_DIR" ]; then
+        echo "    Downloading glad (libplacebo dependency)..."
+        mkdir -p "$LIBPLACEBO_DIR/3rdparty"
+        curl -f -L -- https://github.com/Dav1dde/glad/archive/refs/heads/master.tar.gz | tar xz -C "$LIBPLACEBO_DIR/3rdparty"
+        if [ -d "$LIBPLACEBO_DIR/3rdparty/glad-master" ]; then
+            mv "$LIBPLACEBO_DIR/3rdparty/glad-master" "$GLAD_DIR"
+        fi
+        if [ -d "$GLAD_DIR" ]; then
+            echo "    glad downloaded successfully"
+        else
+            echo "    ERROR: Failed to download glad"
+            exit 1
+        fi
+    else
+        echo "    glad already exists, skipping"
+    fi
+fi
+
 echo "\033[1;32mDownloaded: \033[0m\n mpv: $MPV_VERSION \
                             \n FFmpeg: $FFMPEG_VERSION \
                             \n libass: $LIBASS_VERSION \
