@@ -33,16 +33,28 @@ else
     exit 1
 fi
 
+# Resolve toolchain paths at shell time (meson won't expand $(...) )
+CC_PATH="$(xcrun -sdk $SDK_NAME --find clang)"
+CXX_PATH="$(xcrun -sdk $SDK_NAME --find clang++)"
+AR_PATH="$(xcrun --find ar)"
+STRIP_PATH="$(xcrun --find strip)"
+
+echo "Resolved toolchain paths:"
+echo "  CC=$CC_PATH"
+echo "  CXX=$CXX_PATH"
+echo "  AR=$AR_PATH"
+echo "  STRIP=$STRIP_PATH"
+
 # Create cross-file for iOS cross-compilation
 CROSS_FILE=$(mktemp)
 cat > "$CROSS_FILE" << EOF
 [binaries]
-c = ['\$(xcrun -sdk $SDK_NAME --find clang)', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
-cpp = ['\$(xcrun -sdk $SDK_NAME --find clang++)', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
-objc = ['\$(xcrun -sdk $SDK_NAME --find clang)', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
-objcpp = ['\$(xcrun -sdk $SDK_NAME --find clang++)', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
-ar = '\$(xcrun --find ar)'
-strip = '\$(xcrun --find strip)'
+c = ['$CC_PATH', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
+cpp = ['$CXX_PATH', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
+objc = ['$CC_PATH', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
+objcpp = ['$CXX_PATH', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
+ar = '$AR_PATH'
+strip = '$STRIP_PATH'
 pkg-config = 'pkg-config'
 
 [host_machine]
