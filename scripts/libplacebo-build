@@ -54,7 +54,6 @@ meson setup "$LIBPLACEBO_DIR"/build "$LIBPLACEBO_DIR" \
 	-Dd3d11=disabled \
 	-Ddemos=false \
 	-Dtests=false \
-	-Dfuzzers=false \
 	-Dinstall=true
 
 rm -f "$CROSS_FILE"
