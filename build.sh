@@ -87,10 +87,7 @@ for ARCH in $ARCHS; do
 				mkdir -p $SCRATCH/$ARCH/freetype && cd $_ && $SCRIPTS/freetype-build
 				;;
             "libharfbuzz" )
-				# Disable cast-function-type-strict warning for compatibility with older harfbuzz
-				HB_CFLAGS="$CFLAGS -Wno-error=cast-function-type-strict"
-				HB_CXXFLAGS="$CXXFLAGS -Wno-error=cast-function-type-strict"
-				mkdir -p $SCRATCH/$ARCH/harfbuzz && cd $_ && CFLAGS="$HB_CFLAGS" CXXFLAGS="$HB_CXXFLAGS" $SCRIPTS/harfbuzz-build
+				mkdir -p $SCRATCH/$ARCH/harfbuzz && cd $_ && $SCRIPTS/harfbuzz-build
 				;;
             "libass" )
 				mkdir -p $SCRATCH/$ARCH/libass && cd $_ && $SCRIPTS/libass-build
