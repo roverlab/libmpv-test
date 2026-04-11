@@ -1,7 +1,20 @@
 #!/bin/sh
 set -e
 
-$SRC/freetype*/configure $COMMON_OPTIONS \
+# freetype 2.13+ requires dlg subproject. Download it since tarball doesn't include git submodules.
+FREETYPE_DIR=$SRC/freetype*
+if [ ! -d "$FREETYPE_DIR/src/dlg" ]; then
+    echo "Setting up dlg subproject for freetype..."
+    mkdir -p "$FREETYPE_DIR/src/dlg"
+    mkdir -p "$FREETYPE_DIR/include/dlg"
+    # Download dlg source files from nyorain/dlg repository
+    curl -sL "https://raw.githubusercontent.com/nyorain/dlg/master/include/dlg/output.h" -o "$FREETYPE_DIR/include/dlg/output.h"
+    curl -sL "https://raw.githubusercontent.com/nyorain/dlg/master/include/dlg/dlg.h" -o "$FREETYPE_DIR/include/dlg/dlg.h"
+    curl -sL "https://raw.githubusercontent.com/nyorain/dlg/master/src/dlg/dlg.c" -o "$FREETYPE_DIR/src/dlg/dlg.c"
+    echo "dlg subproject ready"
+fi
+
+$FREETYPE_DIR/configure $COMMON_OPTIONS \
 							--with-zlib=yes \
 							--without-png \
 							--with-bzip2=no \
