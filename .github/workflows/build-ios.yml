@@ -14,7 +14,7 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Setup environment
         run: |
@@ -36,7 +36,7 @@ jobs:
           pkg-config --version
       
       - name: Cache source tarballs
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cache/ios-mpv-build/sources
@@ -45,7 +45,7 @@ jobs:
             ${{ runner.os }}-sources-
       
       - name: Cache compiled dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             build/device
@@ -86,7 +86,7 @@ jobs:
       
       - name: Upload build artifacts
         if: success()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ios-mpv-library-${{ github.sha }}
           path: |
@@ -95,7 +95,7 @@ jobs:
       
       - name: Upload verification report
         if: success()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: verification-report-${{ github.sha }}
           path: |
@@ -104,7 +104,7 @@ jobs:
       
       - name: Upload build logs
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build-logs-${{ github.sha }}
           path: |
