@@ -18,7 +18,10 @@ FREETYPE_URL="https://github.com/freetype/freetype/archive/refs/tags/VER-${FREET
 HARFBUZZ_URL="https://github.com/harfbuzz/harfbuzz/releases/download/$HARFBUZZ_VERSION/harfbuzz-$HARFBUZZ_VERSION.tar.xz"
 FRIBIDI_URL="https://github.com/fribidi/fribidi/releases/download/v$FRIBIDI_VERSION/fribidi-$FRIBIDI_VERSION.tar.xz"
 UCHARDET_URL="https://github.com/BYVoid/uchardet/archive/v$UCHARDET_VERSION.tar.gz"
-LIBPLACEBO_URL="https://github.com/haasn/libplacebo/archive/refs/tags/v$LIBPLACEBO_VERSION.tar.gz"
+
+# libplacebo uses git submodules (glad, jinja, markupsafe, etc.) which are NOT
+# included in the tar.gz release. Use git clone --recursive instead.
+LIBPLACEBO_GIT_URL="https://github.com/haasn/libplacebo.git"
 
 echo "=== Downloading sources ==="
 echo "mpv: $MPV_VERSION"
@@ -28,12 +31,14 @@ echo "freetype: $FREETYPE_VERSION"
 echo "harfbuzz: $HARFBUZZ_VERSION"
 echo "fribidi: $FRIBIDI_VERSION"
 echo "uchardet: $UCHARDET_VERSION"
-echo "libplacebo: $LIBPLACEBO_VERSION"
+echo "libplacebo: $LIBPLACEBO_VERSION (git clone with submodules)"
 echo ""
 
 rm -rf src
 mkdir -p src downloads
-for URL in $UCHARDET_URL $FREETYPE_URL $LIBPLACEBO_URL $HARFBUZZ_URL $FRIBIDI_URL $LIBASS_URL $FFMPEG_URL $MPV_URL; do
+
+# Download tarball-based sources (no submodules needed)
+for URL in $UCHARDET_URL $FREETYPE_URL $HARFBUZZ_URL $FRIBIDI_URL $LIBASS_URL $FFMPEG_URL $MPV_URL; do
 	TARNAME=${URL##*/}
 	echo ""
 	echo ">>> Processing: $TARNAME"
@@ -63,31 +68,22 @@ for URL in $UCHARDET_URL $FREETYPE_URL $LIBPLACEBO_URL $HARFBUZZ_URL $FRIBIDI_UR
     echo "    Done"
 done
 
-# libplacebo uses git submodules (glad, etc.) which are not included in the tar.gz
-# Download glad manually into the extracted libplacebo source directory
-LIBPLACEBO_DIR=$(ls -d src/libplacebo-* 2>/dev/null | head -1)
-if [ -n "$LIBPLACEBO_DIR" ] && [ -d "$LIBPLACEBO_DIR" ]; then
-    echo ""
-    echo ">>> Fetching libplacebo submodules..."
-    GLAD_DIR="$LIBPLACEBO_DIR/3rdparty/glad"
-    if [ ! -d "$GLAD_DIR" ]; then
-        echo "    Downloading glad (libplacebo dependency)..."
-        mkdir -p "$LIBPLACEBO_DIR/3rdparty"
-        curl -f -L -- https://github.com/Dav1dde/glad/archive/refs/heads/master.tar.gz | tar xz -C "$LIBPLACEBO_DIR/3rdparty"
-        if [ -d "$LIBPLACEBO_DIR/3rdparty/glad-master" ]; then
-            mv "$LIBPLACEBO_DIR/3rdparty/glad-master" "$GLAD_DIR"
-        fi
-        if [ -d "$GLAD_DIR" ]; then
-            echo "    glad downloaded successfully"
-        else
-            echo "    ERROR: Failed to download glad"
-            exit 1
-        fi
-    else
-        echo "    glad already exists, skipping"
+# libplacebo: use git clone --recursive to get all submodules (glad, jinja, etc.)
+echo ""
+echo ">>> Processing: libplacebo v$LIBPLACEBO_VERSION"
+if [ ! -d "src/libplacebo-${LIBPLACEBO_VERSION}" ]; then
+    echo "    Cloning from git (with recursive submodules)..."
+    git clone --recurse-submodules --branch "v$LIBPLACEBO_VERSION" "$LIBPLACEBO_GIT_URL" "src/libplacebo-${LIBPLACEBO_VERSION}"
+    if [ $? -ne 0 ]; then
+        echo "    ERROR: Failed to clone libplacebo"
+        exit 1
     fi
+    echo "    Cloned successfully with all submodules"
+else
+    echo "    Already exists, skipping"
 fi
 
+echo ""
 echo "\033[1;32mDownloaded: \033[0m\n mpv: $MPV_VERSION \
                             \n FFmpeg: $FFMPEG_VERSION \
                             \n libass: $LIBASS_VERSION \
