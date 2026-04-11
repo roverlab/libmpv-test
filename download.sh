@@ -8,7 +8,7 @@ LIBASS_VERSION="0.17.3"
 FREETYPE_VERSION="2.13.2"
 HARFBUZZ_VERSION="8.4.0"
 FRIBIDI_VERSION="1.0.13"
-UCHARDET_VERSION="0.0.8"
+UCHARDET_VERSION="0.0.6"
 
 MPV_URL="https://github.com/mpv-player/mpv/archive/v$MPV_VERSION.tar.gz"
 FFMPEG_URL="http://www.ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.bz2"
