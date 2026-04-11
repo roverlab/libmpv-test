@@ -24,13 +24,7 @@ c = ['$(xcrun -sdk iphoneos --find clang)', '-target', 'arm64-apple-ios', '-isys
 cpp = ['$(xcrun -sdk iphoneos --find clang++)', '-target', 'arm64-apple-ios', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
 ar = '$(xcrun --find ar)'
 strip = '$(xcrun --find strip)'
-pkgconfig = 'pkg-config'
-
-[properties]
-c_args = ['$CFLAGS']
-cpp_args = ['$CXXFLAGS']
-c_link_args = ['$LDFLAGS']
-needs_exe_wrapper = true
+pkg-config = 'pkg-config'
 
 [host_machine]
 system = 'darwin'
@@ -38,23 +32,22 @@ cpu_family = 'aarch64'
 cpu = 'aarch64'
 endian = 'little'
 
-[paths]
+[built-in options]
+c_args = ['$CFLAGS']
+cpp_args = ['$CXXFLAGS']
+c_link_args = ['$LDFLAGS']
 prefix = '$PREFIX'
 libdir = 'lib'
-
-[built_options]
 default_library = 'static'
 EOF
 
 meson setup "$LIBPLACEBO_DIR"/build "$LIBPLACEBO_DIR" \
 	--cross-file "$CROSS_FILE" \
-	-Ddefault_library=static \
 	-Dopengl=enabled \
 	-Dvulkan=disabled \
 	-Dd3d11=disabled \
 	-Ddemos=false \
-	-Dtests=false \
-	-Dinstall=true
+	-Dtests=false
 
 rm -f "$CROSS_FILE"
 
