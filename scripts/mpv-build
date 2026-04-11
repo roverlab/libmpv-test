@@ -11,22 +11,22 @@ if [ -f "meson.build" ]; then
 	CROSS_FILE=$(mktemp)
 	cat > "$CROSS_FILE" << EOF
 [binaries]
-c = '$(xcrun -sdk iphoneos --find clang)'
-cpp = '$(xcrun -sdk iphoneos --find clang++)'
+c = ['$(xcrun -sdk iphoneos --find clang)', '-target', 'arm64-apple-ios', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
+cpp = ['$(xcrun -sdk iphoneos --find clang++)', '-target', 'arm64-apple-ios', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
 ar = '$(xcrun --find ar)'
 strip = '$(xcrun --find strip)'
 pkgconfig = 'pkg-config'
 
 [properties]
-c_args = ['$CFLAGS']
-cpp_args = ['$CXXFLAGS']
-c_link_args = ['$LDFLAGS']
+c_args = ['-fembed-bitcode', '-Os']
+cpp_args = ['-fembed-bitcode', '-Os']
+c_link_args = ['-lbz2', '-fembed-bitcode', '-Os']
 needs_exe_wrapper = true
 
 [host_machine]
 system = 'darwin'
-cpu_family = '$ARCH'
-cpu = '$ARCH'
+cpu_family = 'aarch64'
+cpu = 'aarch64'
 endian = 'little'
 
 [paths]
