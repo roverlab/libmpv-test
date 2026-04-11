@@ -3,13 +3,11 @@ set -e
 
 cd $SRC/mpv*
 
-# mpv 0.39+ uses meson build system
-if [ -f "meson.build" ]; then
-	echo "Building mpv with meson..."
+echo "Building mpv with meson..."
 
-	# Create cross-file for iOS cross-compilation
-	CROSS_FILE=$(mktemp)
-	cat > "$CROSS_FILE" << EOF
+# Create cross-file for iOS cross-compilation
+CROSS_FILE=$(mktemp)
+cat > "$CROSS_FILE" << EOF
 [binaries]
 c = ['$(xcrun -sdk iphoneos --find clang)', '-target', 'arm64-apple-ios', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
 cpp = ['$(xcrun -sdk iphoneos --find clang++)', '-target', 'arm64-apple-ios', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
@@ -37,56 +35,68 @@ libdir = 'lib'
 default_library = 'static'
 EOF
 
-	meson setup build \
-		--cross-file "$CROSS_FILE" \
-		-Dcplayer=false \
-		-Dlcms2=disabled \
-		-Dlua=disabled \
-		-Drubberband=disabled \
-		-Dzimg=disabled \
-		-Dlibmpv=true \
-		-Dios-gl=enabled \
-		-Dgl=enabled \
-		-Djavascript=disabled \
-		-Dlibbluray=disabled \
-		-Dvapoursynth=disabled \
-		-Duchardet=enabled
+meson setup build \
+	--cross-file "$CROSS_FILE" \
+	-Dcplayer=false \
+	-Dgpl=false \
+	-Dlibmpv=true \
+	-Dgl=disabled \
+	-Dios-gl=enabled \
+	-Dplain-gl=enabled \
+	-Dlcms2=disabled \
+	-Dlua=disabled \
+	-Drubberband=disabled \
+	-Dzimg=disabled \
+	-Djavascript=disabled \
+	-Dlibbluray=disabled \
+	-Dvapoursynth=disabled \
+	-Dlibarchive=disabled \
+	-Dcdda=disabled \
+	-Ddvbin=disabled \
+	-Ddvdnav=disabled \
+	-Dlibavdevice=disabled \
+	-Dalsa=disabled \
+	-Daudiounit=disabled \
+	-Dcoreaudio=disabled \
+	-Davfoundation=disabled \
+	-Djack=disabled \
+	-Dpipewire=disabled \
+	-Dpulse=disabled \
+	-Dsndio=disabled \
+	-Damf=disabled \
+	-Dcaca=disabled \
+	-Dcocoa=disabled \
+	-Ddrm=disabled \
+	-Degl=disabled \
+	-Dgbm=disabled \
+	-Dsdl2-video=disabled \
+	-Dsixel=disabled \
+	-Dvdpau=disabled \
+	-Dvaapi=disabled \
+	-Dvulkan=disabled \
+	-Dwayland=disabled \
+	-Dx11=disabled \
+	-Dxv=disabled \
+	-Dcuda-hwaccel=disabled \
+	-Dcuda-interop=disabled \
+	-Dd3d-hwaccel=disabled \
+	-Dvideotoolbox-gl=disabled \
+	-Dvideotoolbox-pl=disabled \
+	-Dshaderc=disabled \
+	-Dspirv-cross=disabled \
+	-Dsubrandr=disabled \
+	-Duchardet=enabled \
+	-Dzlib=enabled \
+	-Diconv=enabled
 
-	rm -f "$CROSS_FILE"
+rm -f "$CROSS_FILE"
 
-	if [[ "$ENVIRONMENT" = "development" ]]; then
-		meson configure build -Dbuildtype=debug
-	fi
-
-	ninja -C build -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
-	ninja -C build install
-
-	# Copy libmpv.a to lib directory
-	find "$SCRATCH/$ARCH" -name "libmpv.a" -exec cp {} "$SCRATCH/$ARCH/lib/" \; 2>/dev/null || true
-else
-	echo "Building mpv with waf (legacy)..."
-
-	OPTS="--prefix=$SCRATCH/$ARCH \
-		--exec-prefix=$SCRATCH/$ARCH \
-		--disable-cplayer \
-		--disable-lcms2 \
-		--disable-lua \
-		--disable-rubberband \
-		--disable-zimg \
-		--enable-libmpv-static \
-		--enable-ios-gl \
-		--enable-gl \
-		--disable-javascript \
-		--disable-libbluray \
-		--disable-vapoursynth \
-		--enable-uchardet \
-		--enable-lgpl"
-
-	if [[ "$ENVIRONMENT" = "development" ]]; then
-		OPTS="$OPTS --disable-optimize"
-	fi
-
-	./bootstrap.py
-	./waf configure $OPTS
-	./waf build -j4
+if [[ "$ENVIRONMENT" = "development" ]]; then
+	meson configure build -Dbuildtype=debug
 fi
+
+ninja -C build -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
+ninja -C build install
+
+# Copy libmpv.a to lib directory
+find "$SCRATCH/$ARCH" -name "libmpv.a" -exec cp {} "$SCRATCH/$ARCH/lib/" \; 2>/dev/null || true
