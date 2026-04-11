@@ -35,7 +35,6 @@ endian = 'little'
 [built-in options]
 c_args = ['$CFLAGS']
 cpp_args = ['$CXXFLAGS']
-c_link_args = ['$LDFLAGS']
 prefix = '$PREFIX'
 libdir = 'lib'
 default_library = 'static'
@@ -47,7 +46,8 @@ meson setup "$LIBPLACEBO_DIR"/build "$LIBPLACEBO_DIR" \
 	-Dvulkan=disabled \
 	-Dd3d11=disabled \
 	-Ddemos=false \
-	-Dtests=false
+	-Dtests=false \
+	-Dc_link_args="$LDFLAGS"
 
 rm -f "$CROSS_FILE"
 
