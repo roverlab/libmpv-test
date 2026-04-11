@@ -258,6 +258,9 @@ should_rebuild() {
 DEPENDENCIES=(
     "freetype"
     "fribidi"
+    "harfbuzz"
+    "uchardet"
+    "libass"
     "ffmpeg"
 )
 
