@@ -1,0 +1,70 @@
+# Build Artifacts
+build/
+*.a
+*.o
+*.dylib
+*.framework
+*.xcframework
+
+# Build Logs
+logs/
+*.log
+
+# Downloaded Sources
+downloads/
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.zip
+
+# Temporary Files
+tmp/
+temp/
+*.tmp
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+DerivedData/
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+
+# Build System Cache
+.cache/
+*.cache
+
+# Python (for Meson)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+
+# Editor Files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Package Artifacts
+*.tar.gz
+*.zip
+ios-mpv-library-release/
+
+# Debug Symbols
+*.dSYM/

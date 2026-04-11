@@ -1,0 +1,124 @@
+name: Build iOS MPV Library
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 120
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: Setup environment
+        run: |
+          echo "Setting up build environment..."
+          
+          # Display Xcode version
+          xcodebuild -version
+          
+          # Display SDK paths
+          xcrun --sdk iphoneos --show-sdk-path
+          xcrun --sdk iphonesimulator --show-sdk-path
+          
+          # Install build tools
+          brew install meson ninja pkg-config
+          
+          # Verify installations
+          meson --version
+          ninja --version
+          pkg-config --version
+      
+      - name: Cache source tarballs
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/ios-mpv-build/sources
+          key: ${{ runner.os }}-sources-${{ hashFiles('scripts/versions.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-sources-
+      
+      - name: Cache compiled dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            build/device
+            build/simulator
+          key: ${{ runner.os }}-deps-${{ hashFiles('scripts/versions.txt', 'scripts/build-*.sh') }}
+          restore-keys: |
+            ${{ runner.os }}-deps-
+      
+      - name: Validate environment
+        run: |
+          echo "Validating build environment..."
+          chmod +x scripts/validate-environment.sh
+          ./scripts/validate-environment.sh
+        continue-on-error: false
+      
+      - name: Run build orchestrator
+        run: |
+          echo "Starting iOS MPV library build..."
+          chmod +x scripts/build-orchestrator.sh
+          ./scripts/build-orchestrator.sh --target all --verbose
+        continue-on-error: false
+      
+      - name: Verify build artifacts
+        if: success()
+        run: |
+          echo "Verifying build artifacts..."
+          chmod +x scripts/verify-build.sh
+          ./scripts/verify-build.sh build/
+        continue-on-error: false
+      
+      - name: Package artifacts
+        if: success()
+        run: |
+          echo "Packaging build artifacts..."
+          chmod +x scripts/package-artifacts.sh
+          ./scripts/package-artifacts.sh build/ artifacts/
+        continue-on-error: false
+      
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v3
+        with:
+          name: ios-mpv-library-${{ github.sha }}
+          path: |
+            artifacts/
+          retention-days: 30
+      
+      - name: Upload verification report
+        if: success()
+        uses: actions/upload-artifact@v3
+        with:
+          name: verification-report-${{ github.sha }}
+          path: |
+            logs/verification.log
+          retention-days: 30
+      
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-logs-${{ github.sha }}
+          path: |
+            logs/
+          retention-days: 30
+      
+      - name: Report build status
+        if: failure()
+        run: |
+          echo "::error::Build failed. Check the logs for details."
+          echo "Build failed at $(date)"
+          if [ -f logs/errors.log ]; then
+            echo "::group::Error Summary"
+            cat logs/errors.log
+            echo "::endgroup::"
+          fi
+          exit 1
