@@ -3,7 +3,7 @@
 # Update these versions to trigger cache invalidation in CI/CD
 
 # Core Library
-MPV_VERSION=0.37.0
+MPV_VERSION=0.36.0
 
 # Video/Audio Processing
 FFMPEG_VERSION=6.1.1

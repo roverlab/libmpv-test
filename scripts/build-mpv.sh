@@ -232,18 +232,61 @@ log_info "Meson version: $(meson --version)"
 log_info "Ninja version: $(ninja --version)"
 
 # Configure with Meson
+# iOS-specific configuration: enable libmpv, disable CLI player and unnecessary features
 meson setup "$MESON_BUILD_DIR" \
     --cross-file="$CROSS_FILE" \
     --prefix="$BUILD_DIR" \
     --default-library=static \
     -Dlibmpv=true \
     -Dcplayer=false \
+    -Dbuild-date=false \
     -Dlua=disabled \
     -Djavascript=disabled \
     -Dlibarchive=disabled \
+    -Dcdda=disabled \
+    -Ddvbin=disabled \
+    -Ddvdnav=disabled \
+    -Dlibbluray=disabled \
+    -Drubberband=disabled \
+    -Dsdl2=disabled \
+    -Dsdl2-gamepad=disabled \
+    -Dvapoursynth=disabled \
     -Dmanpage-build=disabled \
     -Dhtml-build=disabled \
     -Dpdf-build=disabled \
+    -Dvulkan=disabled \
+    -Dvulkan-interop=disabled \
+    -Dvideotoolbox-pl=disabled \
+    -Dshaderc=disabled \
+    -Dspirv-cross=disabled \
+    -Dcaca=disabled \
+    -Dsixel=disabled \
+    -Djpeg=disabled \
+    -Ddrm=disabled \
+    -Dgbm=disabled \
+    -Dwayland=disabled \
+    -Dx11=disabled \
+    -Dxv=disabled \
+    -Dgl-x11=disabled \
+    -Degl-x11=disabled \
+    -Degl-drm=disabled \
+    -Degl-wayland=disabled \
+    -Dvdpau=disabled \
+    -Dvdpau-gl-x11=disabled \
+    -Dvaapi=disabled \
+    -Dvaapi-drm=disabled \
+    -Dvaapi-wayland=disabled \
+    -Dvaapi-x11=disabled \
+    -Dalsa=disabled \
+    -Djack=disabled \
+    -Dopensles=disabled \
+    -Doss-audio=disabled \
+    -Dpipewire=disabled \
+    -Dpulse=disabled \
+    -Dsdl2-audio=disabled \
+    -Dsndio=disabled \
+    -Dcuda-hwaccel=disabled \
+    -Dcuda-interop=disabled \
     2>&1 | tee configure.log
 
 if [ ${PIPESTATUS[0]} -ne 0 ]; then
