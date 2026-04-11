@@ -101,9 +101,7 @@ jobs:
           path: |
             downloads
             src
-          key: ios-sources-${{ env.MPV_VERSION }}-${{ env.FFMPEG_VERSION }}-${{ env.LIBASS_VERSION }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.UCHARDET_VERSION }}
-          restore-keys: |
-            ios-sources-
+          key: ios-sources-v2-${{ env.MPV_VERSION }}-${{ env.FFMPEG_VERSION }}-${{ env.LIBASS_VERSION }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.UCHARDET_VERSION }}
 
       - name: Download sources
         if: steps.cache-sources.outputs.cache-hit != 'true'
@@ -196,9 +194,7 @@ jobs:
           path: |
             downloads
             src
-          key: ios-sources-${{ env.MPV_VERSION }}-${{ env.FFMPEG_VERSION }}-${{ env.LIBASS_VERSION }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.UCHARDET_VERSION }}
-          restore-keys: |
-            ios-sources-
+          key: ios-sources-v2-${{ env.MPV_VERSION }}-${{ env.FFMPEG_VERSION }}-${{ env.LIBASS_VERSION }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.UCHARDET_VERSION }}
 
       - name: Download sources
         if: steps.cache-sources.outputs.cache-hit != 'true'
