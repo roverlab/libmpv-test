@@ -47,9 +47,9 @@ on:
         required: false
         default: '1.0.13'
       uchardet_version:
-        description: 'uchardet version (latest is 0.0.6)'
+        description: 'uchardet version'
         required: false
-        default: '0.0.6'
+        default: '0.0.5'
 
 env:
   MPV_VERSION: ${{ github.event.inputs.mpv_version || '0.39.0' }}
@@ -58,7 +58,7 @@ env:
   FREETYPE_VERSION: ${{ github.event.inputs.freetype_version || '2.13.2' }}
   HARFBUZZ_VERSION: ${{ github.event.inputs.harfbuzz_version || '8.4.0' }}
   FRIBIDI_VERSION: ${{ github.event.inputs.fribidi_version || '1.0.13' }}
-  UCHARDET_VERSION: ${{ github.event.inputs.uchardet_version || '0.0.6' }}
+  UCHARDET_VERSION: ${{ github.event.inputs.uchardet_version || '0.0.5' }}
 
 jobs:
   build:
