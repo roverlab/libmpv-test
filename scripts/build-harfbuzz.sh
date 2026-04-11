@@ -169,12 +169,14 @@ export CXXFLAGS="$CFLAGS"
 export LDFLAGS="-arch $ARCH -mios-version-min=$MIN_IOS_VERSION -isysroot $SDK_PATH"
 
 # Set PKG_CONFIG_PATH to find freetype dependency
-export PKG_CONFIG_PATH="$BUILD_DIR/lib/pkgconfig"
+export PKG_CONFIG_PATH="$BUILD_DIR/lib/pkgconfig:$PKG_CONFIG_PATH"
+export PKG_CONFIG_LIBDIR="$BUILD_DIR/lib/pkgconfig"
 
 log_info "Compiler: $CC"
 log_info "CFLAGS: $CFLAGS"
 log_info "LDFLAGS: $LDFLAGS"
 log_info "PKG_CONFIG_PATH: $PKG_CONFIG_PATH"
+log_info "PKG_CONFIG_LIBDIR: $PKG_CONFIG_LIBDIR"
 
 # Verify freetype dependency is available
 if [ ! -f "$BUILD_DIR/lib/libfreetype.a" ]; then
@@ -232,7 +234,8 @@ MESON_ARGS=(
     -Dbenchmark=disabled
 )
 
-if ! meson setup "${MESON_ARGS[@]}" "$SOURCE_DIR" 2>&1 | tee configure.log; then
+meson setup "${MESON_ARGS[@]}" "$SOURCE_DIR" 2>&1 | tee configure.log
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
     log_error "Meson configuration failed"
     log_error "See configure.log for details"
     tail -n 50 configure.log
@@ -246,7 +249,8 @@ log_info "Compiling HarfBuzz..."
 NUM_CORES=$(sysctl -n hw.ncpu)
 log_info "Using $NUM_CORES parallel jobs"
 
-if ! meson compile -j"$NUM_CORES" 2>&1 | tee build.log; then
+meson compile -j"$NUM_CORES" 2>&1 | tee build.log
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
     log_error "Compilation failed"
     log_error "See build.log for details"
     tail -n 50 build.log
@@ -258,7 +262,8 @@ log_info "✓ Compilation successful"
 # Install to build directory
 log_info "Installing HarfBuzz to $BUILD_DIR..."
 
-if ! meson install 2>&1 | tee install.log; then
+meson install 2>&1 | tee install.log
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
     log_error "Installation failed"
     log_error "See install.log for details"
     tail -n 50 install.log

@@ -239,7 +239,7 @@ log_info "Meson version: $(meson --version)"
 log_info "Ninja version: $(ninja --version)"
 
 # Configure with Meson
-if ! meson setup "$MESON_BUILD_DIR" \
+meson setup "$MESON_BUILD_DIR" \
     --cross-file="$CROSS_FILE" \
     --prefix="$BUILD_DIR" \
     --default-library=static \
@@ -251,7 +251,9 @@ if ! meson setup "$MESON_BUILD_DIR" \
     -Dmanpage-build=disabled \
     -Dhtml-build=disabled \
     -Dpdf-build=disabled \
-    2>&1 | tee configure.log; then
+    2>&1 | tee configure.log
+
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
     log_error "Meson configuration failed"
     log_error "See configure.log for details"
     tail -n 50 configure.log
@@ -263,7 +265,8 @@ log_info "✓ Meson configuration successful"
 # Compile MPV
 log_info "Compiling MPV..."
 
-if ! meson compile -C "$MESON_BUILD_DIR" 2>&1 | tee build.log; then
+meson compile -C "$MESON_BUILD_DIR" 2>&1 | tee build.log
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
     log_error "Compilation failed"
     log_error "See build.log for details"
     tail -n 50 build.log
@@ -275,9 +278,13 @@ log_info "✓ Compilation successful"
 # Install to build directory
 log_info "Installing MPV to $BUILD_DIR..."
 
-if ! meson install -C "$MESON_BUILD_DIR" 2>&1 | tee install.log; then
+meson install -C "$MESON_BUILD_DIR" 2>&1 | tee install.log
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
     log_error "Installation failed"
     log_error "See install.log for details"
+    tail -n 50 install.log
+    exit 1
+fi
     tail -n 50 install.log
     exit 1
 fi
