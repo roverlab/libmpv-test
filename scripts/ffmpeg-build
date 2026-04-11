@@ -10,7 +10,11 @@ FFMPEG_OPTIONS="${COMMON_OPTIONS%% *} \
 		--disable-programs \
 		--disable-doc \
 		--enable-pic \
-		--enable-shared"
+		--enable-static \
+		--disable-shared \
+		--disable-audiotoolbox \
+		--disable-videotoolbox \
+		--disable-coreimage"
 
 if [[ ! `which gas-preprocessor.pl` ]]; then
 	curl -L https://github.com/libav/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl \
