@@ -1,22 +1,25 @@
 #!/bin/sh
 set -e
 
-# freetype 2.13+ requires dlg subproject. Download it since tarball doesn't include git submodules.
+# freetype 2.13+ requires dlg subproject for autotools build, but the tarball
+# doesn't include git submodules. Use CMake instead to avoid this issue entirely.
 FREETYPE_DIR=$SRC/freetype*
-if [ ! -d "$FREETYPE_DIR/src/dlg" ]; then
-    echo "Setting up dlg subproject for freetype..."
-    mkdir -p "$FREETYPE_DIR/src/dlg"
-    mkdir -p "$FREETYPE_DIR/include/dlg"
-    # Download dlg source files from nyorain/dlg repository
-    curl -sL "https://raw.githubusercontent.com/nyorain/dlg/master/include/dlg/output.h" -o "$FREETYPE_DIR/include/dlg/output.h"
-    curl -sL "https://raw.githubusercontent.com/nyorain/dlg/master/include/dlg/dlg.h" -o "$FREETYPE_DIR/include/dlg/dlg.h"
-    curl -sL "https://raw.githubusercontent.com/nyorain/dlg/master/src/dlg/dlg.c" -o "$FREETYPE_DIR/src/dlg/dlg.c"
-    echo "dlg subproject ready"
-fi
 
-$FREETYPE_DIR/configure $COMMON_OPTIONS \
-							--with-zlib=yes \
-							--without-png \
-							--with-bzip2=no \
-							--with-harfbuzz=no
+echo "Building freetype with CMake..."
+
+cmake -S "$FREETYPE_DIR" -B . \
+	-DCMAKE_INSTALL_PREFIX="$SCRATCH/$ARCH" \
+	-DCMAKE_SYSTEM_NAME=Darwin \
+	-DCMAKE_C_FLAGS="$CFLAGS" \
+	-DCMAKE_CXX_FLAGS="$CXXFLAGS" \
+	-DCMAKE_EXE_LINKER_FLAGS="$LDFLAGS" \
+	-DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+	-DBUILD_SHARED_LIBS=OFF \
+	-DWITH_ZLIB=ON \
+	-DWITH_PNG=OFF \
+	-DWITH_BZip2=OFF \
+	-DWITH_HarfBuzz=OFF \
+	-DCMAKE_POLICY_VERSION_MINIMUM=3.5
+
+make -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
 make install
