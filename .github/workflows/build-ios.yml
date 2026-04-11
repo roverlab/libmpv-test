@@ -175,17 +175,11 @@ jobs:
           name: ios-dependencies
           path: scratch/
 
-      # === 编译 libplacebo（mpv 依赖）===
-      - name: Build libplacebo
-        run: |
-          echo "=== Building libplacebo ==="
-          ./build.sh -e distribution -s 4
-
-      # === 编译 mpv ===
+      # === 编译 mpv（libplacebo 作为 subproject 自动编译）===
       - name: Build libmpv
         run: |
-          echo "=== Building libmpv ==="
-          ./build.sh -e distribution -s 5
+          echo "=== Building libmpv (with libplacebo subproject) ==="
+          ./build.sh -e distribution -s 4
 
       # === 准备最终产物 ===
       - name: Prepare artifacts

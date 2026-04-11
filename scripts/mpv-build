@@ -3,7 +3,7 @@ set -e
 
 cd $SRC/mpv*
 
-echo "Building mpv with meson..."
+echo "Building mpv with meson (libplacebo as subproject)..."
 
 # Create cross-file for iOS cross-compilation
 CROSS_FILE=$(mktemp)
@@ -13,13 +13,7 @@ c = ['$(xcrun -sdk iphoneos --find clang)', '-target', 'arm64-apple-ios', '-isys
 cpp = ['$(xcrun -sdk iphoneos --find clang++)', '-target', 'arm64-apple-ios', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
 ar = '$(xcrun --find ar)'
 strip = '$(xcrun --find strip)'
-pkgconfig = 'pkg-config'
-
-[properties]
-c_args = ['-fembed-bitcode', '-Os']
-cpp_args = ['-fembed-bitcode', '-Os']
-c_link_args = ['-lbz2', '-fembed-bitcode', '-Os']
-needs_exe_wrapper = true
+pkg-config = 'pkg-config'
 
 [host_machine]
 system = 'darwin'
@@ -27,11 +21,12 @@ cpu_family = 'aarch64'
 cpu = 'aarch64'
 endian = 'little'
 
-[paths]
+[built-in options]
+c_args = ['-fembed-bitcode', '-Os']
+cpp_args = ['-fembed-bitcode', '-Os']
+c_link_args = ['-lbz2', '-fembed-bitcode', '-Os']
 prefix = '$SCRATCH/$ARCH'
 libdir = 'lib'
-
-[built_options]
 default_library = 'static'
 EOF
 
@@ -48,7 +43,7 @@ meson setup build \
 	-Dlibarchive=disabled \
 	-Duchardet=enabled
 
-rm -f "$CROSS_FILE"
+# Keep cross-file for ninja (don't delete it - needed for reconfigure)
 
 if [[ "$ENVIRONMENT" = "development" ]]; then
 	meson configure build -Dbuildtype=debug
@@ -56,6 +51,8 @@ fi
 
 ninja -C build -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
 ninja -C build install
+
+rm -f "$CROSS_FILE"
 
 # Copy libmpv.a to lib directory
 find "$SCRATCH/$ARCH" -name "libmpv.a" -exec cp {} "$SCRATCH/$ARCH/lib/" \; 2>/dev/null || true

@@ -69,18 +69,24 @@ for URL in $UCHARDET_URL $FREETYPE_URL $HARFBUZZ_URL $FRIBIDI_URL $LIBASS_URL $F
 done
 
 # libplacebo: use git clone --recursive to get all submodules (glad, jinja, etc.)
+# Clone into mpv's subprojects/ directory so meson builds it as a subproject
+MPV_DIR=$(ls -d src/mpv-* 2>/dev/null | head -1)
 echo ""
-echo ">>> Processing: libplacebo v$LIBPLACEBO_VERSION"
-if [ ! -d "src/libplacebo-${LIBPLACEBO_VERSION}" ]; then
+echo ">>> Processing: libplacebo v$LIBPLACEBO_VERSION (as mpv subproject)"
+if [ -n "$MPV_DIR" ] && [ ! -d "$MPV_DIR/subprojects/libplacebo" ]; then
     echo "    Cloning from git (with recursive submodules)..."
-    git clone --recurse-submodules --branch "v$LIBPLACEBO_VERSION" "$LIBPLACEBO_GIT_URL" "src/libplacebo-${LIBPLACEBO_VERSION}"
+    mkdir -p "$MPV_DIR/subprojects"
+    git clone --recurse-submodules --branch "v$LIBPLACEBO_VERSION" "$LIBPLACEBO_GIT_URL" "$MPV_DIR/subprojects/libplacebo"
     if [ $? -ne 0 ]; then
         echo "    ERROR: Failed to clone libplacebo"
         exit 1
     fi
-    echo "    Cloned successfully with all submodules"
+    echo "    Cloned successfully with all submodules into $MPV_DIR/subprojects/libplacebo"
+elif [ -z "$MPV_DIR" ]; then
+    echo "    ERROR: mpv source directory not found, cannot setup libplacebo subproject"
+    exit 1
 else
-    echo "    Already exists, skipping"
+    echo "    Already exists at $MPV_DIR/subprojects/libplacebo, skipping"
 fi
 
 echo ""
