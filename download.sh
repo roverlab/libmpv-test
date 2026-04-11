@@ -3,7 +3,7 @@
 # Change to preferred versions
 # Updated versions for compatibility with modern Xcode/Clang
 MPV_VERSION="0.39.0"
-LIBPLACEBO_VERSION="6.338.0"
+LIBPLACEBO_VERSION="6.338.2"
 FFMPEG_VERSION="7.0"
 LIBASS_VERSION="0.17.3"
 FREETYPE_VERSION="2.13.2"
