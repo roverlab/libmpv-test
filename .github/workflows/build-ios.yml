@@ -87,7 +87,7 @@ jobs:
           brew install pkg-config
           brew install nasm
           brew install meson
-          pip3 install meson
+          # Use brew-installed meson instead of pip
 
       - name: Install gas-preprocessor
         run: |
@@ -182,7 +182,7 @@ jobs:
           brew install pkg-config
           brew install nasm
           brew install meson
-          pip3 install meson
+          # Use brew-installed meson instead of pip
 
       - name: Install gas-preprocessor
         run: |
