@@ -25,40 +25,40 @@ on:
       mpv_version:
         description: 'mpv version'
         required: false
-        default: '0.31.0'
+        default: '0.39.0'
       ffmpeg_version:
         description: 'FFmpeg version'
         required: false
-        default: '4.1'
+        default: '7.0'
       libass_version:
         description: 'libass version'
         required: false
-        default: '0.14.0'
+        default: '0.17.3'
       freetype_version:
         description: 'freetype version'
         required: false
-        default: '2.10.0'
+        default: '2.13.2'
       harfbuzz_version:
         description: 'harfbuzz version'
         required: false
-        default: '2.6.4'
+        default: '8.4.0'
       fribidi_version:
         description: 'fribidi version'
         required: false
-        default: '1.0.8'
+        default: '1.0.13'
       uchardet_version:
         description: 'uchardet version'
         required: false
-        default: '0.0.6'
+        default: '0.0.8'
 
 env:
-  MPV_VERSION: ${{ github.event.inputs.mpv_version || '0.31.0' }}
-  FFMPEG_VERSION: ${{ github.event.inputs.ffmpeg_version || '4.1' }}
-  LIBASS_VERSION: ${{ github.event.inputs.libass_version || '0.14.0' }}
-  FREETYPE_VERSION: ${{ github.event.inputs.freetype_version || '2.10.0' }}
-  HARFBUZZ_VERSION: ${{ github.event.inputs.harfbuzz_version || '2.6.4' }}
-  FRIBIDI_VERSION: ${{ github.event.inputs.fribidi_version || '1.0.8' }}
-  UCHARDET_VERSION: ${{ github.event.inputs.uchardet_version || '0.0.6' }}
+  MPV_VERSION: ${{ github.event.inputs.mpv_version || '0.39.0' }}
+  FFMPEG_VERSION: ${{ github.event.inputs.ffmpeg_version || '7.0' }}
+  LIBASS_VERSION: ${{ github.event.inputs.libass_version || '0.17.3' }}
+  FREETYPE_VERSION: ${{ github.event.inputs.freetype_version || '2.13.2' }}
+  HARFBUZZ_VERSION: ${{ github.event.inputs.harfbuzz_version || '8.4.0' }}
+  FRIBIDI_VERSION: ${{ github.event.inputs.fribidi_version || '1.0.13' }}
+  UCHARDET_VERSION: ${{ github.event.inputs.uchardet_version || '0.0.8' }}
 
 jobs:
   build:
@@ -80,7 +80,7 @@ jobs:
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '16.0.0'
+          xcode-version: latest-stable
 
       - name: Install dependencies
         run: |
@@ -175,7 +175,7 @@ jobs:
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '16.0.0'
+          xcode-version: latest-stable
 
       - name: Install dependencies
         run: |

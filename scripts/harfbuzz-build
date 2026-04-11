@@ -1,10 +1,6 @@
 #!/bin/sh
 set -e
 
-# Disable cast-function-type-strict warning for compatibility with older harfbuzz
-export CFLAGS="$CFLAGS -Wno-cast-function-type-strict"
-export CXXFLAGS="$CXXFLAGS -Wno-cast-function-type-strict"
-
 $SRC/harfbuzz*/configure $COMMON_OPTIONS \
 							--with-icu=no \
 							--with-glib=no \
