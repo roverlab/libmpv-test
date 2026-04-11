@@ -105,45 +105,84 @@ jobs:
           chmod +x clean.sh
           chmod +x scripts/*-build
 
-      - name: Cache dependencies (Step 1 - Font libraries)
+      # === Step 1: 字体库（可缓存）===
+      - name: Cache font libraries
         if: matrix.environment == 'distribution'
-        id: cache-deps-step1
+        id: cache-font-libs
         uses: actions/cache@v4
         with:
           path: |
-            scratch/arm64/lib/*.a
-            scratch/arm64/include
+            scratch/arm64/lib/libfreetype.a
+            scratch/arm64/lib/libharfbuzz.a
+            scratch/arm64/lib/libfribidi.a
+            scratch/arm64/lib/libass.a
+            scratch/arm64/include/freetype2
+            scratch/arm64/include/harfbuzz
+            scratch/arm64/include/fribidi
+            scratch/arm64/include/ass
             scratch/arm64/lib/pkgconfig
-          key: ios-deps-step1-${{ runner.os }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.LIBASS_VERSION }}
+          key: ios-font-libs-${{ runner.os }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.LIBASS_VERSION }}
           restore-keys: |
-            ios-deps-step1-${{ runner.os }}-
+            ios-font-libs-${{ runner.os }}-
 
-      - name: Build Step 1 - Font libraries
-        if: matrix.environment == 'distribution' && steps.cache-deps-step1.outputs.cache-hit != 'true'
+      - name: Build font libraries
+        if: matrix.environment == 'distribution' && steps.cache-font-libs.outputs.cache-hit != 'true'
         run: |
           echo "=== Step 1: Building font libraries (freetype, harfbuzz, fribidi, libass) ==="
           ./build.sh -e distribution -s 1
 
-      - name: Cache dependencies (Step 2 - Other libraries)
+      # === Step 2: uchardet（可缓存）===
+      - name: Cache uchardet
         if: matrix.environment == 'distribution'
-        id: cache-deps-step2
+        id: cache-uchardet
         uses: actions/cache@v4
         with:
           path: |
-            scratch/arm64/lib/ffmpeg
-            scratch/arm64/lib/libav*
-            scratch/arm64/lib/libsw*
-            scratch/arm64/lib/libmpv.a
+            scratch/arm64/lib/libuchardet.a
+            scratch/arm64/include/uchardet
             scratch/arm64/lib/pkgconfig
-          key: ios-deps-step2-${{ runner.os }}-${{ env.FFMPEG_VERSION }}-${{ env.MPV_VERSION }}
+          key: ios-uchardet-${{ runner.os }}-${{ env.UCHARDET_VERSION }}
           restore-keys: |
-            ios-deps-step2-${{ runner.os }}-
+            ios-uchardet-${{ runner.os }}-
 
-      - name: Build Step 2 - Other libraries
-        if: matrix.environment == 'distribution' && steps.cache-deps-step2.outputs.cache-hit != 'true'
+      - name: Build uchardet
+        if: matrix.environment == 'distribution' && steps.cache-uchardet.outputs.cache-hit != 'true'
         run: |
-          echo "=== Step 2: Building other libraries (uchardet, ffmpeg, libmpv) ==="
+          echo "=== Step 2: Building uchardet ==="
           ./build.sh -e distribution -s 2
+
+      # === Step 3: FFmpeg（可独立缓存，耗时最长）===
+      - name: Cache FFmpeg
+        if: matrix.environment == 'distribution'
+        id: cache-ffmpeg
+        uses: actions/cache@v4
+        with:
+          path: |
+            scratch/arm64/lib/libavcodec.a
+            scratch/arm64/lib/libavformat.a
+            scratch/arm64/lib/libavutil.a
+            scratch/arm64/lib/libswresample.a
+            scratch/arm64/lib/libswscale.a
+            scratch/arm64/lib/libavfilter.a
+            scratch/arm64/lib/libavdevice.a
+            scratch/arm64/lib/libpostproc.a
+            scratch/arm64/lib/pkgconfig
+          key: ios-ffmpeg-${{ runner.os }}-${{ env.FFMPEG_VERSION }}
+          restore-keys: |
+            ios-ffmpeg-${{ runner.os }}-
+
+      - name: Build FFmpeg
+        if: matrix.environment == 'distribution' && steps.cache-ffmpeg.outputs.cache-hit != 'true'
+        run: |
+          echo "=== Step 3: Building FFmpeg (this takes a while...) ==="
+          ./build.sh -e distribution -s 3
+
+      # === Step 4: libmpv（最后编译，通常不需要缓存）===
+      - name: Build libmpv
+        if: matrix.environment == 'distribution'
+        run: |
+          echo "=== Step 4: Building libmpv ==="
+          ./build.sh -e distribution -s 4
 
       - name: Build libmpv (Development)
         if: matrix.environment == 'development'

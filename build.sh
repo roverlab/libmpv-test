@@ -2,8 +2,12 @@
 
 # 第1步：字体相关库（容易出错）
 FONT_LIBRARIES="libfreetype libharfbuzz libfribidi libass"
-# 第2步：其他库
-OTHER_LIBRARIES="libuchardet ffmpeg libmpv"
+# 第2步：其他依赖库（不含 ffmpeg）
+OTHER_LIBRARIES="libuchardet"
+# 第3步：FFmpeg（可独立缓存）
+FFMPEG_LIBRARIES="ffmpeg"
+# 第4步：libmpv（最后编译）
+MPV_LIBRARIES="libmpv"
 # 所有库（默认）
 ALL_LIBRARIES="$FONT_LIBRARIES $OTHER_LIBRARIES"
 # LGPL licensed projects should be built as dynamic framework bundles (todo: automate that in this script)
@@ -33,6 +37,9 @@ case $OPTION in
 	esac
 done
 
+# 所有库（默认）
+ALL_LIBRARIES="$FONT_LIBRARIES $OTHER_LIBRARIES $FFMPEG_LIBRARIES $MPV_LIBRARIES"
+
 # 根据步骤选择要编译的库
 case $STEP in
 	1|font)
@@ -41,14 +48,22 @@ case $STEP in
 		;;
 	2|other)
 		LIBRARIES="$OTHER_LIBRARIES"
-		echo "=== Step 2: Building other libraries ==="
+		echo "=== Step 2: Building other libraries (uchardet) ==="
+		;;
+	3|ffmpeg)
+		LIBRARIES="$FFMPEG_LIBRARIES"
+		echo "=== Step 3: Building FFmpeg ==="
+		;;
+	4|mpv)
+		LIBRARIES="$MPV_LIBRARIES"
+		echo "=== Step 4: Building libmpv ==="
 		;;
 	"")
 		LIBRARIES="$ALL_LIBRARIES"
 		echo "=== Building all libraries ==="
 		;;
 	*)
-		echo "Invalid step: $STEP (use 1/font, 2/other, or omit for all)"
+		echo "Invalid step: $STEP (use 1-4 or omit for all)"
 		exit 1
 		;;
 esac
