@@ -25,7 +25,7 @@ on:
       mpv_version:
         description: 'mpv version'
         required: false
-        default: '0.39.0'
+        default: '0.38.0'
       ffmpeg_version:
         description: 'FFmpeg version (>= 6.1 required for mpv 0.39)'
         required: false
@@ -52,7 +52,7 @@ on:
         default: '0.0.5'
 
 env:
-  MPV_VERSION: ${{ github.event.inputs.mpv_version || '0.39.0' }}
+  MPV_VERSION: ${{ github.event.inputs.mpv_version || '0.38.0' }}
   FFMPEG_VERSION: ${{ github.event.inputs.ffmpeg_version || '7.0' }}
   LIBASS_VERSION: ${{ github.event.inputs.libass_version || '0.17.3' }}
   FREETYPE_VERSION: ${{ github.event.inputs.freetype_version || '2.13.2' }}
