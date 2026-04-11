@@ -11,6 +11,8 @@ cat > "$CROSS_FILE" << EOF
 [binaries]
 c = ['$(xcrun -sdk iphoneos --find clang)', '-target', 'arm64-apple-ios', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
 cpp = ['$(xcrun -sdk iphoneos --find clang++)', '-target', 'arm64-apple-ios', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
+objc = ['$(xcrun -sdk iphoneos --find clang)', '-target', 'arm64-apple-ios', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
+objcpp = ['$(xcrun -sdk iphoneos --find clang++)', '-target', 'arm64-apple-ios', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
 ar = '$(xcrun --find ar)'
 strip = '$(xcrun --find strip)'
 pkg-config = 'pkg-config'
