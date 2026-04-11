@@ -244,7 +244,6 @@ meson setup "$MESON_BUILD_DIR" \
     -Dmanpage-build=disabled \
     -Dhtml-build=disabled \
     -Dpdf-build=disabled \
-    -Dlibass=disabled \
     2>&1 | tee configure.log
 
 if [ ${PIPESTATUS[0]} -ne 0 ]; then
