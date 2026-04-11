@@ -1,27 +1,63 @@
 #!/bin/sh
 set -e
 
-OPTS="--prefix=$SCRATCH/$ARCH \
-	--exec-prefix=$SCRATCH/$ARCH \
-	--disable-cplayer \
-	--disable-lcms2 \
-	--disable-lua \
-	--disable-rubberband \
-	--disable-zimg \
-	--enable-libmpv-static \
-	--enable-ios-gl \
-	--enable-gl \
-	--disable-javascript \
-	--disable-libbluray \
-	--disable-vapoursynth \
-	--enable-uchardet \
-	--enable-lgpl"
-
-if [[ "$ENVIRONMENT" = "development" ]]; then
-	OPTS="$OPTS --disable-optimize"
-fi
-
 cd $SRC/mpv*
-./bootstrap.py
-./waf configure $OPTS
-./waf build -j4
+
+# mpv 0.39+ uses meson build system
+if [ -f "meson.build" ]; then
+	echo "Building mpv with meson..."
+
+	meson setup build \
+		--prefix="$SCRATCH/$ARCH" \
+		--libdir="lib" \
+		--default-library=static \
+		-Dcplayer=false \
+		-Dlcms2=disabled \
+		-Dlua=disabled \
+		-Drubberband=disabled \
+		-Dzimg=disabled \
+		-Dlibmpv=true \
+		-Dios-gl=enabled \
+		Dgl=enabled \
+		-Djavascript=disabled \
+		-Dlibbluray=disabled \
+		-Dvapoursynth=disabled \
+		-Duchardet=enabled \
+		-Dlgpl=true
+
+	if [[ "$ENVIRONMENT" = "development" ]]; then
+		meson configure build -Dbuildtype=debug
+	fi
+
+	ninja -C build -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
+	ninja -C build install
+
+	# Copy libmpv.a to lib directory
+	cp build/libmpv/static/libmpv.a "$SCRATCH/$ARCH/lib/" 2>/dev/null || true
+else
+	echo "Building mpv with waf (legacy)..."
+
+	OPTS="--prefix=$SCRATCH/$ARCH \
+		--exec-prefix=$SCRATCH/$ARCH \
+		--disable-cplayer \
+		--disable-lcms2 \
+		--disable-lua \
+		--disable-rubberband \
+		--disable-zimg \
+		--enable-libmpv-static \
+		--enable-ios-gl \
+		--enable-gl \
+		--disable-javascript \
+		--disable-libbluray \
+		--disable-vapoursynth \
+		--enable-uchardet \
+		--enable-lgpl"
+
+	if [[ "$ENVIRONMENT" = "development" ]]; then
+		OPTS="$OPTS --disable-optimize"
+	fi
+
+	./bootstrap.py
+	./waf configure $OPTS
+	./waf build -j4
+fi

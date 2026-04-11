@@ -105,14 +105,42 @@ jobs:
           chmod +x clean.sh
           chmod +x scripts/*-build
 
-      - name: Build Step 1 - Font libraries
+      - name: Cache dependencies (Step 1 - Font libraries)
         if: matrix.environment == 'distribution'
+        id: cache-deps-step1
+        uses: actions/cache@v4
+        with:
+          path: |
+            scratch/arm64/lib/*.a
+            scratch/arm64/include
+            scratch/arm64/lib/pkgconfig
+          key: ios-deps-step1-${{ runner.os }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.LIBASS_VERSION }}
+          restore-keys: |
+            ios-deps-step1-${{ runner.os }}-
+
+      - name: Build Step 1 - Font libraries
+        if: matrix.environment == 'distribution' && steps.cache-deps-step1.outputs.cache-hit != 'true'
         run: |
           echo "=== Step 1: Building font libraries (freetype, harfbuzz, fribidi, libass) ==="
           ./build.sh -e distribution -s 1
 
-      - name: Build Step 2 - Other libraries
+      - name: Cache dependencies (Step 2 - Other libraries)
         if: matrix.environment == 'distribution'
+        id: cache-deps-step2
+        uses: actions/cache@v4
+        with:
+          path: |
+            scratch/arm64/lib/ffmpeg
+            scratch/arm64/lib/libav*
+            scratch/arm64/lib/libsw*
+            scratch/arm64/lib/libmpv.a
+            scratch/arm64/lib/pkgconfig
+          key: ios-deps-step2-${{ runner.os }}-${{ env.FFMPEG_VERSION }}-${{ env.MPV_VERSION }}
+          restore-keys: |
+            ios-deps-step2-${{ runner.os }}-
+
+      - name: Build Step 2 - Other libraries
+        if: matrix.environment == 'distribution' && steps.cache-deps-step2.outputs.cache-hit != 'true'
         run: |
           echo "=== Step 2: Building other libraries (uchardet, ffmpeg, libmpv) ==="
           ./build.sh -e distribution -s 2
