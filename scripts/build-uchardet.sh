@@ -188,12 +188,15 @@ CMAKE_ARGS=(
     -DCMAKE_C_FLAGS="$CFLAGS"
     -DCMAKE_CXX_FLAGS="$CXXFLAGS"
     -DCMAKE_INSTALL_PREFIX="$BUILD_DIR"
+    -DCMAKE_POLICY_DEFAULT_CMP0025=NEW
+    -DCMAKE_POLICY_DEFAULT_CMP0056=NEW
     -DBUILD_SHARED_LIBS=OFF
     -DBUILD_STATIC_LIBS=ON
     -DBUILD_BINARY=OFF
 )
 
-if ! cmake "${CMAKE_ARGS[@]}" "$SOURCE_DIR" 2>&1 | tee configure.log; then
+cmake "${CMAKE_ARGS[@]}" "$SOURCE_DIR" 2>&1 | tee configure.log
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
     log_error "CMake configuration failed"
     log_error "See configure.log for details"
     tail -n 50 configure.log
@@ -207,7 +210,8 @@ log_info "Compiling uchardet..."
 NUM_CORES=$(sysctl -n hw.ncpu)
 log_info "Using $NUM_CORES parallel jobs"
 
-if ! cmake --build . -j"$NUM_CORES" 2>&1 | tee build.log; then
+cmake --build . -j"$NUM_CORES" 2>&1 | tee build.log
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
     log_error "Compilation failed"
     log_error "See build.log for details"
     tail -n 50 build.log
@@ -219,7 +223,8 @@ log_info "✓ Compilation successful"
 # Install to build directory
 log_info "Installing uchardet to $BUILD_DIR..."
 
-if ! cmake --install . 2>&1 | tee install.log; then
+cmake --install . 2>&1 | tee install.log
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
     log_error "Installation failed"
     log_error "See install.log for details"
     tail -n 50 install.log
