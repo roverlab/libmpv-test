@@ -68,7 +68,7 @@ meson setup build \
 	-Dfreetype2:hvf=disabled \
 	-Diconv=disabled \
 	-Dlibarchive=disabled \
-	-Duchardet=enabled \
+	-Duchardet=disabled \
 	-Dmacos-media-player=disabled
 
 # Keep cross-file for ninja (don't delete it - needed for reconfigure)

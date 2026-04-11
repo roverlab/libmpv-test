@@ -1,0 +1,5 @@
+module Libmpv {
+    header "Libmpv.h"
+    link "mpv"
+    export *
+}
