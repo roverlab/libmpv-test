@@ -176,7 +176,7 @@ else
 fi
 
 # Set PKG_CONFIG_PATH to find freetype dependency
-export PKG_CONFIG_PATH="$BUILD_DIR/lib/pkgconfig:$PKG_CONFIG_PATH"
+export PKG_CONFIG_PATH="$BUILD_DIR/lib/pkgconfig"
 export PKG_CONFIG_LIBDIR="$BUILD_DIR/lib/pkgconfig"
 
 # Help meson find freetype by setting additional environment variables
