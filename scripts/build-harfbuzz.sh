@@ -256,13 +256,25 @@ fi
 
 # Test pkg-config can find freetype2
 log_info "Testing pkg-config for freetype2..."
-if pkg-config --exists freetype2; then
+log_info "Current PKG_CONFIG_PATH: $PKG_CONFIG_PATH"
+log_info "Current PKG_CONFIG_LIBDIR: $PKG_CONFIG_LIBDIR"
+
+if pkg-config --exists freetype2 2>&1; then
     log_info "✓ pkg-config can find freetype2"
+    log_info "  Version: $(pkg-config --modversion freetype2)"
     log_info "  CFLAGS: $(pkg-config --cflags freetype2)"
     log_info "  LIBS: $(pkg-config --libs freetype2)"
 else
     log_error "pkg-config cannot find freetype2"
-    log_error "PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
+    log_error "Listing pkgconfig directory contents:"
+    ls -la "$BUILD_DIR/lib/pkgconfig/" || log_error "pkgconfig directory not found"
+    log_error "Checking if freetype2.pc exists:"
+    if [ -f "$BUILD_DIR/lib/pkgconfig/freetype2.pc" ]; then
+        log_info "freetype2.pc exists, showing first 20 lines:"
+        head -n 20 "$BUILD_DIR/lib/pkgconfig/freetype2.pc"
+    else
+        log_error "freetype2.pc does NOT exist"
+    fi
     exit 1
 fi
 
