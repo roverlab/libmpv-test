@@ -203,7 +203,8 @@ pkgconfig = 'pkg-config'
 
 [properties]
 sys_root = '$SDK_PATH'
-pkg_config_libdir = '$PKG_CONFIG_PATH'
+pkg_config_libdir = '$BUILD_DIR/lib/pkgconfig'
+pkg_config_path = '$BUILD_DIR/lib/pkgconfig'
 c_args = ['-arch', '$ARCH', '-mios-version-min=$MIN_IOS_VERSION', '-fembed-bitcode']
 cpp_args = ['-arch', '$ARCH', '-mios-version-min=$MIN_IOS_VERSION', '-fembed-bitcode']
 c_link_args = ['-arch', '$ARCH', '-mios-version-min=$MIN_IOS_VERSION']
@@ -217,6 +218,16 @@ endian = 'little'
 EOF
 
 log_info "Created Meson cross-file: $CROSS_FILE"
+
+# Debug: Check if freetype2.pc exists
+if [ -f "$BUILD_DIR/lib/pkgconfig/freetype2.pc" ]; then
+    log_info "✓ Found freetype2.pc at: $BUILD_DIR/lib/pkgconfig/freetype2.pc"
+else
+    log_error "freetype2.pc not found at: $BUILD_DIR/lib/pkgconfig/freetype2.pc"
+    log_error "Available .pc files:"
+    ls -la "$BUILD_DIR/lib/pkgconfig/" || log_error "pkgconfig directory not found"
+    exit 1
+fi
 
 # Configure with Meson
 MESON_ARGS=(
