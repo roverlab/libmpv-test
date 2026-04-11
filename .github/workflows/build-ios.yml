@@ -67,37 +67,7 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
-
-      - name: Install dependencies
-        run: |
-          brew install pkg-config
-          brew install nasm
-          brew install meson
-
-      - name: Install gas-preprocessor
-        run: |
-          sudo curl -L https://github.com/libav/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl
-          sudo chmod +x /usr/local/bin/gas-preprocessor.pl
-
-      - name: Download sources
-        run: |
-          chmod +x download.sh
-          ./download.sh
-
-      - name: Make build scripts executable
-        run: |
-          chmod +x build.sh
-          chmod +x clean.sh
-          chmod +x scripts/*-build
-
-      # === 缓存：检查是否已有编译好的依赖 ===
+      # === 先检查缓存，缓存命中则跳过所有安装和编译步骤 ===
       - name: Cache dependencies
         id: cache-deps
         uses: actions/cache@v4
@@ -107,6 +77,42 @@ jobs:
           key: ios-deps-${{ runner.os }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.LIBASS_VERSION }}-${{ env.UCHARDET_VERSION }}-${{ env.FFMPEG_VERSION }}
           restore-keys: |
             ios-deps-${{ runner.os }}-
+
+      - name: Checkout repository
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          brew install pkg-config
+          brew install nasm
+          brew install meson
+
+      - name: Install gas-preprocessor
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          sudo curl -L https://github.com/libav/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl
+          sudo chmod +x /usr/local/bin/gas-preprocessor.pl
+
+      - name: Download sources
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          chmod +x download.sh
+          ./download.sh
+
+      - name: Make build scripts executable
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          chmod +x build.sh
+          chmod +x clean.sh
+          chmod +x scripts/*-build
 
       # === 编译所有依赖（mpv 除外）===
       - name: Build dependencies (Step 1-3)

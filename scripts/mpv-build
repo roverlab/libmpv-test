@@ -23,7 +23,6 @@ if [ -f "meson.build" ]; then
 		-Dlibbluray=disabled \
 		-Dvapoursynth=disabled \
 		-Duchardet=enabled \
-		-Dlgpl=true
 
 	if [[ "$ENVIRONMENT" = "development" ]]; then
 		meson configure build -Dbuildtype=debug
