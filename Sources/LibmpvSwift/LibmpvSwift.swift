@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import Libmpv
 
 // MARK: - MPV Error Types
 public enum MPVError: Int32, Error {

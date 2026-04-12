@@ -10,6 +10,10 @@ let package = Package(
         .library(
             name: "Libmpv",
             targets: ["Libmpv"]
+        ),
+        .library(
+            name: "LibmpvSwift",
+            targets: ["LibmpvSwift"]
         )
     ],
     targets: [
@@ -47,10 +51,15 @@ let package = Package(
                 ])
             ]
         ),
+        .target(
+            name: "LibmpvSwift",
+            dependencies: ["Libmpv"],
+            path: "Sources/LibmpvSwift"
+        ),
         .testTarget(
             name: "MPVScreenshotTests",
             dependencies: [
-                "Libmpv"
+                "LibmpvSwift"
             ],
             path: "Tests",
             cSettings: [
