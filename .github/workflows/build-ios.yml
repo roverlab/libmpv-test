@@ -290,20 +290,14 @@ jobs:
           cp scratch/arm64/include/mpv/*.h include_temp/Libmpv/
           
           # 创建 module.modulemap（Swift/SPM 识别 C 模块所必需）
-          cat > include_temp/Libmpv/module.modulemap << 'EOF'
-          module Libmpv {
-              header "client.h"
-              header "opengl_cb.h"
-              header "hwdec.h"
-              header "render.h"
-              header "render_gl.h"
-              header "stream_cb.h"
-              header "sub.h"
-              header "qjs.h"
-              link "mpv"
-              export *
-          }
-          EOF
+          echo 'module Libmpv {' > include_temp/Libmpv/module.modulemap
+          for header in include_temp/Libmpv/*.h; do
+              filename=$(basename "$header")
+              echo "    header \"$filename\"" >> include_temp/Libmpv/module.modulemap
+          done
+          echo '    link "mpv"' >> include_temp/Libmpv/module.modulemap
+          echo '    export *' >> include_temp/Libmpv/module.modulemap
+          echo '}' >> include_temp/Libmpv/module.modulemap
           
           echo "=== Headers and module map ==="
           ls -la include_temp/
