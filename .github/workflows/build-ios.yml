@@ -247,31 +247,27 @@ jobs:
 
       - name: Create fat libraries
         run: |
+          # Use 'libtool -static' instead of 'ar -x + ar -rcs' to merge archives.
+          # The ar approach has a fatal flaw: when multiple .a files contain object
+          # files with the same filename (e.g. utils.o, config.o appear in FFmpeg,
+          # libass, and mpv), 'ar -x' silently overwrites the earlier file, causing
+          # "Undefined symbol" linker errors. libtool handles this correctly.
+
           # 设备版本 - 合并所有静态库
           echo "=== Creating device fat library ==="
           mkdir -p lib_device
-          cd lib_device
-          for lib in ../scratch/arm64/lib/*.a; do
-            echo "Extracting $lib..."
-            ar -x "$lib"
-          done
-          ar -rcs libmpv_full.a *.o
-          rm -f *.o
-          cd ..
+          DEVICE_LIBS=$(ls scratch/arm64/lib/*.a)
+          echo "Merging: $DEVICE_LIBS"
+          libtool -static -o lib_device/libmpv_full.a $DEVICE_LIBS
           echo "Device fat library size:"
           ls -lh lib_device/libmpv_full.a
-          
+
           # 模拟器版本 - 合并所有静态库
           echo "=== Creating simulator fat library ==="
           mkdir -p lib_simulator
-          cd lib_simulator
-          for lib in ../scratch/arm64-simulator/lib/*.a; do
-            echo "Extracting $lib..."
-            ar -x "$lib"
-          done
-          ar -rcs libmpv_full.a *.o
-          rm -f *.o
-          cd ..
+          SIM_LIBS=$(ls scratch/arm64-simulator/lib/*.a)
+          echo "Merging: $SIM_LIBS"
+          libtool -static -o lib_simulator/libmpv_full.a $SIM_LIBS
           echo "Simulator fat library size:"
           ls -lh lib_simulator/libmpv_full.a
 
@@ -393,7 +389,14 @@ jobs:
           mkdir -p Tests/VerifyLibmpv/Tests/VerifyLibmpvTests
 
           # Package.swift — binaryTarget 使用包内相对路径
-          cat > Tests/VerifyLibmpv/Package.swift << 'PKGEOF'
+          # linkerSettings: static XCFrameworks don't auto-link their system
+          # framework dependencies; we must declare them explicitly here.
+          # Required by libmpv's dependencies:
+          #   AVFoundation  ← AVCapture*, AVMedia*, AVAudioSession
+          #   AudioToolbox  ← AudioUnit*, AudioComponent*, AudioFormat*
+          #   CoreMedia     ← CMAudio*, CMBlock*, CMSample*, CMVideo*
+          #   bz2           ← BZ2_* (libbz2 system dylib)
+          sed 's/^          //' > Tests/VerifyLibmpv/Package.swift << 'PKGEOF'
           // swift-tools-version: 5.9
           import PackageDescription
 
@@ -404,7 +407,13 @@ jobs:
                   .target(
                       name: "VerifyLibmpv",
                       dependencies: ["Libmpv"],
-                      path: "Sources/VerifyLibmpv"
+                      path: "Sources/VerifyLibmpv",
+                      linkerSettings: [
+                          .linkedFramework("AVFoundation"),
+                          .linkedFramework("AudioToolbox"),
+                          .linkedFramework("CoreMedia"),
+                          .linkedLibrary("bz2"),
+                      ]
                   ),
                   .binaryTarget(
                       name: "Libmpv",
