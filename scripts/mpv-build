@@ -122,21 +122,9 @@ to_meson_array() {
     echo "[$result]"
 }
 
-# On iOS, ao_avfoundation.m unconditionally includes ao_coreaudio_chmap.h /
-# ao_coreaudio_utils.h which use AudioDeviceID (macOS CoreAudio type).
-# Undefine the include guard so those headers become no-ops, and define a
-# dummy AudioDeviceID type so compilation succeeds.
-# The actual audio output path on iOS goes through AVAudioSession (AVFoundation),
-# not through CoreAudio device selection — so this is safe.
-IOS_C_ARGS="$C_ARGS -DMPV_COREAUDIO_CHMAP_H__ -DMPV_COREAUDIO_UTILS_H__ -DAudioDeviceID=uint32_t"
-
-# audiounit uses CoreAudio's AudioDeviceID which is macOS-only (not available on
-# iOS at all — neither device nor simulator).  Always disable for iOS builds.
-AUDIOUNIT_OPTION="disabled"
-
 # Write build options to cross-file (c_args, cpp_args, c_link_args)
 cat >> "$CROSS_FILE" << EOF
-c_args = $(to_meson_array "$IOS_C_ARGS")
+c_args = $(to_meson_array "$C_ARGS")
 cpp_args = $(to_meson_array "$CPP_ARGS")
 c_link_args = $(to_meson_array "$C_LINK_ARGS")
 EOF
@@ -150,6 +138,9 @@ if [ -d "build" ]; then
     echo "Cleaning previous build directory..."
     rm -rf build
 fi
+
+# audiounit uses CoreAudio's AudioDeviceID which is macOS-only (not available on
+# iOS at all — neither device nor simulator).  Always disable for iOS builds.
 
 meson setup build \
 	--cross-file "$CROSS_FILE" \
@@ -165,7 +156,7 @@ meson setup build \
 	-Dswift-build=disabled \
 	-Dmacos-cocoa-cb=disabled \
 	-Dcoreaudio=disabled \
-	-Daudiounit=$AUDIOUNIT_OPTION \
+	-Daudiounit=disabled \
 	-Davfoundation=enabled \
 	-Dvideotoolbox-pl=disabled \
 	-Dvideotoolbox-gl=disabled \
