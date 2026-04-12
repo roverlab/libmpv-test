@@ -150,7 +150,17 @@ for ARCH in $ARCHS; do
                     CFLAGS="$ACFLAGS -fembed-bitcode -g2 -Og"
                     LDFLAGS="$ALDFLAGS -fembed-bitcode -g2 -Og"
                 fi
-				$SCRIPTS/mpv-build && cp $SRC/mpv*/build/libmpv.a "$SCRATCH/$ARCH/lib"
+				$SCRIPTS/mpv-build
+				# ninja install already places libmpv.a in $SCRATCH/$ARCH/lib/
+				# Verify the output file exists
+				if [ ! -f "$SCRATCH/$ARCH/lib/libmpv.a" ]; then
+				    echo "ERROR: libmpv.a not found at $SCRATCH/$ARCH/lib/libmpv.a"
+				    echo "Searching for libmpv.a in scratch..."
+				    find "$SCRATCH" -name "libmpv.a" 2>/dev/null || true
+				    exit 1
+				fi
+				echo "libmpv.a installed: $SCRATCH/$ARCH/lib/libmpv.a"
+				ls -la "$SCRATCH/$ARCH/lib/libmpv.a"
 				;;
         esac
     done

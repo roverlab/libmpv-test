@@ -50,17 +50,13 @@ module Libmpv {
 }
 EOF
 
-# 使用模拟器版本的 libmpv.a (x86_64 用于 CI 测试)
-LIBMPV_A="$ROOT/scratch/x86_64/lib/libmpv.a"
-if [ ! -f "$LIBMPV_A" ]; then
-    # 尝试 arm64 版本
-    LIBMPV_A="$ROOT/scratch/arm64/lib/libmpv.a"
-fi
+# 使用 arm64 版本的 libmpv.a（distribution 构建）
+LIBMPV_A="$ROOT/scratch/arm64/lib/libmpv.a"
 
 if [ ! -f "$LIBMPV_A" ]; then
-    echo "ERROR: libmpv.a not found in scratch directories"
-    echo "  Tried: $ROOT/scratch/x86_64/lib/libmpv.a"
-    echo "  Tried: $ROOT/scratch/arm64/lib/libmpv.a"
+    echo "ERROR: libmpv.a not found at $LIBMPV_A"
+    echo "Contents of scratch directory:"
+    ls -laR "$ROOT/scratch/" 2>/dev/null | head -50 || echo "scratch directory not found"
     exit 1
 fi
 

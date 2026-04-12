@@ -179,11 +179,10 @@ jobs:
           path: scratch/
 
       # === 编译 mpv（libplacebo 作为 subproject 自动编译）===
-      # 使用 development 模式以同时编译 arm64 + x86_64（x86_64 供模拟器测试使用）
       - name: Build libmpv
         run: |
           echo "=== Building libmpv (with libplacebo subproject) ==="
-          ./build.sh -e development -s 4
+          ./build.sh -e distribution -s 4
 
       # === 准备最终产物 ===
       - name: Prepare artifacts
