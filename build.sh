@@ -173,8 +173,9 @@ for ARCH in $ARCHS; do
     done
 done
 
+# 复制库文件到 lib 目录
 for LIBRARY in $LIBRARIES; do
     if [[ "$LIBRARY" != "ffmpeg" ]] && [[ "$LIBRARY" != "libplacebo" ]]; then
-        cp $SCRATCH/arm64/lib/$LIBRARY.a $LIB/$LIBRARY.a
+        cp $SCRATCH/$ARCH_DIR/lib/$LIBRARY.a $LIB/$LIBRARY.a
     fi
 done
