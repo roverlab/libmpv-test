@@ -20,8 +20,8 @@ echo "  Prefix: $PREFIX"
 CROSS_FILE=$(mktemp)
 cat > "$CROSS_FILE" << EOF
 [binaries]
-c = ['$(xcrun -sdk iphoneos --find clang)', '-target', 'arm64-apple-ios', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
-cpp = ['$(xcrun -sdk iphoneos --find clang++)', '-target', 'arm64-apple-ios', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
+c = ['$(xcrun -sdk iphoneos --find clang)', '-target', 'arm64-apple-ios13.0', '-isysroot', '$SDKPATH', '-miphoneos-version-min=13.0']
+cpp = ['$(xcrun -sdk iphoneos --find clang++)', '-target', 'arm64-apple-ios13.0', '-isysroot', '$SDKPATH', '-miphoneos-version-min=13.0']
 ar = '$(xcrun --find ar)'
 strip = '$(xcrun --find strip)'
 pkg-config = 'pkg-config'

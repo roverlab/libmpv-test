@@ -86,7 +86,7 @@ jobs:
           path: |
             scratch/
             src/
-          key: device-${{ env.MPV_VERSION }}-${{ env.FFMPEG_VERSION }}-${{ env.LIBASS_VERSION }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.UCHARDET_VERSION }}-${{ env.LIBPLACEBO_VERSION }}
+          key: device-ios13-${{ env.MPV_VERSION }}-${{ env.FFMPEG_VERSION }}-${{ env.LIBASS_VERSION }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.UCHARDET_VERSION }}-${{ env.LIBPLACEBO_VERSION }}
           restore-keys: |
             device-
 
@@ -167,7 +167,7 @@ jobs:
           path: |
             scratch/
             src/
-          key: sim-${{ env.MPV_VERSION }}-${{ env.FFMPEG_VERSION }}-${{ env.LIBASS_VERSION }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.UCHARDET_VERSION }}-${{ env.LIBPLACEBO_VERSION }}
+          key: sim-ios13-${{ env.MPV_VERSION }}-${{ env.FFMPEG_VERSION }}-${{ env.LIBASS_VERSION }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.UCHARDET_VERSION }}-${{ env.LIBPLACEBO_VERSION }}
           restore-keys: |
             sim-
 

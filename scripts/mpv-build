@@ -38,7 +38,7 @@ if [ "$ARCH" = "arm64" ]; then
         TARGET_TRIPLE="arm64-apple-ios13.0-simulator"
         SDK_NAME="iphonesimulator"
     else
-        TARGET_TRIPLE="arm64-apple-ios"
+        TARGET_TRIPLE="arm64-apple-ios13.0"
         SDK_NAME="iphoneos"
     fi
 elif [ "$ARCH" = "x86_64" ]; then
@@ -70,9 +70,9 @@ mkdir -p "$SCRATCH/$ARCH_DIR"
 
 # Determine the correct minimum version flag
 if [ "$ENVIRONMENT" = "simulator" ] || [ "$SDK_NAME" = "iphonesimulator" ]; then
-    MIN_VERSION_FLAG="-mios-simulator-version-min=11.0"
+    MIN_VERSION_FLAG="-mios-simulator-version-min=13.0"
 else
-    MIN_VERSION_FLAG="-miphoneos-version-min=11.0"
+    MIN_VERSION_FLAG="-miphoneos-version-min=13.0"
 fi
 
 cat > "$CROSS_FILE" << EOF
