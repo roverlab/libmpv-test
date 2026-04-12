@@ -24,6 +24,7 @@ export ARCH
 export SCRATCH
 export SDKPATH
 
+
 STEP=""
 while getopts "e:s:" OPTION; do
 case $OPTION in
