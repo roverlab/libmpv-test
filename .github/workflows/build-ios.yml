@@ -248,6 +248,35 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
+      # === 验证头文件是否存在 ===
+      - name: Verify mpv headers
+        run: |
+          echo "=== Verifying mpv headers ==="
+          if [ -d "scratch/arm64/include/mpv" ]; then
+            echo "Headers found in scratch/arm64/include/mpv:"
+            ls -la scratch/arm64/include/mpv/
+          else
+            echo "WARNING: scratch/arm64/include/mpv not found"
+            echo "Attempting to copy headers from source..."
+            MPV_SRC_DIR=$(ls -d src/mpv-* 2>/dev/null | head -1)
+            if [ -n "$MPV_SRC_DIR" ]; then
+              mkdir -p scratch/arm64/include/mpv
+              cp "$MPV_SRC_DIR/libmpv/client.h" scratch/arm64/include/mpv/ 2>/dev/null || true
+              cp "$MPV_SRC_DIR/video/out/opengl_cb.h" scratch/arm64/include/mpv/ 2>/dev/null || true
+              cp "$MPV_SRC_DIR/video/out/gpu/hwdec.h" scratch/arm64/include/mpv/ 2>/dev/null || true
+              cp "$MPV_SRC_DIR/render.h" scratch/arm64/include/mpv/ 2>/dev/null || true
+              cp "$MPV_SRC_DIR/render_gl.h" scratch/arm64/include/mpv/ 2>/dev/null || true
+              cp "$MPV_SRC_DIR/stream_cb.h" scratch/arm64/include/mpv/ 2>/dev/null || true
+              cp "$MPV_SRC_DIR/sub/sub.h" scratch/arm64/include/mpv/ 2>/dev/null || true
+              cp "$MPV_SRC_DIR/player/scripting/qjs.h" scratch/arm64/include/mpv/ 2>/dev/null || true
+              echo "Headers copied:"
+              ls -la scratch/arm64/include/mpv/
+            else
+              echo "ERROR: mpv source directory not found"
+              exit 1
+            fi
+          fi
+
       # === 上传完整 scratch 目录（含头文件和库，供测试 job 使用）===
       - name: Upload build artifacts for testing
         uses: actions/upload-artifact@v4
@@ -360,6 +389,27 @@ jobs:
           if [ -d "scratch/arm64/lib" ]; then
             echo "libmpv.a:"
             ls -la scratch/arm64/lib/libmpv.a 2>/dev/null || echo "libmpv.a not found in scratch"
+          fi
+          
+          # 如果头文件缺失，从源码目录复制
+          if [ ! -d "scratch/arm64/include/mpv" ]; then
+            echo "=== mpv headers not found, copying from source ==="
+            MPV_SRC_DIR=$(ls -d src/mpv-* 2>/dev/null | head -1)
+            if [ -n "$MPV_SRC_DIR" ]; then
+              mkdir -p scratch/arm64/include/mpv
+              cp "$MPV_SRC_DIR/libmpv/client.h" scratch/arm64/include/mpv/ 2>/dev/null || true
+              cp "$MPV_SRC_DIR/video/out/opengl_cb.h" scratch/arm64/include/mpv/ 2>/dev/null || true
+              cp "$MPV_SRC_DIR/video/out/gpu/hwdec.h" scratch/arm64/include/mpv/ 2>/dev/null || true
+              cp "$MPV_SRC_DIR/render.h" scratch/arm64/include/mpv/ 2>/dev/null || true
+              cp "$MPV_SRC_DIR/render_gl.h" scratch/arm64/include/mpv/ 2>/dev/null || true
+              cp "$MPV_SRC_DIR/stream_cb.h" scratch/arm64/include/mpv/ 2>/dev/null || true
+              cp "$MPV_SRC_DIR/sub/sub.h" scratch/arm64/include/mpv/ 2>/dev/null || true
+              cp "$MPV_SRC_DIR/player/scripting/qjs.h" scratch/arm64/include/mpv/ 2>/dev/null || true
+              echo "Headers copied to scratch/arm64/include/mpv/"
+              ls -la scratch/arm64/include/mpv/
+            else
+              echo "ERROR: Cannot find mpv source directory to copy headers"
+            fi
           fi
 
       # === 创建 Libmpv.framework（使用已编译好的产物）===
