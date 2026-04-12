@@ -150,14 +150,13 @@ jobs:
         with:
           path: |
             scratch/arm64
-            src/mpv
+            src/mpv-*
             src/libplacebo
           key: ios-mpv-${{ runner.os }}-${{ env.MPV_VERSION }}-${{ env.LIBPLACEBO_VERSION }}-${{ env.FFMPEG_VERSION }}
           restore-keys: |
             ios-mpv-${{ runner.os }}-
 
       - name: Checkout repository
-        if: steps.cache-mpv.outputs.cache-hit != 'true'
         uses: actions/checkout@v4
 
       - name: Setup Xcode
@@ -202,6 +201,8 @@ jobs:
         if: steps.cache-mpv.outputs.cache-hit != 'true'
         run: |
           echo "=== Building libmpv (with libplacebo subproject) ==="
+          chmod +x build.sh
+          chmod +x scripts/*-build
           ./build.sh -e distribution -s 4
 
       # === 准备最终产物 ===
