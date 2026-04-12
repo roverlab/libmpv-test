@@ -206,9 +206,14 @@ jobs:
           chmod +x scripts/*-build
           ./build.sh -e distribution -s 4
           
-          # 保存设备版本
-          if [ -d "scratch/arm64" ]; then
-            mv scratch/arm64 scratch/arm64-device
+          # 保存设备版本的 libmpv.a
+          mkdir -p scratch/arm64-device
+          if [ -f "scratch/arm64/lib/libmpv.a" ]; then
+            cp scratch/arm64/lib/libmpv.a scratch/arm64-device/
+          fi
+          # 保存设备版本的头文件
+          if [ -d "scratch/arm64/include/mpv" ]; then
+            cp -r scratch/arm64/include/mpv scratch/arm64-device/
           fi
 
       # === 编译 mpv for simulator ===
@@ -217,24 +222,8 @@ jobs:
         run: |
           echo "=== Building libmpv for simulator (arm64) ==="
           
-          # 创建模拟器版本的 scratch 目录，复用设备版本的依赖库
-          # 由于都是 arm64 静态库，可以复用
-          mkdir -p scratch/arm64-simulator
-          
-          # 复制设备版本的依赖库到模拟器目录（lib, include 等）
-          if [ -d "scratch/arm64/lib" ]; then
-            cp -r scratch/arm64/lib scratch/arm64-simulator/
-          fi
-          if [ -d "scratch/arm64/include" ]; then
-            cp -r scratch/arm64/include scratch/arm64-simulator/
-          fi
-          if [ -d "scratch/arm64/lib/pkgconfig" ]; then
-            # 更新 pkgconfig 路径指向模拟器目录
-            for pc in scratch/arm64-simulator/lib/pkgconfig/*.pc; do
-              sed -i '' 's|scratch/arm64|scratch/arm64-simulator|g' "$pc" 2>/dev/null || true
-            done
-          fi
-          
+          # 依赖库已经在 scratch/arm64 中（来自 dependencies job）
+          # 直接编译模拟器版本，build.sh 会使用 arm64-simulator 目录
           chmod +x build.sh
           chmod +x scripts/*-build
           ./build.sh -e simulator -s 4

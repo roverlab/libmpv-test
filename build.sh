@@ -138,7 +138,12 @@ for ARCH in $ARCHS; do
 
     mkdir -p $SCRATCH
 
-    PKG_CONFIG_PATH="$SCRATCH/$ARCH_DIR/lib/pkgconfig"
+    # 模拟器版本复用设备版本的依赖库（都是 arm64 静态库）
+    if [[ "$ENVIRONMENT" = "simulator" ]]; then
+        PKG_CONFIG_PATH="$SCRATCH/arm64/lib/pkgconfig"
+    else
+        PKG_CONFIG_PATH="$SCRATCH/$ARCH_DIR/lib/pkgconfig"
+    fi
     COMMON_OPTIONS="--prefix=$SCRATCH/$ARCH_DIR --exec-prefix=$SCRATCH/$ARCH_DIR --build=x86_64-apple-darwin14 --enable-static \
                     --disable-shared --disable-dependency-tracking --with-pic --host=$HOSTFLAG"
     
