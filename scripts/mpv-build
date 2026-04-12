@@ -5,6 +5,7 @@ cd $SRC/mpv*
 
 echo "Building mpv with meson (libplacebo as subproject)..."
 echo "  ARCH=$ARCH"
+echo "  ENVIRONMENT=$ENVIRONMENT"
 echo "  SDKPATH=$SDKPATH"
 echo "  SCRATCH=$SCRATCH"
 
@@ -16,6 +17,18 @@ if [ -z "$ARCH" ] || [ -z "$SDKPATH" ] || [ -z "$SCRATCH" ]; then
     echo "  SCRATCH=$SCRATCH"
     exit 1
 fi
+
+# 模拟器环境使用单独的目录
+if [ "$ENVIRONMENT" = "simulator" ]; then
+    ARCH_DIR="arm64-simulator"
+else
+    ARCH_DIR="$ARCH"
+fi
+
+# Set PKG_CONFIG_PATH for dependencies
+export PKG_CONFIG_PATH="$SCRATCH/$ARCH_DIR/lib/pkgconfig"
+echo "  ARCH_DIR=$ARCH_DIR"
+echo "  PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
 
 # Determine target based on architecture and environment
 if [ "$ARCH" = "arm64" ]; then
@@ -49,13 +62,6 @@ echo "  CC=$CC_PATH"
 echo "  CXX=$CXX_PATH"
 echo "  AR=$AR_PATH"
 echo "  STRIP=$STRIP_PATH"
-
-# 模拟器环境使用单独的目录
-if [ "$ENVIRONMENT" = "simulator" ]; then
-    ARCH_DIR="arm64-simulator"
-else
-    ARCH_DIR="$ARCH"
-fi
 
 # Create cross-file for iOS cross-compilation
 # Use a persistent path instead of mktemp to allow meson reconfigure
