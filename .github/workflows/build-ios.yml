@@ -493,6 +493,60 @@ jobs:
           echo "✅ Test project created"
           find Tests/VerifyLibmpv -type f | sort
 
+      - name: Boot iOS Simulator
+        run: |
+          # xcodebuild test requires a booted simulator — a registered-but-not-booted
+          # device shows only as a placeholder and xcodebuild cannot match it.
+          #
+          # Strategy:
+          #   1. Try to find an existing iPhone 16 Pro and boot it.
+          #   2. Fall back to creating a new one from whatever iOS runtime is available.
+          #   3. Wait for the simulator to reach 'Booted' state.
+          #   4. Export SIM_UDID so later steps can reference it by id= (unambiguous).
+
+          set -e
+
+          # Find an existing iPhone 16 Pro, or pick the newest available iPhone type
+          SIM_UDID=$(xcrun simctl list devices available -j \
+            | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          hits = []
+          for runtime, devices in data.get('devices', {}).items():
+              if 'iOS' not in runtime:
+                  continue
+              for d in devices:
+                  if d.get('isAvailable') and 'iPhone' in d.get('name',''):
+                      hits.append((runtime, d['udid'], d['name']))
+          # prefer iPhone 16 Pro, then any iPhone, sorted by runtime descending
+          hits.sort(key=lambda x: (x[2]=='iPhone 16 Pro', x[0]), reverse=True)
+          if hits:
+              print(hits[0][1])
+          " 2>/dev/null || true)
+
+          if [ -z "$SIM_UDID" ]; then
+            echo "No existing iPhone simulator found — creating one..."
+            RUNTIME=$(xcrun simctl list runtimes available | grep 'iOS' | tail -1 | grep -Eo 'com\.apple\.CoreSimulator\.SimRuntime\.[^ ]+')
+            DEVTYPE=$(xcrun simctl list devicetypes | grep 'iPhone' | tail -1 | grep -Eo 'com\.apple\.CoreSimulator\.SimDeviceType\.[^ ]+')
+            SIM_UDID=$(xcrun simctl create "CI_iPhone" "$DEVTYPE" "$RUNTIME")
+            echo "Created simulator: $SIM_UDID"
+          fi
+
+          echo "Booting simulator: $SIM_UDID"
+          xcrun simctl boot "$SIM_UDID" 2>/dev/null || true   # already booted is fine
+
+          # Wait until the simulator reaches Booted state (timeout 120 s)
+          echo "Waiting for simulator to be ready..."
+          for i in $(seq 1 24); do
+            STATE=$(xcrun simctl list devices | grep "$SIM_UDID" | grep -Eo '\([A-Za-z ]+\)' | tr -d '()')
+            echo "  [$i] state=$STATE"
+            if [ "$STATE" = "Booted" ]; then break; fi
+            sleep 5
+          done
+
+          echo "SIM_UDID=$SIM_UDID" >> $GITHUB_ENV
+          echo "✅ Simulator ready: $SIM_UDID"
+
       - name: Build test project with xcodebuild (iOS Simulator)
         run: |
           cd Tests/VerifyLibmpv
@@ -509,11 +563,11 @@ jobs:
             -scheme VerifyLibmpv-Package \
             -platform iOS 2>&1 || true
 
-          # 用 xcodebuild 编译 iOS Simulator 版本
-          # 这是最接近真实使用场景的验证方式（与 Xcode IDE 行为一致）
+          # Build-only step: generic/platform=iOS Simulator does NOT require a booted
+          # simulator (it compiles for the platform without launching a device).
           xcodebuild build \
             -scheme VerifyLibmpv-Package \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest' \
+            -destination 'generic/platform=iOS Simulator' \
             -configuration Debug \
             -skip-testing:VerifyLibmpvTests \
             ONLY_ACTIVE_ARCH=YES
@@ -524,13 +578,12 @@ jobs:
         run: |
           cd Tests/VerifyLibmpv
 
-          # 在模拟器上运行单元测试
-          # -only-testing format: TargetName/ClassName  (NOT just the class name)
-          # Target = "VerifyLibmpvTests" (from Package.swift testTarget)
-          # Class  = "LibmpvImportTests" (the XCTestCase subclass in the Swift file)
+          # Use id= with the booted simulator UDID — unambiguous, no device-matching
+          # guesswork. SIM_UDID was exported by the "Boot iOS Simulator" step.
+          # -only-testing format: TargetName/ClassName
           xcodebuild test \
             -scheme VerifyLibmpv-Package \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest' \
+            -destination "id=$SIM_UDID" \
             -configuration Debug \
             -only-testing:VerifyLibmpvTests/LibmpvImportTests
 
