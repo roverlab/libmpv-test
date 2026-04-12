@@ -149,3 +149,20 @@ rm -f "$CROSS_FILE"
 
 # Copy libmpv.a to lib directory
 find "$SCRATCH/$ARCH" -name "libmpv.a" -exec cp {} "$SCRATCH/$ARCH/lib/" \; 2>/dev/null || true
+
+# Copy mpv headers to scratch include directory (for framework creation / CI artifact)
+MPV_INCLUDE_DIR="$SCRATCH/$ARCH/include/mpv"
+mkdir -p "$MPV_INCLUDE_DIR"
+MPV_SRC_DIR="$(ls -d ${SRC}/mpv-* 2>/dev/null | head -1)"
+if [ -n "$MPV_SRC_DIR" ]; then
+    cp "$MPV_SRC_DIR/libmpv/client.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || true
+    cp "$MPV_SRC_DIR/video/out/opengl_cb.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || true
+    cp "$MPV_SRC_DIR/video/out/gpu/hwdec.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || true
+    cp "$MPV_SRC_DIR/render.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || true
+    cp "$MPV_SRC_DIR/render_gl.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || true
+    cp "$MPV_SRC_DIR/stream_cb.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || true
+    cp "$MPV_SRC_DIR/sub/sub.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || true
+    cp "$MPV_SRC_DIR/player/scripting/qjs.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || true
+    echo "mpv headers copied to $MPV_INCLUDE_DIR/"
+    ls -la "$MPV_INCLUDE_DIR/"
+fi
