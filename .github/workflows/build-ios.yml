@@ -395,7 +395,9 @@ jobs:
           #   AVFoundation  ← AVCapture*, AVMedia*, AVAudioSession
           #   AudioToolbox  ← AudioUnit*, AudioComponent*, AudioFormat*
           #   CoreMedia     ← CMAudio*, CMBlock*, CMSample*, CMVideo*
-          #   bz2           ← BZ2_* (libbz2 system dylib)
+          #   bz2           ← BZ2_* (system libbz2)
+          #   z             ← _deflate*, _inflate*, _compress* (zlib; used by FFmpeg/libass)
+          #   iconv         ← _iconv* (used by libass subtitle charset conversion)
           sed 's/^          //' > Tests/VerifyLibmpv/Package.swift << 'PKGEOF'
           // swift-tools-version: 5.9
           import PackageDescription
@@ -413,6 +415,8 @@ jobs:
                           .linkedFramework("AudioToolbox"),
                           .linkedFramework("CoreMedia"),
                           .linkedLibrary("bz2"),
+                          .linkedLibrary("z"),
+                          .linkedLibrary("iconv"),
                       ]
                   ),
                   .binaryTarget(
