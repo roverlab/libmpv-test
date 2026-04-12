@@ -1,12 +1,12 @@
 #!/bin/sh
 set -e
 
-# 确保 configure 脚本有执行权限
+# ensure configure script has execute permission
 chmod +x $SRC/libass*/configure 2>/dev/null || true
 
-OPT="--disable-fontconfig \
-	--disable-require-system-font-provider \
-	--disable-directwrite \
+OPT="--disable-fontconfig 
+	--disable-require-system-font-provider 
+	--disable-directwrite 
 	--enable-coretext"
 
 # For simulator builds, disable assembly optimizations:
@@ -20,4 +20,4 @@ fi
 
 $SRC/libass*/configure $COMMON_OPTIONS $OPT
 
-make -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4) install
+make -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4) install

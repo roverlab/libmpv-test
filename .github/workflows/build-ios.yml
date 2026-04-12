@@ -100,8 +100,11 @@ jobs:
 
       - name: Make build scripts executable
         run: |
-          chmod +x build.sh
-          chmod +x clean.sh
+          # Strip Windows CRLF (\r) — files edited on Windows get \r\n endings
+          # that break the shebang on macOS: /bin/sh^M: bad interpreter
+          find . -maxdepth 2 \( -name '*.sh' -o -name '*-build' \) \
+            -exec sed -i '' 's/\r//' {} +
+          chmod +x build.sh clean.sh download.sh
           chmod +x scripts/*-build
 
       - name: Build dependencies
@@ -178,8 +181,11 @@ jobs:
 
       - name: Make build scripts executable
         run: |
-          chmod +x build.sh
-          chmod +x clean.sh
+          # Strip Windows CRLF (\r) — files edited on Windows get \r\n endings
+          # that break the shebang on macOS: /bin/sh^M: bad interpreter
+          find . -maxdepth 2 \( -name '*.sh' -o -name '*-build' \) \
+            -exec sed -i '' 's/\r//' {} +
+          chmod +x build.sh clean.sh download.sh
           chmod +x scripts/*-build
 
       - name: Build dependencies
