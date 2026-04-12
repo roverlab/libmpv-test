@@ -133,29 +133,15 @@ jobs:
     needs: dependencies
 
     steps:
-      # === 检查 mpv 编译缓存 ===
-      # 缓存完整的编译产物（设备 + 模拟器 + 源码）
-      - name: Cache libmpv build
-        id: cache-mpv
-        uses: actions/cache@v4
-        with:
-          path: |
-            scratch
-            src
-            lib
-          key: ios-mpv-v5-${{ runner.os }}-${{ env.MPV_VERSION }}-${{ env.LIBPLACEBO_VERSION }}-${{ env.FFMPEG_VERSION }}
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Xcode
-        if: steps.cache-mpv.outputs.cache-hit != 'true'
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
 
       - name: Install dependencies
-        if: steps.cache-mpv.outputs.cache-hit != 'true'
         run: |
           brew install pkg-config
           brew install nasm
@@ -165,13 +151,11 @@ jobs:
           brew install python@3.13
 
       - name: Download sources
-        if: steps.cache-mpv.outputs.cache-hit != 'true'
         run: |
           chmod +x download.sh
           ./download.sh
 
       - name: Make build scripts executable
-        if: steps.cache-mpv.outputs.cache-hit != 'true'
         run: |
           chmod +x build.sh
           chmod +x clean.sh
@@ -179,7 +163,6 @@ jobs:
 
       # === 下载依赖 artifact ===
       - name: Download dependencies
-        if: steps.cache-mpv.outputs.cache-hit != 'true'
         uses: actions/download-artifact@v4
         with:
           name: ios-dependencies
@@ -187,7 +170,6 @@ jobs:
 
       # === 编译 mpv（libplacebo 作为 subproject 自动编译）===
       - name: Build libmpv for device
-        if: steps.cache-mpv.outputs.cache-hit != 'true'
         run: |
           echo "=== Building libmpv for device (arm64) ==="
           chmod +x build.sh
@@ -206,7 +188,6 @@ jobs:
 
       # === 编译 mpv for simulator ===
       - name: Build libmpv for simulator
-        if: steps.cache-mpv.outputs.cache-hit != 'true'
         run: |
           echo "=== Building libmpv for simulator (arm64) ==="
           
@@ -266,7 +247,6 @@ jobs:
       - name: Verify mpv headers
         run: |
           echo "=== Verifying mpv headers ==="
-          echo "Cache hit: ${{ steps.cache-mpv.outputs.cache-hit }}"
           
           # 检查 scratch/arm64 目录结构
           echo "=== scratch/arm64 directory structure ==="
@@ -297,10 +277,6 @@ jobs:
               ls -la scratch/arm64/include/mpv/
             else
               echo "ERROR: mpv source directory not found"
-              echo "Cache may be corrupted. Clearing cache for next run..."
-              # 不再 exit 1，改为清除缓存
-              rm -rf scratch src lib 2>/dev/null || true
-              echo "Cache cleared. Please re-run the workflow."
               exit 1
             fi
           fi
