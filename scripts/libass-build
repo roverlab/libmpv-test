@@ -1,6 +1,9 @@
 #!/bin/sh
 set -e
 
+# 确保 configure 脚本有执行权限
+chmod +x $SRC/libass*/configure 2>/dev/null || true
+
 OPT="--disable-fontconfig \
 	--disable-require-system-font-provider \
 	--disable-directwrite \

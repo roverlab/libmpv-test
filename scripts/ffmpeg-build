@@ -1,6 +1,9 @@
 #!/bin/sh
 set -e
 
+# 确保 configure 脚本有执行权限
+chmod +x $SRC/ffmpeg*/configure 2>/dev/null || true
+
 FFMPEG_OPTIONS="${COMMON_OPTIONS%% *} \
 		--enable-cross-compile \
 		--disable-lzma \
