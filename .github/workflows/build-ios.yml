@@ -386,36 +386,65 @@ jobs:
           echo "Test video downloaded: $VIDEO_PATH ($FILE_SIZE bytes)"
           file "$VIDEO_PATH"
 
-      # === 使用 SPM 运行截图测试 ===
-      - name: Run screenshot tests with SPM
+      # === 使用 xcodebuild 运行截图测试（iOS 模拟器）===
+      # 注意：swift build 默认使用 macOS SDK，无法找到 UIKit
+      # 需要使用 xcodebuild 来构建 iOS 目标
+      - name: Run screenshot tests with xcodebuild
         run: |
-          echo "=== Running MPV Screenshot Tests with Swift Package Manager ==="
+          echo "=== Running MPV Screenshot Tests with xcodebuild (iOS Simulator) ==="
           
-          # 启动模拟器（为测试中可能的 UI 操作做准备）
-          xcrun simctl boot "iPhone 16" 2>/dev/null || true
-          xcrun simctl bootstatus "iPhone 16" -b
+          # 获取 iOS SDK 版本
+          IOS_SDK_VERSION=$(xcrun --sdk iphonesimulator --show-sdk-version)
+          echo "iOS Simulator SDK version: $IOS_SDK_VERSION"
           
-          echo "=== SPM 测试开始 ==="
+          # 列出可用的模拟器
+          echo "=== Available simulators ==="
+          xcrun simctl list devices available | grep "iPhone" || true
           
-          # 确保依赖已安装
-          if [ ! -d ".build" ] || [ ! -f ".build/checkouts" ]; then
-            echo "Resolving dependencies..."
-            swift package resolve
+          # 启动模拟器
+          SIMULATOR_NAME="iPhone 16"
+          echo "Booting simulator: $SIMULATOR_NAME"
+          xcrun simctl boot "$SIMULATOR_NAME" 2>/dev/null || true
+          xcrun simctl bootstatus "$SIMULATOR_NAME" -b
+          
+          # 先 resolve 依赖
+          echo "=== Resolving SPM dependencies ==="
+          swift package resolve
+          
+          # 列出可用的 scheme
+          echo "=== Available schemes ==="
+          xcodebuild -list 2>&1 || true
+          
+          # 为 iOS 模拟器构建 Libmpv 库
+          echo "=== Building Libmpv for iOS Simulator ==="
+          xcodebuild build \
+            -scheme Libmpv \
+            -destination "platform=iOS Simulator,name=$SIMULATOR_NAME" \
+            -configuration Debug \
+            -derivedDataPath .build \
+            2>&1 | tee build-output.log
+          
+          BUILD_EXIT_CODE=${PIPESTATUS[0]}
+          if [ $BUILD_EXIT_CODE -ne 0 ]; then
+            echo "❌ Build failed with exit code $BUILD_EXIT_CODE"
+            cat build-output.log
+            exit 1
           fi
           
-          # 构建 SPM 包以确保所有依赖正确
-          echo "Building SPM package..."
-          swift build --configuration debug
-          
           # 运行测试
-          echo "Running SPM tests..."
-          if swift test --configuration debug --enable-test-discovery 2>&1 | tee spm-test-output.log; then
-            echo "✅ SPM tests passed successfully"
-            cp spm-test-output.log test-output.log
-            echo "=== SPM test output saved to test-output.log ==="
+          echo "=== Running tests for iOS Simulator ==="
+          if xcodebuild test \
+            -scheme MPVScreenshotTests \
+            -destination "platform=iOS Simulator,name=$SIMULATOR_NAME" \
+            -configuration Debug \
+            -derivedDataPath .build \
+            2>&1 | tee xcodebuild-test-output.log; then
+            echo "✅ Tests passed successfully"
+            cp xcodebuild-test-output.log test-output.log
+            echo "=== Test output saved to test-output.log ==="
           else
-            echo "❌ SPM tests failed"
-            cat spm-test-output.log
+            echo "❌ Tests failed"
+            cat xcodebuild-test-output.log
             exit 1
           fi
 
