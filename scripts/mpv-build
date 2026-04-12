@@ -139,6 +139,10 @@ if [ -d "build" ]; then
     rm -rf build
 fi
 
+# audiounit uses CoreAudio's AudioDeviceID which is macOS-only (not available on
+# iOS at all — neither device nor simulator).  Always disable for iOS builds.
+AUDIOUNIT_OPTION="disabled"
+
 meson setup build \
 	--cross-file "$CROSS_FILE" \
 	--buildtype=$BUILDTYPE \
@@ -153,7 +157,7 @@ meson setup build \
 	-Dswift-build=disabled \
 	-Dmacos-cocoa-cb=disabled \
 	-Dcoreaudio=disabled \
-	-Daudiounit=enabled \
+	-Daudiounit=$AUDIOUNIT_OPTION \
 	-Davfoundation=enabled \
 	-Dvideotoolbox-pl=disabled \
 	-Dvideotoolbox-gl=disabled \
