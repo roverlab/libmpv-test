@@ -2,8 +2,6 @@ name: Build libmpv for iOS
 
 on:
   push:
-    branches:
-      - main
     tags:
       - 'v*'
   workflow_dispatch:
