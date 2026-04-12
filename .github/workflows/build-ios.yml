@@ -441,22 +441,39 @@ jobs:
         run: |
           SIMULATOR_NAME="iPhone 16"
           
+          # 创建头文件目录结构（xcframework 需要）
+          # xcodebuild -create-xcframework 需要头文件直接在 include 目录下，不在子目录中
+          mkdir -p include_temp
+          if [ -d "scratch/arm64/include/mpv" ]; then
+            cp scratch/arm64/include/mpv/*.h include_temp/
+          else
+            echo "ERROR: scratch/arm64/include/mpv directory not found"
+            exit 1
+          fi
+          
           # 创建 Libmpv.xcframework
           mkdir -p lib
           xcodebuild -create-xcframework \
             -library scratch/arm64/lib/libmpv.a \
-            -headers scratch/arm64/include \
+            -headers include_temp \
             -output lib/Libmpv.xcframework
+          
+          # 列出可用的 schemes
+          echo "=== Available schemes ==="
+          xcodebuild -list || true
           
           # 启动模拟器并运行测试
           xcrun simctl boot "$SIMULATOR_NAME" 2>/dev/null || true
           xcrun simctl bootstatus "$SIMULATOR_NAME" -b
           
+          # 使用 xcodebuild 运行测试
+          # SPM 项目 scheme 名称通常是 Package name
           xcodebuild test \
-            -scheme MPVScreenshotTests \
+            -scheme LibMpv-iOS \
             -destination "platform=iOS Simulator,name=$SIMULATOR_NAME" \
             -configuration Debug \
             -derivedDataPath .build \
+            -enableCodeCoverage YES \
             2>&1 | tee test-output.log
 
       # === 收集测试产物（截图文件）===

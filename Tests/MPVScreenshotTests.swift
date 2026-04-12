@@ -1,6 +1,6 @@
 import UIKit
 import XCTest
-import LibmpvSwift
+import Libmpv
 
 final class MPVScreenshotTests: XCTestCase {
     
