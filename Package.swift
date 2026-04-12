@@ -55,8 +55,7 @@ let package = Package(
             path: "Tests",
             cSettings: [
                 .headerSearchPath("../Sources/Libmpv/include")
-            ],
-            resources: [.copy("Info.plist")]
+            ]
         )
     ]
 )
