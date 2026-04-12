@@ -144,17 +144,17 @@ jobs:
 
     steps:
       # === 检查 mpv 编译缓存 ===
+      # 缓存完整的 src 和 scratch/arm64 目录
       - name: Cache libmpv build
         id: cache-mpv
         uses: actions/cache@v4
         with:
           path: |
             scratch/arm64
-            src/mpv-*
-            src/libplacebo
-          key: ios-mpv-${{ runner.os }}-${{ env.MPV_VERSION }}-${{ env.LIBPLACEBO_VERSION }}-${{ env.FFMPEG_VERSION }}
+            src
+          key: ios-mpv-v2-${{ runner.os }}-${{ env.MPV_VERSION }}-${{ env.LIBPLACEBO_VERSION }}-${{ env.FFMPEG_VERSION }}
           restore-keys: |
-            ios-mpv-${{ runner.os }}-
+            ios-mpv-v2-${{ runner.os }}-
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -252,6 +252,16 @@ jobs:
       - name: Verify mpv headers
         run: |
           echo "=== Verifying mpv headers ==="
+          echo "Cache hit: ${{ steps.cache-mpv.outputs.cache-hit }}"
+          
+          # 检查 scratch/arm64 目录结构
+          echo "=== scratch/arm64 directory structure ==="
+          ls -la scratch/arm64/ 2>/dev/null || echo "scratch/arm64 not found"
+          
+          # 检查 src 目录
+          echo "=== src directory ==="
+          ls -la src/ 2>/dev/null || echo "src not found"
+          
           if [ -d "scratch/arm64/include/mpv" ]; then
             echo "Headers found in scratch/arm64/include/mpv:"
             ls -la scratch/arm64/include/mpv/
@@ -273,6 +283,8 @@ jobs:
               ls -la scratch/arm64/include/mpv/
             else
               echo "ERROR: mpv source directory not found"
+              # 如果是缓存命中但没有源码，说明缓存有问题，需要清除
+              echo "Cache may be corrupted. This run will fail to force cache miss on next run."
               exit 1
             fi
           fi
