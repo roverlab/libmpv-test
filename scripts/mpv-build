@@ -50,10 +50,17 @@ echo "  CXX=$CXX_PATH"
 echo "  AR=$AR_PATH"
 echo "  STRIP=$STRIP_PATH"
 
+# 模拟器环境使用单独的目录
+if [ "$ENVIRONMENT" = "simulator" ]; then
+    ARCH_DIR="arm64-simulator"
+else
+    ARCH_DIR="$ARCH"
+fi
+
 # Create cross-file for iOS cross-compilation
 # Use a persistent path instead of mktemp to allow meson reconfigure
-CROSS_FILE="$SCRATCH/$ARCH/mpv-cross-file.txt"
-mkdir -p "$SCRATCH/$ARCH"
+CROSS_FILE="$SCRATCH/$ARCH_DIR/mpv-cross-file.txt"
+mkdir -p "$SCRATCH/$ARCH_DIR"
 
 # Determine the correct minimum version flag
 if [ "$ENVIRONMENT" = "simulator" ] || [ "$SDK_NAME" = "iphonesimulator" ]; then
@@ -79,7 +86,7 @@ cpu = '$CPU'
 endian = 'little'
 
 [built-in options]
-prefix = '$SCRATCH/$ARCH'
+prefix = '$SCRATCH/$ARCH_DIR'
 libdir = 'lib'
 default_library = 'static'
 EOF
@@ -124,6 +131,13 @@ EOF
 echo "Cross-file created at: $CROSS_FILE"
 cat "$CROSS_FILE" | head -20
 
+# Clean previous build directory to avoid stale configuration
+# This is important when switching between device and simulator builds
+if [ -d "build" ]; then
+    echo "Cleaning previous build directory..."
+    rm -rf build
+fi
+
 meson setup build \
 	--cross-file "$CROSS_FILE" \
 	--buildtype=$BUILDTYPE \
@@ -164,10 +178,10 @@ ninja -C build -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
 ninja -C build install
 
 # Copy libmpv.a to lib directory
-find "$SCRATCH/$ARCH" -name "libmpv.a" -exec cp {} "$SCRATCH/$ARCH/lib/" \; 2>/dev/null || true
+find "$SCRATCH/$ARCH_DIR" -name "libmpv.a" -exec cp {} "$SCRATCH/$ARCH_DIR/lib/" \; 2>/dev/null || true
 
 # Copy mpv headers to scratch include directory (for framework creation / CI artifact)
-MPV_INCLUDE_DIR="$SCRATCH/$ARCH/include/mpv"
+MPV_INCLUDE_DIR="$SCRATCH/$ARCH_DIR/include/mpv"
 mkdir -p "$MPV_INCLUDE_DIR"
 MPV_SRC_DIR="$(ls -d ${SRC}/mpv-* 2>/dev/null | head -1)"
 if [ -n "$MPV_SRC_DIR" ]; then

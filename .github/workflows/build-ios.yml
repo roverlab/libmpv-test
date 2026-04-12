@@ -216,19 +216,31 @@ jobs:
         if: steps.cache-mpv.outputs.cache-hit != 'true'
         run: |
           echo "=== Building libmpv for simulator (arm64) ==="
+          
+          # 创建模拟器版本的 scratch 目录，复用设备版本的依赖库
+          # 由于都是 arm64 静态库，可以复用
+          mkdir -p scratch/arm64-simulator
+          
+          # 复制设备版本的依赖库到模拟器目录（lib, include 等）
+          if [ -d "scratch/arm64/lib" ]; then
+            cp -r scratch/arm64/lib scratch/arm64-simulator/
+          fi
+          if [ -d "scratch/arm64/include" ]; then
+            cp -r scratch/arm64/include scratch/arm64-simulator/
+          fi
+          if [ -d "scratch/arm64/lib/pkgconfig" ]; then
+            # 更新 pkgconfig 路径指向模拟器目录
+            for pc in scratch/arm64-simulator/lib/pkgconfig/*.pc; do
+              sed -i '' 's|scratch/arm64|scratch/arm64-simulator|g' "$pc" 2>/dev/null || true
+            done
+          fi
+          
           chmod +x build.sh
           chmod +x scripts/*-build
           ./build.sh -e simulator -s 4
           
-          # 重命名模拟器版本
-          if [ -d "scratch/arm64" ]; then
-            mv scratch/arm64 scratch/arm64-simulator
-          fi
-          
-          # 恢复设备版本作为主 scratch/arm64 目录
-          if [ -d "scratch/arm64-device" ]; then
-            mv scratch/arm64-device scratch/arm64
-          fi
+          echo "=== Simulator build completed ==="
+          ls -la scratch/arm64-simulator/lib/libmpv.a 2>/dev/null || echo "Simulator libmpv.a not found"
 
       # === 准备最终产物 ===
       - name: Prepare artifacts

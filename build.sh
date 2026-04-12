@@ -97,6 +97,13 @@ LIB="$ROOT/lib"
 export SRC="$ROOT/src"
 mkdir -p $LIB
 
+# 模拟器环境使用单独的目录
+if [[ "$ENVIRONMENT" = "simulator" ]]; then
+    ARCH_DIR="arm64-simulator"
+else
+    ARCH_DIR="$ARCH"
+fi
+
 for ARCH in $ARCHS; do
     if [[ $ARCH = "arm64" ]]; then
         HOSTFLAG="aarch64"
@@ -131,29 +138,29 @@ for ARCH in $ARCHS; do
 
     mkdir -p $SCRATCH
 
-    PKG_CONFIG_PATH="$SCRATCH/$ARCH/lib/pkgconfig"
-    COMMON_OPTIONS="--prefix=$SCRATCH/$ARCH --exec-prefix=$SCRATCH/$ARCH --build=x86_64-apple-darwin14 --enable-static \
+    PKG_CONFIG_PATH="$SCRATCH/$ARCH_DIR/lib/pkgconfig"
+    COMMON_OPTIONS="--prefix=$SCRATCH/$ARCH_DIR --exec-prefix=$SCRATCH/$ARCH_DIR --build=x86_64-apple-darwin14 --enable-static \
                     --disable-shared --disable-dependency-tracking --with-pic --host=$HOSTFLAG"
     
     for LIBRARY in $LIBRARIES; do
         case $LIBRARY in
             "libfribidi" )
-				mkdir -p $SCRATCH/$ARCH/fribidi && cd $_ && $SCRIPTS/fribidi-build
+				mkdir -p $SCRATCH/$ARCH_DIR/fribidi && cd $_ && $SCRIPTS/fribidi-build
 				;;
             "libfreetype" )
-				mkdir -p $SCRATCH/$ARCH/freetype && cd $_ && $SCRIPTS/freetype-build
+				mkdir -p $SCRATCH/$ARCH_DIR/freetype && cd $_ && $SCRIPTS/freetype-build
 			;;
             "libharfbuzz" )
-				mkdir -p $SCRATCH/$ARCH/harfbuzz && cd $_ && $SCRIPTS/harfbuzz-build
+				mkdir -p $SCRATCH/$ARCH_DIR/harfbuzz && cd $_ && $SCRIPTS/harfbuzz-build
 				;;
             "libass" )
-				mkdir -p $SCRATCH/$ARCH/libass && cd $_ && $SCRIPTS/libass-build
+				mkdir -p $SCRATCH/$ARCH_DIR/libass && cd $_ && $SCRIPTS/libass-build
 				;;
             "libuchardet" )
-				mkdir -p $SCRATCH/$ARCH/uchardet && cd $_ && $SCRIPTS/uchardet-build
+				mkdir -p $SCRATCH/$ARCH_DIR/uchardet && cd $_ && $SCRIPTS/uchardet-build
 				;;
             "ffmpeg" )
-				mkdir -p $SCRATCH/$ARCH/ffmpeg && cd $_ && $SCRIPTS/ffmpeg-build
+				mkdir -p $SCRATCH/$ARCH_DIR/ffmpeg && cd $_ && $SCRIPTS/ffmpeg-build
 				;;
             "libmpv" )
                 if [[ "$ENVIRONMENT" = "development" ]]; then
@@ -161,16 +168,16 @@ for ARCH in $ARCHS; do
                     LDFLAGS="$ALDFLAGS -fembed-bitcode -g2 -Og"
                 fi
 				$SCRIPTS/mpv-build
-				# ninja install already places libmpv.a in $SCRATCH/$ARCH/lib/
+				# ninja install already places libmpv.a in $SCRATCH/$ARCH_DIR/lib/
 				# Verify the output file exists
-				if [ ! -f "$SCRATCH/$ARCH/lib/libmpv.a" ]; then
-				    echo "ERROR: libmpv.a not found at $SCRATCH/$ARCH/lib/libmpv.a"
+				if [ ! -f "$SCRATCH/$ARCH_DIR/lib/libmpv.a" ]; then
+				    echo "ERROR: libmpv.a not found at $SCRATCH/$ARCH_DIR/lib/libmpv.a"
 				    echo "Searching for libmpv.a in scratch..."
 				    find "$SCRATCH" -name "libmpv.a" 2>/dev/null || true
 				    exit 1
 				fi
-				echo "libmpv.a installed: $SCRATCH/$ARCH/lib/libmpv.a"
-				ls -la "$SCRATCH/$ARCH/lib/libmpv.a"
+				echo "libmpv.a installed: $SCRATCH/$ARCH_DIR/lib/libmpv.a"
+				ls -la "$SCRATCH/$ARCH_DIR/lib/libmpv.a"
 				;;
         esac
     done
