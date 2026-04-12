@@ -24,9 +24,9 @@ let package = Package(
                 ])
             ],
             linkerSettings: [
-                .linkedLib("z"),
-                .linkedLib("bz2"),
-                .linkedLib("resolv"),
+                .linkedLibrary("z"),
+                .linkedLibrary("bz2"),
+                .linkedLibrary("resolv"),
                 .linkedFramework("UIKit"),
                 .linkedFramework("Foundation"),
                 .linkedFramework("AVFoundation"),
@@ -56,9 +56,7 @@ let package = Package(
             cSettings: [
                 .headerSearchPath("../Sources/Libmpv/include")
             ],
-            resources: [
-                .process("Info.plist")
-            ]
+            resources: .copy("Info.plist")
         )
     ]
 )
