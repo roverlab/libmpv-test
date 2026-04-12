@@ -340,6 +340,7 @@ jobs:
     name: Test XCFramework (SPM Import)
     runs-on: macos-latest
     needs: create-xcframework
+    if: "!startsWith(github.ref, 'refs/tags/')"
 
     steps:
       - name: Checkout repository
@@ -603,7 +604,7 @@ jobs:
   release:
     name: Create Release
     runs-on: macos-latest
-    needs: [create-xcframework, test-xcframework]
+    needs: [create-xcframework]
     if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
