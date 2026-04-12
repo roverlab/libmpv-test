@@ -504,4 +504,4 @@ jobs:
           git config --local user.name "GitHub Action"
           git add Package.swift
           git diff --quiet && git diff --staged --quiet || git commit -m "Update checksum for ${{ github.ref_name }}"
-          git push
+          git push origin HEAD:main
