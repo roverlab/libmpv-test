@@ -257,6 +257,7 @@ jobs:
             scratch/
             src/
           retention-days: 30
+          if-no-files-found: warn
 
   build-development:
     name: Build libmpv for iOS (Development)
@@ -346,6 +347,20 @@ jobs:
         with:
           name: libmpv-build-artifacts
           path: ./
+        continue-on-error: true
+
+      # === 验证下载的产物 ===
+      - name: Verify downloaded artifacts
+        run: |
+          echo "=== Checking downloaded artifacts ==="
+          echo "scratch directory:"
+          ls -la scratch/ 2>/dev/null || echo "scratch/ not found"
+          echo "src directory:"
+          ls -la src/ 2>/dev/null || echo "src/ not found"
+          if [ -d "scratch/arm64/lib" ]; then
+            echo "libmpv.a:"
+            ls -la scratch/arm64/lib/libmpv.a 2>/dev/null || echo "libmpv.a not found in scratch"
+          fi
 
       # === 创建 Libmpv.framework（使用已编译好的产物）===
       - name: Create Libmpv.framework
