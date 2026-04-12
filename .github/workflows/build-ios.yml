@@ -18,6 +18,9 @@ on:
         description: 'mpv version'
         required: false
         default: '0.39.0'
+
+permissions:
+  contents: write
       libplacebo_version:
         description: 'libplacebo version (required for mpv 0.39+)'
         required: false
