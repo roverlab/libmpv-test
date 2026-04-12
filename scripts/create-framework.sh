@@ -15,10 +15,15 @@ MODULES_DIR="$FRAMEWORK_DIR/Modules"
 rm -rf "$FRAMEWORK_DIR"
 mkdir -p "$HEADERS_DIR" "$MODULES_DIR"
 
-# 查找 mpv 头文件
-MPV_SRC_DIR=$(ls -d $ROOT/src/mpv-* 2>/dev/null | head -1)
+# 查找 mpv 头文件（支持缓存恢复后的 src/mpv 和解压后的 src/mpv-*）
+MPV_SRC_DIR=$(ls -d $ROOT/src/mpv 2>/dev/null | head -1)
+if [ -z "$MPV_SRC_DIR" ]; then
+    MPV_SRC_DIR=$(ls -d $ROOT/src/mpv-* 2>/dev/null | head -1)
+fi
 if [ -z "$MPV_SRC_DIR" ]; then
     echo "ERROR: mpv source directory not found"
+    echo "Looking for src/mpv or src/mpv-* in $ROOT/src/"
+    ls -la "$ROOT/src/" 2>/dev/null || echo "src/ directory does not exist"
     exit 1
 fi
 
