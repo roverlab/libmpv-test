@@ -78,8 +78,10 @@ if [[ "$ENVIRONMENT" = "distribution" ]]; then
     ARCHS="arm64"
 elif [[ "$ENVIRONMENT" = "development" ]]; then
     ARCHS="x86_64 arm64"
+elif [[ "$ENVIRONMENT" = "simulator" ]]; then
+    ARCHS="arm64"
 elif [[ "$ENVIRONMENT" = "" ]]; then
-    echo "An environment option is required (-e development or -e distribution)"
+    echo "An environment option is required (-e development, -e distribution, or -e simulator)"
     exit 1
 else
     echo "Unhandled environment option"
@@ -97,9 +99,16 @@ mkdir -p $LIB
 for ARCH in $ARCHS; do
     if [[ $ARCH = "arm64" ]]; then
         HOSTFLAG="aarch64"
-		export SDKPATH="$(xcodebuild -sdk iphoneos -version Path)"
-		ACFLAGS="-arch $ARCH -isysroot $SDKPATH -mios-version-min=$DEPLOYMENT_TARGET"
-		ALDFLAGS="-arch $ARCH -isysroot $SDKPATH -Wl,-ios_version_min,$DEPLOYMENT_TARGET -lbz2"
+        # simulator 环境使用模拟器 SDK，否则使用设备 SDK
+        if [[ "$ENVIRONMENT" = "simulator" ]]; then
+            export SDKPATH="$(xcodebuild -sdk iphonesimulator -version Path)"
+            ACFLAGS="-arch $ARCH -isysroot $SDKPATH -mios-simulator-version-min=$DEPLOYMENT_TARGET"
+            ALDFLAGS="-arch $ARCH -isysroot $SDKPATH -Wl,-ios_simulator_version_min,$DEPLOYMENT_TARGET -lbz2"
+        else
+            export SDKPATH="$(xcodebuild -sdk iphoneos -version Path)"
+            ACFLAGS="-arch $ARCH -isysroot $SDKPATH -mios-version-min=$DEPLOYMENT_TARGET"
+            ALDFLAGS="-arch $ARCH -isysroot $SDKPATH -Wl,-ios_version_min,$DEPLOYMENT_TARGET -lbz2"
+        fi
 	elif [[ $ARCH = "x86_64" ]]; then
         HOSTFLAG="x86_64"
 		export SDKPATH="$(xcodebuild -sdk iphonesimulator -version Path)"
@@ -110,7 +119,7 @@ for ARCH in $ARCHS; do
         exit 1
     fi
 
-    if [[ "$ENVIRONMENT" = "development" ]]; then
+    if [[ "$ENVIRONMENT" = "development" ]] || [[ "$ENVIRONMENT" = "simulator" ]]; then
         CFLAGS="$ACFLAGS"
         LDFLAGS="$ALDFLAGS"
     else

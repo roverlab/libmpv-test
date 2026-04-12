@@ -17,12 +17,17 @@ if [ -z "$ARCH" ] || [ -z "$SDKPATH" ] || [ -z "$SCRATCH" ]; then
     exit 1
 fi
 
-# Determine target based on architecture
+# Determine target based on architecture and environment
 if [ "$ARCH" = "arm64" ]; then
-    TARGET_TRIPLE="arm64-apple-ios"
-    SDK_NAME="iphoneos"
     CPU_FAMILY="aarch64"
     CPU="aarch64"
+    if [ "$ENVIRONMENT" = "simulator" ]; then
+        TARGET_TRIPLE="arm64-apple-ios13.0-simulator"
+        SDK_NAME="iphonesimulator"
+    else
+        TARGET_TRIPLE="arm64-apple-ios"
+        SDK_NAME="iphoneos"
+    fi
 elif [ "$ARCH" = "x86_64" ]; then
     TARGET_TRIPLE="x86_64-apple-ios13.0-simulator"
     SDK_NAME="iphonesimulator"
@@ -47,12 +52,20 @@ echo "  STRIP=$STRIP_PATH"
 
 # Create cross-file for iOS cross-compilation
 CROSS_FILE=$(mktemp)
+
+# Determine the correct minimum version flag
+if [ "$ENVIRONMENT" = "simulator" ] || [ "$SDK_NAME" = "iphonesimulator" ]; then
+    MIN_VERSION_FLAG="-mios-simulator-version-min=11.0"
+else
+    MIN_VERSION_FLAG="-miphoneos-version-min=11.0"
+fi
+
 cat > "$CROSS_FILE" << EOF
 [binaries]
-c = ['$CC_PATH', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
-cpp = ['$CXX_PATH', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
-objc = ['$CC_PATH', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
-objcpp = ['$CXX_PATH', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '-miphoneos-version-min=11.0']
+c = ['$CC_PATH', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
+cpp = ['$CXX_PATH', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
+objc = ['$CC_PATH', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
+objcpp = ['$CXX_PATH', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
 ar = '$AR_PATH'
 strip = '$STRIP_PATH'
 pkg-config = 'pkg-config'
@@ -80,6 +93,12 @@ if [[ "$ENVIRONMENT" = "development" ]]; then
     C_ARGS="-fembed-bitcode -g2 -Og"
     CPP_ARGS="-fembed-bitcode -g2 -Og"
     C_LINK_ARGS="-lbz2 -fembed-bitcode -g2 -Og"
+elif [[ "$ENVIRONMENT" = "simulator" ]]; then
+    # Simulator doesn't need bitcode
+    BUILDTYPE="release"
+    C_ARGS="-Os"
+    CPP_ARGS="-Os"
+    C_LINK_ARGS="-lbz2 -Os"
 fi
 
 # Convert space-separated flags to meson array format: ['-a', '-b', '-c']

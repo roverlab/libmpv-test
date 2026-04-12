@@ -436,6 +436,80 @@ jobs:
           echo "Test video downloaded: $VIDEO_PATH ($FILE_SIZE bytes)"
           file "$VIDEO_PATH"
 
+      # === 编译模拟器版本的依赖和 libmpv（用于测试）===
+      - name: Build dependencies and libmpv for simulator
+        run: |
+          echo "=== Building for iOS Simulator (arm64) ==="
+          
+          # 检查是否已有 arm64-simulator 编译结果
+          # 注意：simulator 构建会在 scratch/arm64-simulator 目录下
+          # 但我们复用 arm64 目录（因为目录名基于 ARCH，而 ARCH=arm64）
+          
+          # 为了区分设备和模拟器，我们需要单独的目录
+          # 临时备份 arm64 设备版（如果存在）
+          if [ -d "scratch/arm64" ]; then
+            mv scratch/arm64 scratch/arm64-device
+          fi
+          
+          # 编译所有依赖 + mpv for simulator
+          chmod +x build.sh
+          chmod +x scripts/*-build
+          ./build.sh -e simulator
+          
+          # 重命名模拟器版本
+          if [ -d "scratch/arm64" ]; then
+            mv scratch/arm64 scratch/arm64-simulator
+          fi
+          
+          # 恢复设备版
+          if [ -d "scratch/arm64-device" ]; then
+            mv scratch/arm64-device scratch/arm64
+          fi
+          
+          echo "=== Simulator build completed ==="
+          ls -la scratch/arm64-simulator/lib/libmpv.a 2>/dev/null || echo "Simulator libmpv.a not found"
+
+      # === 运行 iOS 模拟器测试 ===
+      - name: Run tests on iOS Simulator
+        run: |
+          SIMULATOR_NAME="iPhone 16"
+          
+          # 创建头文件目录结构（xcframework 需要）
+          mkdir -p include_temp
+          if [ -d "scratch/arm64-simulator/include/mpv" ]; then
+            cp scratch/arm64-simulator/include/mpv/*.h include_temp/
+          elif [ -d "scratch/arm64/include/mpv" ]; then
+            cp scratch/arm64/include/mpv/*.h include_temp/
+          else
+            echo "ERROR: mpv headers not found"
+            exit 1
+          fi
+          
+          # 创建 Libmpv.xcframework（仅包含模拟器架构）
+          mkdir -p lib
+          xcodebuild -create-xcframework \
+            -library scratch/arm64-simulator/lib/libmpv.a \
+            -headers include_temp \
+            -output lib/Libmpv.xcframework
+          
+          # 列出可用的 schemes
+          echo "=== Available schemes ==="
+          xcodebuild -list || true
+          
+          # 启动模拟器并运行测试
+          xcrun simctl boot "$SIMULATOR_NAME" 2>/dev/null || true
+          xcrun simctl bootstatus "$SIMULATOR_NAME" -b
+          
+          # 使用 xcodebuild 运行测试
+          # SPM 项目 scheme 名称通常是 Package name
+          xcodebuild test \
+            -scheme LibMpv-iOS \
+            -destination "platform=iOS Simulator,name=$SIMULATOR_NAME" \
+            -configuration Debug \
+            -derivedDataPath .build \
+            -enableCodeCoverage YES \
+            2>&1 | tee test-output.log
+
       # === 运行 iOS 模拟器测试 ===
       - name: Run tests on iOS Simulator
         run: |
@@ -446,15 +520,17 @@ jobs:
           mkdir -p include_temp
           if [ -d "scratch/arm64/include/mpv" ]; then
             cp scratch/arm64/include/mpv/*.h include_temp/
+          elif [ -d "scratch/x86_64/include/mpv" ]; then
+            cp scratch/x86_64/include/mpv/*.h include_temp/
           else
-            echo "ERROR: scratch/arm64/include/mpv directory not found"
+            echo "ERROR: mpv headers not found"
             exit 1
           fi
           
-          # 创建 Libmpv.xcframework
+          # 创建 Libmpv.xcframework（包含模拟器架构）
           mkdir -p lib
           xcodebuild -create-xcframework \
-            -library scratch/arm64/lib/libmpv.a \
+            -library scratch/x86_64/lib/libmpv.a \
             -headers include_temp \
             -output lib/Libmpv.xcframework
           
