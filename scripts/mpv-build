@@ -181,19 +181,21 @@ ninja -C build install
 # Copy libmpv.a to lib directory
 find "$SCRATCH/$ARCH_DIR" -name "libmpv.a" -exec cp {} "$SCRATCH/$ARCH_DIR/lib/" \; 2>/dev/null || true
 
-# Copy mpv headers to scratch include directory (for framework creation / CI artifact)
+# Copy mpv public API headers to scratch include directory (for framework creation / CI artifact)
+# Only copy headers from libmpv/ — these are the canonical public API headers.
+# DO NOT copy internal headers (e.g. video/out/gpu/hwdec.h) that depend on
+# FFmpeg's libavutil/hwcontext.h, because those headers are not bundled in the
+# XCFramework and will cause Clang's module dependency scanner to fail with:
+#   fatal error: 'libavutil/hwcontext.h' file not found
 MPV_INCLUDE_DIR="$SCRATCH/$ARCH_DIR/include/mpv"
 mkdir -p "$MPV_INCLUDE_DIR"
 MPV_SRC_DIR="$(ls -d ${SRC}/mpv-* 2>/dev/null | head -1)"
 if [ -n "$MPV_SRC_DIR" ]; then
-    cp "$MPV_SRC_DIR/libmpv/client.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || true
-    cp "$MPV_SRC_DIR/video/out/opengl_cb.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || true
-    cp "$MPV_SRC_DIR/video/out/gpu/hwdec.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || true
-    cp "$MPV_SRC_DIR/render.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || true
-    cp "$MPV_SRC_DIR/render_gl.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || true
-    cp "$MPV_SRC_DIR/stream_cb.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || true
-    cp "$MPV_SRC_DIR/sub/sub.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || true
-    cp "$MPV_SRC_DIR/player/scripting/qjs.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || true
-    echo "mpv headers copied to $MPV_INCLUDE_DIR/"
+    # Public headers from the libmpv/ subdirectory only
+    cp "$MPV_SRC_DIR/libmpv/client.h"    "$MPV_INCLUDE_DIR/" 2>/dev/null || true
+    cp "$MPV_SRC_DIR/libmpv/render.h"    "$MPV_INCLUDE_DIR/" 2>/dev/null || true
+    cp "$MPV_SRC_DIR/libmpv/render_gl.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || true
+    cp "$MPV_SRC_DIR/libmpv/stream_cb.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || true
+    echo "mpv public API headers copied to $MPV_INCLUDE_DIR/"
     ls -la "$MPV_INCLUDE_DIR/"
 fi
