@@ -1,10 +1,11 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 5.9
 import PackageDescription
 
 let package = Package(
-    name: "LibMpv-iOS",
+    name: "Libmpv",
     platforms: [
-        .iOS(.v13)
+        .iOS(.v13),
+        .macOS(.v11)
     ],
     products: [
         .library(
@@ -15,12 +16,8 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "Libmpv",
-            path: "lib/Libmpv.xcframework"
-        ),
-        .testTarget(
-            name: "MPVScreenshotTests",
-            dependencies: ["Libmpv"],
-            path: "Tests"
+            url: "https://github.com/roverlab/libmpv-test/releases/download/v0.39.0/Libmpv.xcframework.zip",
+            checksum: "0000000000000000000000000000000000000000000000000000000000000000"
         )
     ]
 )
