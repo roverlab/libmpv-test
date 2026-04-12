@@ -357,26 +357,26 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: Libmpv-xcframework
-          path: lib/Libmpv.xcframework
+          path: Tests/VerifyLibmpv/Libmpv.xcframework
 
       - name: Verify XCFramework structure
         run: |
           echo "=== XCFramework directory ==="
-          ls -la lib/
+          ls -la Tests/VerifyLibmpv/
           echo "=== Full XCFramework file tree ==="
-          find lib/Libmpv.xcframework -type f | sort
+          find Tests/VerifyLibmpv/Libmpv.xcframework -type f | sort
           echo ""
           echo "=== Check module.modulemap exists ==="
-          find lib/Libmpv.xcframework -name "module.modulemap" -exec echo "✅ Found: {}" \;
-          if [ -z "$(find lib/Libmpv.xcframework -name 'module.modulemap')" ]; then
+          find Tests/VerifyLibmpv/Libmpv.xcframework -name "module.modulemap" -exec echo "✅ Found: {}" \;
+          if [ -z "$(find Tests/VerifyLibmpv/Libmpv.xcframework -name 'module.modulemap')" ]; then
               echo "❌ ERROR: module.modulemap not found in XCFramework!"
               exit 1
           fi
           echo ""
           echo "=== Check headers exist in XCFramework ==="
-          find lib/Libmpv.xcframework -name "*.h" -exec echo "✅ Header: {}" \;
-          find lib/Libmpv.xcframework -name "client.h" -exec echo "✅ client.h found" \;
-          if [ -z "$(find lib/Libmpv.xcframework -name 'client.h')" ]; then
+          find Tests/VerifyLibmpv/Libmpv.xcframework -name "*.h" -exec echo "✅ Header: {}" \;
+          find Tests/VerifyLibmpv/Libmpv.xcframework -name "client.h" -exec echo "✅ client.h found" \;
+          if [ -z "$(find Tests/VerifyLibmpv/Libmpv.xcframework -name 'client.h')" ]; then
               echo "❌ ERROR: client.h not found in XCFramework!"
               exit 1
           fi
@@ -384,15 +384,20 @@ jobs:
       - name: Create test iOS framework project
         run: |
           # 创建一个最小的 iOS SPM 项目来验证 import Libmpv
+          # 关键：XCFramework 放在包根目录下（与 Package.swift 同级）
+          # 这样 binaryTarget 可以使用包内相对路径，避免 SPM 跨包解析问题
           # 目录结构：
-          #   Tests/VerifyLibmpv/
+          #   Tests/VerifyLibmpv/           ← SPM 包根目录
           #     Package.swift
-          #     Sources/VerifyLibmpv/VerifyLibmpv.swift
-          #     Tests/VerifyLibmpvTests/VerifyLibmpvTests.swift
+          #     Libmpv.xcframework/        ← binaryTarget 在包内！
+          #     Sources/VerifyLibmpv/
+          #       VerifyLibmpv.swift
+          #     Tests/VerifyLibmpvTests/
+          #       VerifyLibmpvTests.swift
           mkdir -p Tests/VerifyLibmpv/Sources/VerifyLibmpv
           mkdir -p Tests/VerifyLibmpv/Tests/VerifyLibmpvTests
 
-          # Package.swift
+          # Package.swift — binaryTarget 使用包内相对路径
           cat > Tests/VerifyLibmpv/Package.swift << 'PKGEOF'
           // swift-tools-version: 5.9
           import PackageDescription
@@ -408,7 +413,7 @@ jobs:
                   ),
                   .binaryTarget(
                       name: "Libmpv",
-                      path: "../../lib/Libmpv.xcframework"
+                      path: "Libmpv.xcframework"
                   ),
                   .testTarget(
                       name: "VerifyLibmpvTests",
@@ -483,9 +488,9 @@ jobs:
           # 先解析包依赖（便于调试）
           swift package resolve 2>&1 || true
           
-          echo "=== XCFramework path check ==="
-          ls -la ../../lib/Libmpv.xcframework || echo "❌ XCFramework not found at expected path!"
-          find ../../lib/Libmpv.xcframework -type f 2>/dev/null | head -30 || echo "❌ No files in XCFramework!"
+          echo "=== XCFramework path check (must be inside package root) ==="
+          ls -la Libmpv.xcframework || echo "❌ XCFramework not found at expected path!"
+          find Libmpv.xcframework -type f 2>/dev/null | head -30 || echo "❌ No files in XCFramework!"
           
           echo "=== Resolving package dependencies ==="
           xcodebuild -resolvePackageDependencies \
