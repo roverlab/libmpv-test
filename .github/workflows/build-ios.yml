@@ -370,11 +370,16 @@ jobs:
 
       - name: Create test iOS framework project
         run: |
-          # 创建一个最小的 iOS Framework 项目来验证 import Libmpv
-          # 这与真实 Xcode 项目使用 SPM 依赖的方式完全一致
-          mkdir -p Tests/VerifyLibmpv/VerifyLibmpv/Tests/VerifyLibmpvTests
+          # 创建一个最小的 iOS SPM 项目来验证 import Libmpv
+          # 目录结构：
+          #   Tests/VerifyLibmpv/
+          #     Package.swift
+          #     Sources/VerifyLibmpv/VerifyLibmpv.swift
+          #     Tests/VerifyLibmpvTests/VerifyLibmpvTests.swift
+          mkdir -p Tests/VerifyLibmpv/Sources/VerifyLibmpv
+          mkdir -p Tests/VerifyLibmpv/Tests/VerifyLibmpvTests
 
-          # Package.swift — SPM 配置，引用本地 XCFramework 作为 binaryTarget
+          # Package.swift
           cat > Tests/VerifyLibmpv/Package.swift << 'PKGEOF'
           // swift-tools-version: 5.9
           import PackageDescription
@@ -405,17 +410,14 @@ jobs:
           cat > Tests/VerifyLibmpv/Sources/VerifyLibmpv/VerifyLibmpv.swift << 'SWIFTEOF'
           import Libmpv
 
-          /// Verify mpv_create returns a valid handle
           public func verifyMPVCreate() -> Bool {
               mpv_create() != nil
           }
 
-          /// Verify mpv_client_api_version is accessible
           public func verifyMPVVersion() -> Int32 {
               mpv_client_api_version()
           }
 
-          /// Verify full mpv lifecycle works
           @available(iOS 13, *)
           public func verifyMPVLifecycle() -> Bool {
               guard let handle = mpv_create() else { return false }
@@ -437,8 +439,6 @@ jobs:
 
           final class LibmpvImportTests: XCTestCase {
 
-              // 核心测试：如果这个编译通过，说明 `import Libmpv` 能被正确解析
-              // 这直接复现了 "Unable to find module dependency: 'Libmpv'" 错误场景
               func testImportLibmpvResolves() {
                   print("✅ import Libmpv resolved successfully via SPM binaryTarget")
               }
@@ -446,18 +446,15 @@ jobs:
               func testMPVClientAPIVersion() {
                   let v = verifyMPVVersion()
                   XCTAssertGreaterThan(v, 0, "mpv_client_api_version() should > 0")
-                  print("✅ mpv client API version: \(v)")
               }
 
               func testMPVCreateHandle() {
                   XCTAssertTrue(verifyMPVCreate(), "mpv_create() should return non-null handle")
-                  print("✅ mpv_create() returned valid handle")
               }
 
               func testMPVLifecycle() {
                   if #available(iOS 13, *) {
                       XCTAssertTrue(verifyMPVLifecycle(), "full mpv lifecycle should succeed")
-                      print("✅ mpv lifecycle test passed")
                   }
               }
           }
