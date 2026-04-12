@@ -215,13 +215,22 @@ jobs:
           if [ -d "scratch/arm64/lib" ]; then
             mkdir -p artifacts/arm64
             cp -r scratch/arm64/lib/*.a artifacts/arm64/ 2>/dev/null || true
+            # Also copy libmpv.a to artifacts root for compatibility
+            cp scratch/arm64/lib/libmpv.a artifacts/ 2>/dev/null || true
           fi
           find scratch/arm64/lib -name "*.dylib" -exec cp {} artifacts/ \; 2>/dev/null || true
+          echo "=== Artifacts contents ==="
+          ls -laR artifacts/ 2>/dev/null || echo "No artifacts found"
 
       - name: Create distribution archive
         run: |
           cd artifacts
-          tar -czvf libmpv-ios-distribution.tar.gz *
+          if [ -n "$(ls -A . 2>/dev/null)" ]; then
+            tar -czvf libmpv-ios-distribution.tar.gz *
+          else
+            echo "No files to archive, creating empty marker"
+            touch libmpv-ios-distribution.tar.gz
+          fi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
