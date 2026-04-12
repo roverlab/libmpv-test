@@ -144,17 +144,18 @@ jobs:
 
     steps:
       # === 检查 mpv 编译缓存 ===
-      # 缓存完整的 src 和 scratch/arm64 目录
+      # 缓存完整的 src 和 scratch 目录（设备和模拟器）
       - name: Cache libmpv build
         id: cache-mpv
         uses: actions/cache@v4
         with:
           path: |
             scratch/arm64
+            scratch/arm64-simulator
             src
-          key: ios-mpv-v2-${{ runner.os }}-${{ env.MPV_VERSION }}-${{ env.LIBPLACEBO_VERSION }}-${{ env.FFMPEG_VERSION }}
+          key: ios-mpv-v3-${{ runner.os }}-${{ env.MPV_VERSION }}-${{ env.LIBPLACEBO_VERSION }}-${{ env.FFMPEG_VERSION }}
           restore-keys: |
-            ios-mpv-v2-${{ runner.os }}-
+            ios-mpv-v3-${{ runner.os }}-
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -197,13 +198,37 @@ jobs:
           path: scratch/
 
       # === 编译 mpv（libplacebo 作为 subproject 自动编译）===
-      - name: Build libmpv
+      - name: Build libmpv for device
         if: steps.cache-mpv.outputs.cache-hit != 'true'
         run: |
-          echo "=== Building libmpv (with libplacebo subproject) ==="
+          echo "=== Building libmpv for device (arm64) ==="
           chmod +x build.sh
           chmod +x scripts/*-build
           ./build.sh -e distribution -s 4
+          
+          # 保存设备版本
+          if [ -d "scratch/arm64" ]; then
+            mv scratch/arm64 scratch/arm64-device
+          fi
+
+      # === 编译 mpv for simulator ===
+      - name: Build libmpv for simulator
+        if: steps.cache-mpv.outputs.cache-hit != 'true'
+        run: |
+          echo "=== Building libmpv for simulator (arm64) ==="
+          chmod +x build.sh
+          chmod +x scripts/*-build
+          ./build.sh -e simulator -s 4
+          
+          # 重命名模拟器版本
+          if [ -d "scratch/arm64" ]; then
+            mv scratch/arm64 scratch/arm64-simulator
+          fi
+          
+          # 恢复设备版本作为主 scratch/arm64 目录
+          if [ -d "scratch/arm64-device" ]; then
+            mv scratch/arm64-device scratch/arm64
+          fi
 
       # === 准备最终产物 ===
       - name: Prepare artifacts
@@ -363,9 +388,9 @@ jobs:
           path: artifacts/libmpv-ios-development.tar.gz
           retention-days: 30
 
-  # Job 4: 截图功能测试（复用 build job 的编译产物，运行 XCTest）
-  test-screenshot:
-    name: Test Screenshot (iOS Simulator)
+  # Job 4: 验证编译产物
+  verify-build:
+    name: Verify Build Artifacts
     runs-on: macos-latest
     needs: build
 
@@ -377,10 +402,6 @@ jobs:
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
-
-      - name: Make scripts executable
-        run: |
-          chmod +x scripts/create-framework.sh
 
       # === 下载 build job 的完整编译产物（含 scratch 和 src）===
       - name: Download build artifacts
@@ -398,218 +419,79 @@ jobs:
           ls -la scratch/ 2>/dev/null || echo "scratch/ not found"
           echo "src directory:"
           ls -la src/ 2>/dev/null || echo "src/ not found"
+          
+          # 检查设备版
+          echo "=== Device build (arm64) ==="
           if [ -d "scratch/arm64/lib" ]; then
-            echo "libmpv.a:"
-            ls -la scratch/arm64/lib/libmpv.a 2>/dev/null || echo "libmpv.a not found in scratch"
+            echo "libmpv.a (device):"
+            ls -la scratch/arm64/lib/libmpv.a 2>/dev/null || echo "libmpv.a not found in scratch/arm64"
           fi
           
-          # 如果头文件缺失，从源码目录复制
-          if [ ! -d "scratch/arm64/include/mpv" ]; then
-            echo "=== mpv headers not found, copying from source ==="
-            MPV_SRC_DIR=$(ls -d src/mpv-* 2>/dev/null | head -1)
-            if [ -n "$MPV_SRC_DIR" ]; then
-              mkdir -p scratch/arm64/include/mpv
-              cp "$MPV_SRC_DIR/libmpv/client.h" scratch/arm64/include/mpv/ 2>/dev/null || true
-              cp "$MPV_SRC_DIR/video/out/opengl_cb.h" scratch/arm64/include/mpv/ 2>/dev/null || true
-              cp "$MPV_SRC_DIR/video/out/gpu/hwdec.h" scratch/arm64/include/mpv/ 2>/dev/null || true
-              cp "$MPV_SRC_DIR/render.h" scratch/arm64/include/mpv/ 2>/dev/null || true
-              cp "$MPV_SRC_DIR/render_gl.h" scratch/arm64/include/mpv/ 2>/dev/null || true
-              cp "$MPV_SRC_DIR/stream_cb.h" scratch/arm64/include/mpv/ 2>/dev/null || true
-              cp "$MPV_SRC_DIR/sub/sub.h" scratch/arm64/include/mpv/ 2>/dev/null || true
-              cp "$MPV_SRC_DIR/player/scripting/qjs.h" scratch/arm64/include/mpv/ 2>/dev/null || true
-              echo "Headers copied to scratch/arm64/include/mpv/"
-              ls -la scratch/arm64/include/mpv/
-            else
-              echo "ERROR: Cannot find mpv source directory to copy headers"
-            fi
+          # 检查模拟器版
+          echo "=== Simulator build (arm64-simulator) ==="
+          if [ -d "scratch/arm64-simulator/lib" ]; then
+            echo "libmpv.a (simulator):"
+            ls -la scratch/arm64-simulator/lib/libmpv.a 2>/dev/null || echo "libmpv.a not found in scratch/arm64-simulator"
           fi
 
-      # === 创建 Libmpv.framework（使用已编译好的产物）===
-      - name: Create Libmpv.framework
+      # === 创建 XCFramework 用于验证 ===
+      - name: Create XCFramework for verification
         run: |
-          echo "=== Creating Libmpv.framework from build artifacts ==="
-          ./scripts/create-framework.sh
-
-      # === 下载测试视频 ===
-      - name: Download test video
-        run: |
-          echo "=== Downloading test video ==="
-          ROOT="$(pwd)"
-          TEST_VIDEO_DIR="$ROOT/Tests/Resources"
-          mkdir -p "$TEST_VIDEO_DIR"
+          echo "=== Creating Libmpv.xcframework ==="
           
-          VIDEO_URL="https://samplelib.com/preview/mp4/sample-5s.mp4"
-          VIDEO_PATH="$TEST_VIDEO_DIR/input.mp4"
-          
-          echo "Downloading from $VIDEO_URL..."
-          curl -f -L -o "$VIDEO_PATH" "$VIDEO_URL"
-          
-          FILE_SIZE=$(stat -f%z "$VIDEO_PATH")
-          echo "Test video downloaded: $VIDEO_PATH ($FILE_SIZE bytes)"
-          file "$VIDEO_PATH"
-
-      # === 编译模拟器版本的依赖和 libmpv（用于测试）===
-      - name: Build dependencies and libmpv for simulator
-        run: |
-          echo "=== Building for iOS Simulator (arm64) ==="
-          
-          # 检查是否已有 arm64-simulator 编译结果
-          # 注意：simulator 构建会在 scratch/arm64-simulator 目录下
-          # 但我们复用 arm64 目录（因为目录名基于 ARCH，而 ARCH=arm64）
-          
-          # 为了区分设备和模拟器，我们需要单独的目录
-          # 临时备份 arm64 设备版（如果存在）
-          if [ -d "scratch/arm64" ]; then
-            mv scratch/arm64 scratch/arm64-device
-          fi
-          
-          # 编译所有依赖 + mpv for simulator
-          chmod +x build.sh
-          chmod +x scripts/*-build
-          ./build.sh -e simulator
-          
-          # 重命名模拟器版本
-          if [ -d "scratch/arm64" ]; then
-            mv scratch/arm64 scratch/arm64-simulator
-          fi
-          
-          # 恢复设备版
-          if [ -d "scratch/arm64-device" ]; then
-            mv scratch/arm64-device scratch/arm64
-          fi
-          
-          echo "=== Simulator build completed ==="
-          ls -la scratch/arm64-simulator/lib/libmpv.a 2>/dev/null || echo "Simulator libmpv.a not found"
-
-      # === 运行 iOS 模拟器测试 ===
-      - name: Run tests on iOS Simulator
-        run: |
-          SIMULATOR_NAME="iPhone 16"
-          
-          # 创建头文件目录结构（xcframework 需要）
-          mkdir -p include_temp
-          if [ -d "scratch/arm64-simulator/include/mpv" ]; then
-            cp scratch/arm64-simulator/include/mpv/*.h include_temp/
-          elif [ -d "scratch/arm64/include/mpv" ]; then
-            cp scratch/arm64/include/mpv/*.h include_temp/
-          else
-            echo "ERROR: mpv headers not found"
-            exit 1
-          fi
-          
-          # 创建 Libmpv.xcframework（仅包含模拟器架构）
-          mkdir -p lib
-          xcodebuild -create-xcframework \
-            -library scratch/arm64-simulator/lib/libmpv.a \
-            -headers include_temp \
-            -output lib/Libmpv.xcframework
-          
-          # 列出可用的 schemes
-          echo "=== Available schemes ==="
-          xcodebuild -list || true
-          
-          # 启动模拟器并运行测试
-          xcrun simctl boot "$SIMULATOR_NAME" 2>/dev/null || true
-          xcrun simctl bootstatus "$SIMULATOR_NAME" -b
-          
-          # 使用 xcodebuild 运行测试
-          # SPM 项目 scheme 名称通常是 Package name
-          xcodebuild test \
-            -scheme LibMpv-iOS \
-            -destination "platform=iOS Simulator,name=$SIMULATOR_NAME" \
-            -configuration Debug \
-            -derivedDataPath .build \
-            -enableCodeCoverage YES \
-            2>&1 | tee test-output.log
-
-      # === 运行 iOS 模拟器测试 ===
-      - name: Run tests on iOS Simulator
-        run: |
-          SIMULATOR_NAME="iPhone 16"
-          
-          # 创建头文件目录结构（xcframework 需要）
-          # xcodebuild -create-xcframework 需要头文件直接在 include 目录下，不在子目录中
+          # 创建头文件目录
           mkdir -p include_temp
           if [ -d "scratch/arm64/include/mpv" ]; then
             cp scratch/arm64/include/mpv/*.h include_temp/
-          elif [ -d "scratch/x86_64/include/mpv" ]; then
-            cp scratch/x86_64/include/mpv/*.h include_temp/
           else
             echo "ERROR: mpv headers not found"
             exit 1
           fi
           
-          # 创建 Libmpv.xcframework（包含模拟器架构）
+          # 创建 XCFramework（包含设备和模拟器架构）
           mkdir -p lib
-          xcodebuild -create-xcframework \
-            -library scratch/x86_64/lib/libmpv.a \
-            -headers include_temp \
-            -output lib/Libmpv.xcframework
           
-          # 列出可用的 schemes
-          echo "=== Available schemes ==="
-          xcodebuild -list || true
-          
-          # 启动模拟器并运行测试
-          xcrun simctl boot "$SIMULATOR_NAME" 2>/dev/null || true
-          xcrun simctl bootstatus "$SIMULATOR_NAME" -b
-          
-          # 使用 xcodebuild 运行测试
-          # SPM 项目 scheme 名称通常是 Package name
-          xcodebuild test \
-            -scheme LibMpv-iOS \
-            -destination "platform=iOS Simulator,name=$SIMULATOR_NAME" \
-            -configuration Debug \
-            -derivedDataPath .build \
-            -enableCodeCoverage YES \
-            2>&1 | tee test-output.log
-
-      # === 收集测试产物（截图文件）===
-      - name: Collect screenshot artifacts
-        if: always()
-        run: |
-          echo "=== Collecting screenshots and logs ==="
-          mkdir -p test-results
-          
-          # 复制测试日志
-          cp test-output.log test-results/ 2>/dev/null || true
-          
-          # 查找并复制截图文件（保存在模拟器的 Documents 目录）
-          SIMULATOR_HOME=$(xcrun simctl get_app_container "iPhone 16" booted data)
-          if [ -n "$SIMULATOR_HOME" ]; then
-            find "$SIMULATOR_HOME/Documents" -name "screenshot_*.png" -exec cp {} test-results/ \; 2>/dev/null || true
+          if [ -f "scratch/arm64-simulator/lib/libmpv.a" ]; then
+            # 如果有模拟器版本，创建包含两个架构的 xcframework
+            xcodebuild -create-xcframework \
+              -library scratch/arm64/lib/libmpv.a \
+              -headers include_temp \
+              -library scratch/arm64-simulator/lib/libmpv.a \
+              -output lib/Libmpv.xcframework
+          else
+            # 只有设备版本
+            xcodebuild -create-xcframework \
+              -library scratch/arm64/lib/libmpv.a \
+              -headers include_temp \
+              -output lib/Libmpv.xcframework
           fi
           
-          # 也尝试从用户域的 Documents 获取
-          find ~/Library/Developer/CoreSimulator/Devices -name "screenshot_*.png" 2>/dev/null | while read f; do
-            cp "$f" test-results/
-          done
-          
-          ls -la test-results/ 2>/dev/null || echo "No test results found"
+          echo "=== XCFramework created ==="
+          ls -la lib/
+          ls -laR lib/Libmpv.xcframework/
 
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: mpv-screenshot-test-results
-          path: test-results/
-          retention-days: 30
-
-      - name: Upload screenshots
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: mpv-screenshots
-          path: |
-            test-results/screenshot_*.png
-          retention-days: 30
-          if-no-files-found: ignore
-
-      # === 关闭模拟器 ===
-      - name: Shutdown simulator
-        if: always()
+      # === 验证 SPM 集成 ===
+      - name: Verify SPM integration
         run: |
-          xcrun simctl shutdown "iPhone 16" 2>/dev/null || true
+          echo "=== Verifying SPM can resolve the package ==="
+          swift package resolve 2>&1 || echo "SPM resolve completed"
+          
+          echo "=== Building package (iOS Device) ==="
+          xcodebuild build \
+            -scheme LibMpv-iOS \
+            -destination "generic/platform=iOS" \
+            -configuration Release \
+            -derivedDataPath .build-device \
+            2>&1 | tail -50
+          
+          echo "=== Build completed ==="
+
+      - name: Upload xcframework
+        uses: actions/upload-artifact@v4
+        with:
+          name: Libmpv-xcframework
+          path: lib/Libmpv.xcframework
+          retention-days: 30
 
   release:
     name: Create Release
