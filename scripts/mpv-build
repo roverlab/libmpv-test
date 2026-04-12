@@ -170,6 +170,12 @@ meson setup build \
 	-Dpdf-build=disabled \
 	-Dlibplacebo:opengl=disabled \
 	-Dlibplacebo:vulkan=disabled \
+	-Dlibplacebo:glslang=disabled \
+	-Dlibplacebo:shaderc=disabled \
+	-Dlibplacebo:lcms=disabled \
+	-Dlibplacebo:dovi=disabled \
+	-Dlibplacebo:libdovi=disabled \
+	-Dlibplacebo:xxhash=disabled \
 	-Diconv=disabled \
 	-Dlibarchive=disabled \
 	-Duchardet=disabled \
