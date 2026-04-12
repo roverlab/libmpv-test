@@ -341,28 +341,38 @@ jobs:
           echo "Test video downloaded: $VIDEO_PATH ($FILE_SIZE bytes)"
           file "$VIDEO_PATH"
 
-      # === 使用 xcodebuild 运行截图测试 ===
-      - name: Run screenshot tests on iOS Simulator
+      # === 使用 SPM 运行截图测试 ===
+      - name: Run screenshot tests with SPM
         run: |
-          echo "=== Running MPV Screenshot Tests on iOS Simulator ==="
+          echo "=== Running MPV Screenshot Tests with Swift Package Manager ==="
           
-          # 启动模拟器
+          # 启动模拟器（为测试中可能的 UI 操作做准备）
           xcrun simctl boot "iPhone 16" 2>/dev/null || true
           xcrun simctl bootstatus "iPhone 16" -b
           
-          # 构建并运行测试
-          xcodebuild test \
-            -project Tests/MPVTestApp.xcodeproj \
-            -scheme MPVTestApp \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
-            -configuration Debug \
-            CODE_SIGNING_ALLOWED=NO \
-            ENABLE_BITCODE=NO \
-            ONLY_ACTIVE_ARCH=YES \
-            GCC_OPTIMIZATION_LEVEL=0 \
-            | tee test-output.log
+          echo "=== SPM 测试开始 ==="
           
-          echo "=== Test output saved to test-output.log ==="
+          # 确保依赖已安装
+          if [ ! -d ".build" ] || [ ! -f ".build/checkouts" ]; then
+            echo "Resolving dependencies..."
+            swift package resolve
+          fi
+          
+          # 构建 SPM 包以确保所有依赖正确
+          echo "Building SPM package..."
+          swift build --configuration debug
+          
+          # 运行测试
+          echo "Running SPM tests..."
+          if swift test --configuration debug --enable-test-discovery 2>&1 | tee spm-test-output.log; then
+            echo "✅ SPM tests passed successfully"
+            cp spm-test-output.log test-output.log
+            echo "=== SPM test output saved to test-output.log ==="
+          else
+            echo "❌ SPM tests failed"
+            cat spm-test-output.log
+            exit 1
+          fi
 
       # === 收集测试产物（截图文件）===
       - name: Collect screenshot artifacts

@@ -1,0 +1,17 @@
+module Libmpv [system] {
+    header "Libmpv.h"
+    link "mpv"
+    link "swresample"
+    link "avformat"
+    link "avcodec"
+    link "avutil"
+    link "ass"
+    link "freetype"
+    link "harfbuzz"
+    link "fribidi"
+    link "uchardet"
+    link "z"
+    link "bz2"
+    link "resolv"
+    export *
+}
