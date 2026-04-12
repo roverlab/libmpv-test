@@ -315,6 +315,7 @@ jobs:
             -library lib_device/libmpv_full.a \
             -headers include_temp \
             -library lib_simulator/libmpv_full.a \
+            -headers include_temp \
             -output lib/Libmpv.xcframework \
             -allow-internal-distribution
           
