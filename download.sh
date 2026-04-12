@@ -34,6 +34,7 @@ echo "uchardet: $UCHARDET_VERSION"
 echo "libplacebo: $LIBPLACEBO_VERSION (git clone with submodules)"
 echo ""
 
+
 rm -rf src
 mkdir -p src downloads
 
