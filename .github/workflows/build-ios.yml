@@ -348,23 +348,57 @@ jobs:
             exit 1
           fi
           
+          # 创建包含所有依赖库的 fat library
+          echo "=== Creating fat libraries ==="
+          
+          # 列出所有库文件
+          echo "=== Device libraries ==="
+          ls -la scratch/arm64/lib/
+          echo "=== Simulator libraries ==="
+          ls -la scratch/arm64-simulator/lib/ 2>/dev/null || echo "Simulator lib not found"
+          
+          # 设备版本 - 合并所有静态库
+          mkdir -p lib_device
+          cd lib_device
+          # 提取所有 .a 文件中的 .o 文件
+          for lib in ../scratch/arm64/lib/*.a; do
+            echo "Extracting $lib..."
+            ar -x "$lib"
+          done
+          # 创建合并的静态库
+          ar -rcs libmpv_full.a *.o
+          rm -f *.o
+          cd ..
+          echo "Device fat library created:"
+          ls -la lib_device/
+          
+          # 模拟器版本 - 合并所有静态库
+          mkdir -p lib_simulator
+          cd lib_simulator
+          # 模拟器版本的 libmpv
+          ar -x ../scratch/arm64-simulator/lib/libmpv.a
+          # 其他依赖库复用设备版本（都是 arm64 静态库）
+          for lib in ../scratch/arm64/lib/*.a; do
+            libname=$(basename "$lib")
+            if [ "$libname" != "libmpv.a" ]; then
+              echo "Extracting $lib..."
+              ar -x "$lib"
+            fi
+          done
+          # 创建合并的静态库
+          ar -rcs libmpv_full.a *.o
+          rm -f *.o
+          cd ..
+          echo "Simulator fat library created:"
+          ls -la lib_simulator/
+          
           # 创建 XCFramework（包含设备和模拟器架构）
           mkdir -p lib
-          
-          if [ -f "scratch/arm64-simulator/lib/libmpv.a" ]; then
-            # 如果有模拟器版本，创建包含两个架构的 xcframework
-            xcodebuild -create-xcframework \
-              -library scratch/arm64/lib/libmpv.a \
-              -headers include_temp \
-              -library scratch/arm64-simulator/lib/libmpv.a \
-              -output lib/Libmpv.xcframework
-          else
-            # 只有设备版本
-            xcodebuild -create-xcframework \
-              -library scratch/arm64/lib/libmpv.a \
-              -headers include_temp \
-              -output lib/Libmpv.xcframework
-          fi
+          xcodebuild -create-xcframework \
+            -library lib_device/libmpv_full.a \
+            -headers include_temp \
+            -library lib_simulator/libmpv_full.a \
+            -output lib/Libmpv.xcframework
           
           echo "=== XCFramework created ==="
           ls -la lib/
