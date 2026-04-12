@@ -420,15 +420,22 @@ jobs:
           PKGEOF
 
           # Swift 源文件 — import Libmpv 并调用 mpv API
-          cat > Tests/VerifyLibmpv/Sources/VerifyLibmpv/VerifyLibmpv.swift << 'SWIFTEOF'
+          # NOTE: use 'sed' to strip the 10-space YAML indentation from each line
+          # so the generated Swift file has clean, unindented source code.
+          #
+          # Type notes:
+          #   mpv_client_api_version() → C 'unsigned long' → Swift 'UInt' (NOT Int32)
+          #   mpv_initialize / mpv_set_option_string → C 'int' → Swift 'Int32'
+          sed 's/^          //' > Tests/VerifyLibmpv/Sources/VerifyLibmpv/VerifyLibmpv.swift << 'SWIFTEOF'
           import Libmpv
+
+          // mpv_client_api_version() returns C 'unsigned long' → Swift UInt
+          public func verifyMPVVersion() -> UInt {
+              mpv_client_api_version()
+          }
 
           public func verifyMPVCreate() -> Bool {
               mpv_create() != nil
-          }
-
-          public func verifyMPVVersion() -> Int32 {
-              mpv_client_api_version()
           }
 
           @available(iOS 13, *)
@@ -446,7 +453,7 @@ jobs:
           SWIFTEOF
 
           # 测试文件
-          cat > Tests/VerifyLibmpv/Tests/VerifyLibmpvTests/VerifyLibmpvTests.swift << 'TESTEOF'
+          sed 's/^          //' > Tests/VerifyLibmpv/Tests/VerifyLibmpvTests/VerifyLibmpvTests.swift << 'TESTEOF'
           import XCTest
           @testable import VerifyLibmpv
 
@@ -457,8 +464,9 @@ jobs:
               }
 
               func testMPVClientAPIVersion() {
+                  // verifyMPVVersion() returns UInt, so compare with UInt literal
                   let v = verifyMPVVersion()
-                  XCTAssertGreaterThan(v, 0, "mpv_client_api_version() should > 0")
+                  XCTAssertGreaterThan(v, 0 as UInt, "mpv_client_api_version() should > 0")
               }
 
               func testMPVCreateHandle() {
