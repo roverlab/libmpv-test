@@ -104,17 +104,17 @@ for ARCH in $ARCHS; do
         if [[ "$ENVIRONMENT" = "simulator" ]]; then
             export SDKPATH="$(xcodebuild -sdk iphonesimulator -version Path)"
             ACFLAGS="-arch $ARCH -isysroot $SDKPATH -mios-simulator-version-min=$DEPLOYMENT_TARGET"
-            ALDFLAGS="-arch $ARCH -isysroot $SDKPATH -Wl,-simulator_version_min,$DEPLOYMENT_TARGET -lbz2"
+            ALDFLAGS="-arch $ARCH -isysroot $SDKPATH -lbz2"
         else
             export SDKPATH="$(xcodebuild -sdk iphoneos -version Path)"
             ACFLAGS="-arch $ARCH -isysroot $SDKPATH -mios-version-min=$DEPLOYMENT_TARGET"
-            ALDFLAGS="-arch $ARCH -isysroot $SDKPATH -Wl,-ios_version_min,$DEPLOYMENT_TARGET -lbz2"
+            ALDFLAGS="-arch $ARCH -isysroot $SDKPATH -lbz2"
         fi
 	elif [[ $ARCH = "x86_64" ]]; then
         HOSTFLAG="x86_64"
 		export SDKPATH="$(xcodebuild -sdk iphonesimulator -version Path)"
 		ACFLAGS="-arch $ARCH -isysroot $SDKPATH -mios-simulator-version-min=$DEPLOYMENT_TARGET"
-		ALDFLAGS="-arch $ARCH -isysroot $SDKPATH -Wl,-simulator_version_min,$DEPLOYMENT_TARGET -lbz2"
+		ALDFLAGS="-arch $ARCH -isysroot $SDKPATH -lbz2"
 	else
         echo "Unhandled architecture option"
         exit 1
