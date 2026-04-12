@@ -97,14 +97,14 @@ LIB="$ROOT/lib"
 export SRC="$ROOT/src"
 mkdir -p $LIB
 
-# 模拟器环境使用单独的目录
-if [[ "$ENVIRONMENT" = "simulator" ]]; then
-    ARCH_DIR="arm64-simulator"
-else
-    ARCH_DIR="$ARCH"
-fi
-
 for ARCH in $ARCHS; do
+    # 模拟器环境使用单独的目录
+    if [[ "$ENVIRONMENT" = "simulator" ]]; then
+        ARCH_DIR="arm64-simulator"
+    else
+        ARCH_DIR="$ARCH"
+    fi
+    
     if [[ $ARCH = "arm64" ]]; then
         HOSTFLAG="aarch64"
         # simulator 环境使用模拟器 SDK，否则使用设备 SDK
