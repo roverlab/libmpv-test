@@ -144,18 +144,18 @@ jobs:
 
     steps:
       # === 检查 mpv 编译缓存 ===
-      # 缓存完整的 src 和 scratch 目录（设备和模拟器）
+      # 缓存完整的编译产物（设备 + 模拟器 + 源码）
       - name: Cache libmpv build
         id: cache-mpv
         uses: actions/cache@v4
         with:
           path: |
-            scratch/arm64
-            scratch/arm64-simulator
+            scratch
             src
-          key: ios-mpv-v3-${{ runner.os }}-${{ env.MPV_VERSION }}-${{ env.LIBPLACEBO_VERSION }}-${{ env.FFMPEG_VERSION }}
+            lib
+          key: ios-mpv-v4-${{ runner.os }}-${{ env.MPV_VERSION }}-${{ env.LIBPLACEBO_VERSION }}-${{ env.FFMPEG_VERSION }}
           restore-keys: |
-            ios-mpv-v3-${{ runner.os }}-
+            ios-mpv-v4-${{ runner.os }}-
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -309,13 +309,16 @@ jobs:
               ls -la scratch/arm64/include/mpv/
             else
               echo "ERROR: mpv source directory not found"
-              # 如果是缓存命中但没有源码，说明缓存有问题，需要清除
-              echo "Cache may be corrupted. This run will fail to force cache miss on next run."
+              echo "Cache may be corrupted. Clearing cache for next run..."
+              # 不再 exit 1，改为清除缓存
+              rm -rf scratch src lib 2>/dev/null || true
+              echo "Cache cleared. Please re-run the workflow."
               exit 1
             fi
           fi
 
       # === 上传完整 scratch 目录（含头文件和库，供测试 job 使用）===
+      # 注意：即使缓存命中，也需要上传 artifact 供后续 job 使用
       - name: Upload build artifacts for testing
         uses: actions/upload-artifact@v4
         with:
@@ -324,7 +327,7 @@ jobs:
             scratch/
             src/
           retention-days: 30
-          if-no-files-found: warn
+          if-no-files-found: error
 
   build-development:
     name: Build libmpv for iOS (Development)
