@@ -71,9 +71,7 @@ jobs:
         with:
           path: |
             scratch
-          key: ios-deps-${{ runner.os }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.LIBASS_VERSION }}-${{ env.UCHARDET_VERSION }}-${{ env.FFMPEG_VERSION }}
-          restore-keys: |
-            ios-deps-${{ runner.os }}-
+          key: ios-deps-v2-${{ runner.os }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.LIBASS_VERSION }}-${{ env.UCHARDET_VERSION }}-${{ env.FFMPEG_VERSION }}
 
       - name: Checkout repository
         if: steps.cache-deps.outputs.cache-hit != 'true'
@@ -145,9 +143,7 @@ jobs:
             scratch
             src
             lib
-          key: ios-mpv-v4-${{ runner.os }}-${{ env.MPV_VERSION }}-${{ env.LIBPLACEBO_VERSION }}-${{ env.FFMPEG_VERSION }}
-          restore-keys: |
-            ios-mpv-v4-${{ runner.os }}-
+          key: ios-mpv-v5-${{ runner.os }}-${{ env.MPV_VERSION }}-${{ env.LIBPLACEBO_VERSION }}-${{ env.FFMPEG_VERSION }}
 
       - name: Checkout repository
         uses: actions/checkout@v4
