@@ -516,11 +516,14 @@ jobs:
           cd Tests/VerifyLibmpv
 
           # 在模拟器上运行单元测试
+          # -only-testing format: TargetName/ClassName  (NOT just the class name)
+          # Target = "VerifyLibmpvTests" (from Package.swift testTarget)
+          # Class  = "LibmpvImportTests" (the XCTestCase subclass in the Swift file)
           xcodebuild test \
             -scheme VerifyLibmpv-Package \
             -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest' \
             -configuration Debug \
-            -only-testing:VerifyLibmpvImportTests
+            -only-testing:VerifyLibmpvTests/LibmpvImportTests
 
           echo "✅ All Libmpv import tests passed on iOS Simulator"
 
