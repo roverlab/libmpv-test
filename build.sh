@@ -74,6 +74,7 @@ esac
 
 export PATH="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/:$PATH"
 DEPLOYMENT_TARGET="13.0"
+export IPHONEOS_DEPLOYMENT_TARGET="$DEPLOYMENT_TARGET"
 
 if [[ "$ENVIRONMENT" = "distribution" ]]; then
     ARCHS="arm64"
