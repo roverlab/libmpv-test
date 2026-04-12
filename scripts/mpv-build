@@ -154,8 +154,8 @@ meson setup build \
 	-Dmacos-cocoa-cb=disabled \
 	-Dcoreaudio=disabled \
 	-Daudiounit=enabled \
-	-Davfoundation=disabled \
-	-Dvideotoolbox-pl=disabled \
+	-Davfoundation=enabled \
+	-Dvideotoolbox-pl=enabled \
 	-Dvideotoolbox-gl=disabled \
 	-Dgl=disabled \
 	-Degl=disabled \
@@ -164,7 +164,7 @@ meson setup build \
 	-Dx11=disabled \
 	-Dwayland=disabled \
 	-Dalsa=disabled \
-	-Dios-gl=disabled \
+	-Dios-gl=enabled \
 	-Dmanpage-build=disabled \
 	-Dhtml-build=disabled \
 	-Dpdf-build=disabled \
