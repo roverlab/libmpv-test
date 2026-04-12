@@ -249,9 +249,28 @@ jobs:
         run: |
           echo "=== Creating Libmpv.xcframework ==="
           
-          # 创建头文件目录
+          # 创建头文件目录（包含 module map）
           mkdir -p include_temp
           cp scratch/arm64/include/mpv/*.h include_temp/
+          
+          # 创建 module.modulemap（Swift import 所必需的模块映射文件）
+          cat > include_temp/module.modulemap << 'EOF'
+          module Libmpv {
+              header "client.h"
+              header "opengl_cb.h"
+              header "hwdec.h"
+              header "render.h"
+              header "render_gl.h"
+              header "stream_cb.h"
+              header "sub.h"
+              header "qjs.h"
+              link "mpv"
+              export *
+          }
+          EOF
+          
+          echo "=== Headers and module map ==="
+          ls -la include_temp/
           
           # 创建 XCFramework
           mkdir -p lib
