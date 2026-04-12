@@ -35,9 +35,61 @@ dependencies: [
 ]
 ```
 
-## Usage
+### Required Linker Settings
 
-### Basic Setup
+> ⚠️ **Important**: Libmpv is distributed as a static XCFramework. You **must** add the following system framework and library dependencies to your target that links against Libmpv. Otherwise you will encounter linker errors (e.g., `Undefined symbol`).
+
+**If using Xcode:**
+
+1. Select your project in the Project Navigator
+2. Select your app target → **General** → **Frameworks, Libraries, and Embedded Content**
+3. Click **+** and add the following **System Frameworks**:
+   - `AVFoundation.framework`
+   - `AudioToolbox.framework`
+   - `CoreMedia.framework`
+   - `CoreVideo.framework`
+   - `VideoToolbox.framework`
+4. Select your target → **Build Settings** → **Other Linker Flags**, and add:
+   - `-lbz2`
+   - `-lz`
+   - `-liconv`
+
+**If using `Package.swift`**, add `linkerSettings` to your target:
+
+```swift
+.target(
+    name: "MyApp",
+    dependencies: ["Libmpv"],
+    linkerSettings: [
+        .linkedFramework("AVFoundation"),
+        .linkedFramework("AudioToolbox"),
+        .linkedFramework("CoreMedia"),
+        .linkedFramework("CoreVideo"),
+        .linkedFramework("VideoToolbox"),
+        .linkedLibrary("bz2"),
+        .linkedLibrary("z"),
+        .linkedLibrary("iconv"),
+    ]
+),
+.binaryTarget(
+    name: "Libmpv",
+    url: "https://github.com/roverlab/libmpv-test/releases/download/<version>/Libmpv.xcframework.zip",
+    checksum: "<checksum>"
+)
+```
+
+| Dependency | Type | Required For |
+|------------|------|-------------|
+| `AVFoundation` | Framework | Audio/video capture, playback |
+| `AudioToolbox` | Framework | Audio hardware codecs |
+| `CoreMedia` | Framework | Low-level media types (`CMAudio*`, `CMVideo*`) |
+| `CoreVideo` | Framework | Pixel buffer processing |
+| `VideoToolbox` | Framework | Hardware video decoding |
+| `bz2` | Library | BZ2 compression (FFmpeg) |
+| `z` | Library | zlib compression (FFmpeg, libass) |
+| `iconv` | Library | Character encoding conversion (libass) |
+
+## Usage
 
 1. Import the module:
    ```swift
