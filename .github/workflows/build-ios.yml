@@ -79,7 +79,19 @@ jobs:
           sudo curl -L https://github.com/libav/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl
           sudo chmod +x /usr/local/bin/gas-preprocessor.pl
 
+      - name: Cache device build (scratch + src)
+        id: cache-device
+        uses: actions/cache@v4
+        with:
+          path: |
+            scratch/
+            src/
+          key: device-${{ env.MPV_VERSION }}-${{ env.FFMPEG_VERSION }}-${{ env.LIBASS_VERSION }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.UCHARDET_VERSION }}-${{ env.LIBPLACEBO_VERSION }}
+          restore-keys: |
+            device-
+
       - name: Download sources
+        if: steps.cache-device.outputs.cache-hit != 'true'
         run: |
           chmod +x download.sh
           ./download.sh
@@ -91,6 +103,7 @@ jobs:
           chmod +x scripts/*-build
 
       - name: Build dependencies
+        if: steps.cache-device.outputs.cache-hit != 'true'
         run: |
           echo "=== Building dependencies for device (arm64) ==="
           ./build.sh -e distribution -s 1
@@ -98,6 +111,7 @@ jobs:
           ./build.sh -e distribution -s 3
 
       - name: Build libmpv
+        if: steps.cache-device.outputs.cache-hit != 'true'
         run: |
           echo "=== Building libmpv for device (arm64) ==="
           ./build.sh -e distribution -s 4
@@ -143,7 +157,19 @@ jobs:
           sudo curl -L https://github.com/libav/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl
           sudo chmod +x /usr/local/bin/gas-preprocessor.pl
 
+      - name: Cache simulator build (scratch + src)
+        id: cache-simulator
+        uses: actions/cache@v4
+        with:
+          path: |
+            scratch/
+            src/
+          key: sim-${{ env.MPV_VERSION }}-${{ env.FFMPEG_VERSION }}-${{ env.LIBASS_VERSION }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.UCHARDET_VERSION }}-${{ env.LIBPLACEBO_VERSION }}
+          restore-keys: |
+            sim-
+
       - name: Download sources
+        if: steps.cache-simulator.outputs.cache-hit != 'true'
         run: |
           chmod +x download.sh
           ./download.sh
@@ -155,6 +181,7 @@ jobs:
           chmod +x scripts/*-build
 
       - name: Build dependencies
+        if: steps.cache-simulator.outputs.cache-hit != 'true'
         run: |
           echo "=== Building dependencies for simulator (arm64) ==="
           ./build.sh -e simulator -s 1
@@ -162,6 +189,7 @@ jobs:
           ./build.sh -e simulator -s 3
 
       - name: Build libmpv
+        if: steps.cache-simulator.outputs.cache-hit != 'true'
         run: |
           echo "=== Building libmpv for simulator (arm64) ==="
           ./build.sh -e simulator -s 4
@@ -249,11 +277,15 @@ jobs:
         run: |
           echo "=== Creating Libmpv.xcframework ==="
           
-          # 创建头文件目录（包含 module map）
+          # 创建头文件目录结构（XCFramework 要求的 headers 布局）
+          # xcodebuild -create-xcframework -headers 期望的格式：
+          #   headers_dir/
+          #     module.modulemap
+          #     <header_files>
           mkdir -p include_temp
           cp scratch/arm64/include/mpv/*.h include_temp/
           
-          # 创建 module.modulemap（Swift import 所必需的模块映射文件）
+          # 创建 module.modulemap（Swift/SPM 识别 C 模块所必需）
           cat > include_temp/module.modulemap << 'EOF'
           module Libmpv {
               header "client.h"
@@ -264,7 +296,6 @@ jobs:
               header "stream_cb.h"
               header "sub.h"
               header "qjs.h"
-              link "mpv"
               export *
           }
           EOF
@@ -273,16 +304,27 @@ jobs:
           ls -la include_temp/
           
           # 创建 XCFramework
+          # -allow-internal-distribution: 允许不含签名信息的分发用 framework
           mkdir -p lib
           xcodebuild -create-xcframework \
             -library lib_device/libmpv_full.a \
             -headers include_temp \
             -library lib_simulator/libmpv_full.a \
-            -output lib/Libmpv.xcframework
+            -output lib/Libmpv.xcframework \
+            -allow-internal-distribution
           
           echo "=== XCFramework created ==="
           ls -la lib/
-          ls -laR lib/Libmpv.xcframework/
+          echo "=== Full XCFramework structure ==="
+          find lib/Libmpv.xcframework -type f | sort
+          
+          # 验证 module.modulemap 是否被正确打包进 XCFramework
+          echo "=== Verify module.modulemap in XCFramework ==="
+          find lib/Libmpv.xcframework -name "module.modulemap" -exec echo "Found: {}" \;
+          if [ -z "$(find lib/Libmpv.xcframework -name 'module.modulemap')" ]; then
+              echo "ERROR: module.modulemap not found in XCFramework!"
+              exit 1
+          fi
 
       - name: Upload XCFramework
         uses: actions/upload-artifact@v4
@@ -316,45 +358,143 @@ jobs:
         run: |
           echo "=== XCFramework directory ==="
           ls -la lib/
-          echo "=== XCFramework contents ==="
-          ls -laR lib/Libmpv.xcframework/
+          echo "=== Full XCFramework file tree ==="
+          find lib/Libmpv.xcframework -type f | sort
+          echo ""
           echo "=== Check module.modulemap exists ==="
-          find lib/Libmpv.xcframework -name "module.modulemap"
-          echo "=== Check headers exist ==="
-          find lib/Libmpv.xcframework -name "*.h"
+          find lib/Libmpv.xcframework -name "module.modulemap" -exec echo "✅ Found: {}" \;
+          if [ -z "$(find lib/Libmpv.xcframework -name 'module.modulemap')" ]; then
+              echo "❌ ERROR: module.modulemap not found in XCFramework!"
+              exit 1
+          fi
 
-      - name: Build and run tests with SPM (iOS Simulator)
+      - name: Create test iOS framework project
         run: |
-          echo "=== Building TestApp with Swift Package Manager ==="
-          cd Tests/TestApp
+          # 创建一个最小的 iOS Framework 项目来验证 import Libmpv
+          # 这与真实 Xcode 项目使用 SPM 依赖的方式完全一致
+          mkdir -p Tests/VerifyLibmpv/VerifyLibmpv/Tests/VerifyLibmpvTests
 
-          # Resolve dependencies (local binary target)
-          swift package resolve
+          # Package.swift — SPM 配置，引用本地 XCFramework 作为 binaryTarget
+          cat > Tests/VerifyLibmpv/Package.swift << 'PKGEOF'
+          // swift-tools-version: 5.9
+          import PackageDescription
 
-          # Build for iOS Simulator (arm64) — this validates `import Libmpv` works
-          swift build \
-            --target TestApp \
-            -Xswiftc "-sdk" \
-            -Xswiftc "$(xcrun --sdk iphonesimulator --show-sdk-path)" \
-            -Xswiftc "-target" \
-            -Xswiftc "arm64-apple-ios13.0-simulator"
+          let package = Package(
+              name: "VerifyLibmpv",
+              platforms: [.iOS(.v13)],
+              targets: [
+                  .target(
+                      name: "VerifyLibmpv",
+                      dependencies: ["Libmpv"],
+                      path: "Sources/VerifyLibmpv"
+                  ),
+                  .binaryTarget(
+                      name: "Libmpv",
+                      path: "../../lib/Libmpv.xcframework"
+                  ),
+                  .testTarget(
+                      name: "VerifyLibmpvTests",
+                      dependencies: ["VerifyLibmpv"],
+                      path: "Tests/VerifyLibmpvTests"
+                  )
+              ]
+          )
+          PKGEOF
 
-          echo "✅ Build succeeded — 'import Libmpv' resolves correctly"
+          # Swift 源文件 — import Libmpv 并调用 mpv API
+          cat > Tests/VerifyLibmpv/Sources/VerifyLibmpv/VerifyLibmpv.swift << 'SWIFTEOF'
+          import Libmpv
 
-      - name: Run unit tests on iOS Simulator
+          /// Verify mpv_create returns a valid handle
+          public func verifyMPVCreate() -> Bool {
+              mpv_create() != nil
+          }
+
+          /// Verify mpv_client_api_version is accessible
+          public func verifyMPVVersion() -> Int32 {
+              mpv_client_api_version()
+          }
+
+          /// Verify full mpv lifecycle works
+          @available(iOS 13, *)
+          public func verifyMPVLifecycle() -> Bool {
+              guard let handle = mpv_create() else { return false }
+              guard mpv_set_option_string(handle, "vo", "null") >= 0 else {
+                  mpv_terminate_destroy(handle); return false
+              }
+              guard mpv_initialize(handle) >= 0 else {
+                  mpv_terminate_destroy(handle); return false
+              }
+              mpv_terminate_destroy(handle)
+              return true
+          }
+          SWIFTEOF
+
+          # 测试文件
+          cat > Tests/VerifyLibmpv/Tests/VerifyLibmpvTests/VerifyLibmpvTests.swift << 'TESTEOF'
+          import XCTest
+          @testable import VerifyLibmpv
+
+          final class LibmpvImportTests: XCTestCase {
+
+              // 核心测试：如果这个编译通过，说明 `import Libmpv` 能被正确解析
+              // 这直接复现了 "Unable to find module dependency: 'Libmpv'" 错误场景
+              func testImportLibmpvResolves() {
+                  print("✅ import Libmpv resolved successfully via SPM binaryTarget")
+              }
+
+              func testMPVClientAPIVersion() {
+                  let v = verifyMPVVersion()
+                  XCTAssertGreaterThan(v, 0, "mpv_client_api_version() should > 0")
+                  print("✅ mpv client API version: \(v)")
+              }
+
+              func testMPVCreateHandle() {
+                  XCTAssertTrue(verifyMPVCreate(), "mpv_create() should return non-null handle")
+                  print("✅ mpv_create() returned valid handle")
+              }
+
+              func testMPVLifecycle() {
+                  if #available(iOS 13, *) {
+                      XCTAssertTrue(verifyMPVLifecycle(), "full mpv lifecycle should succeed")
+                      print("✅ mpv lifecycle test passed")
+                  }
+              }
+          }
+          TESTEOF
+
+          echo "✅ Test project created"
+          find Tests/VerifyLibmpv -type f | sort
+
+      - name: Build test project with xcodebuild (iOS Simulator)
         run: |
-          echo "=== Running Libmpv Tests on iOS Simulator ==="
-          cd Tests/TestApp
+          cd Tests/VerifyLibmpv
 
-          # Run tests targeting iOS Simulator
-          swift test \
-            --filter "LibmpvTests" \
-            -Xswiftc "-sdk" \
-            -Xswiftc "$(xcrun --sdk iphonesimulator --show-sdk-path)" \
-            -Xswiftc "-target" \
-            -Xswiftc "arm64-apple-ios13.0-simulator"
+          # 用 xcodebuild 编译 iOS Simulator 版本
+          # 这是最接近真实使用场景的验证方式（与 Xcode IDE 行为一致）
+          xcodebuild build \
+            -scheme VerifyLibmpv-Package \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -configuration Debug \
+            -skip-testing:VerifyLibmpvTests \
+            -quiet \
+            ONLY_ACTIVE_ARCH=YES
 
-          echo "✅ All tests passed"
+          echo "✅ xcodebuild succeeded — 'import Libmpv' resolves correctly in iOS Simulator build"
+
+      - name: Run tests on iOS Simulator
+        run: |
+          cd Tests/VerifyLibmpv
+
+          # 在模拟器上运行单元测试
+          xcodebuild test \
+            -scheme VerifyLibmpv-Package \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -configuration Debug \
+            -only-testing:VerifyLibmpvImportTests \
+            -quiet
+
+          echo "✅ All Libmpv import tests passed on iOS Simulator"
 
   # Job 5: 创建 Release
   release:
