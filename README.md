@@ -13,7 +13,8 @@ A pre-built [libmpv](https://github.com/mpv-player/mpv) static library for iOS, 
 - 📦 **Swift Package Manager** - Easy integration with Xcode projects
 - 🔧 **Multi-architecture support** - Includes both device (arm64) and simulator (arm64-simulator) slices
 - 🚀 **Optimized builds** - Compiled with `-Os` optimization and bitcode support for device builds
-- 📱 **iOS 13+ support** - Compatible with modern iOS versions
+- 📱 **iOS 13+ / macOS 11+ support** - Compatible with modern Apple platforms
+- ⚡ **Zero-config linking** - All system dependencies are auto-linked via wrapper target — no manual setup required
 
 ## Installation
 
@@ -31,63 +32,11 @@ A pre-built [libmpv](https://github.com/mpv-player/mpv) static library for iOS, 
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/nicholaslee119/libmpv-test", from: "0.39.0")
+    .package(url: "https://github.com/nicholaslee119/libmpv-test", from: "0.1.30")
 ]
 ```
 
-### Required Linker Settings
-
-> ⚠️ **Important**: Libmpv is distributed as a static XCFramework. You **must** add the following system framework and library dependencies to your target that links against Libmpv. Otherwise you will encounter linker errors (e.g., `Undefined symbol`).
-
-**If using Xcode:**
-
-1. Select your project in the Project Navigator
-2. Select your app target → **General** → **Frameworks, Libraries, and Embedded Content**
-3. Click **+** and add the following **System Frameworks**:
-   - `AVFoundation.framework`
-   - `AudioToolbox.framework`
-   - `CoreMedia.framework`
-   - `CoreVideo.framework`
-   - `VideoToolbox.framework`
-4. Select your target → **Build Settings** → **Other Linker Flags**, and add:
-   - `-lbz2`
-   - `-lz`
-   - `-liconv`
-
-**If using `Package.swift`**, add `linkerSettings` to your target:
-
-```swift
-.target(
-    name: "MyApp",
-    dependencies: ["Libmpv"],
-    linkerSettings: [
-        .linkedFramework("AVFoundation"),
-        .linkedFramework("AudioToolbox"),
-        .linkedFramework("CoreMedia"),
-        .linkedFramework("CoreVideo"),
-        .linkedFramework("VideoToolbox"),
-        .linkedLibrary("bz2"),
-        .linkedLibrary("z"),
-        .linkedLibrary("iconv"),
-    ]
-),
-.binaryTarget(
-    name: "Libmpv",
-    url: "https://github.com/roverlab/libmpv-test/releases/download/<version>/Libmpv.xcframework.zip",
-    checksum: "<checksum>"
-)
-```
-
-| Dependency | Type | Required For |
-|------------|------|-------------|
-| `AVFoundation` | Framework | Audio/video capture, playback |
-| `AudioToolbox` | Framework | Audio hardware codecs |
-| `CoreMedia` | Framework | Low-level media types (`CMAudio*`, `CMVideo*`) |
-| `CoreVideo` | Framework | Pixel buffer processing |
-| `VideoToolbox` | Framework | Hardware video decoding |
-| `bz2` | Library | BZ2 compression (FFmpeg) |
-| `z` | Library | zlib compression (FFmpeg, libass) |
-| `iconv` | Library | Character encoding conversion (libass) |
+> ✅ **No manual linker configuration needed!** All system frameworks and libraries (AVFoundation, AudioToolbox, CoreMedia, CoreVideo, VideoToolbox, bz2, z, iconv) are automatically linked through the built-in wrapper target.
 
 ## Usage
 
