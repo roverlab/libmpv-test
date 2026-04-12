@@ -10,61 +10,17 @@ let package = Package(
         .library(
             name: "Libmpv",
             targets: ["Libmpv"]
-        ),
-        .library(
-            name: "LibmpvSwift",
-            targets: ["LibmpvSwift"]
         )
     ],
     targets: [
-        .target(
+        .binaryTarget(
             name: "Libmpv",
-            dependencies: [],
-            cSettings: [
-                .headerSearchPath("Sources/Libmpv/include"),
-                .unsafeFlags([
-                    "-fobjc-arc",
-                    "-fmodules"
-                ])
-            ],
-            linkerSettings: [
-                .linkedLibrary("z"),
-                .linkedLibrary("bz2"),
-                .linkedLibrary("resolv"),
-                .linkedFramework("UIKit"),
-                .linkedFramework("Foundation"),
-                .linkedFramework("AVFoundation"),
-                .linkedFramework("CoreMedia"),
-                .linkedFramework("CoreVideo"),
-                .unsafeFlags([
-                    "-L./lib",
-                    "-lmpv",
-                    "-lswresample",
-                    "-lavformat",
-                    "-lavcodec",
-                    "-lavutil",
-                    "-lass",
-                    "-lfreetype",
-                    "-lharfbuzz",
-                    "-lfribidi",
-                    "-luchardet"
-                ])
-            ]
-        ),
-        .target(
-            name: "LibmpvSwift",
-            dependencies: ["Libmpv"],
-            path: "Sources/LibmpvSwift"
+            path: "lib/Libmpv.xcframework"
         ),
         .testTarget(
             name: "MPVScreenshotTests",
-            dependencies: [
-                "LibmpvSwift"
-            ],
-            path: "Tests",
-            cSettings: [
-                .headerSearchPath("../Sources/Libmpv/include")
-            ]
+            dependencies: ["Libmpv"],
+            path: "Tests"
         )
     ]
 )

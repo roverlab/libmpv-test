@@ -386,67 +386,28 @@ jobs:
           echo "Test video downloaded: $VIDEO_PATH ($FILE_SIZE bytes)"
           file "$VIDEO_PATH"
 
-      # === 使用 xcodebuild 运行截图测试（iOS 模拟器）===
-      # 注意：swift build 默认使用 macOS SDK，无法找到 UIKit
-      # 需要使用 xcodebuild 来构建 iOS 目标
-      - name: Run screenshot tests with xcodebuild
+      # === 运行 iOS 模拟器测试 ===
+      - name: Run tests on iOS Simulator
         run: |
-          echo "=== Running MPV Screenshot Tests with xcodebuild (iOS Simulator) ==="
-          
-          # 获取 iOS SDK 版本
-          IOS_SDK_VERSION=$(xcrun --sdk iphonesimulator --show-sdk-version)
-          echo "iOS Simulator SDK version: $IOS_SDK_VERSION"
-          
-          # 列出可用的模拟器
-          echo "=== Available simulators ==="
-          xcrun simctl list devices available | grep "iPhone" || true
-          
-          # 启动模拟器
           SIMULATOR_NAME="iPhone 16"
-          echo "Booting simulator: $SIMULATOR_NAME"
+          
+          # 创建 Libmpv.xcframework
+          mkdir -p lib
+          xcodebuild -create-xcframework \
+            -library scratch/arm64/lib/libmpv.a \
+            -headers scratch/arm64/include \
+            -output lib/Libmpv.xcframework
+          
+          # 启动模拟器并运行测试
           xcrun simctl boot "$SIMULATOR_NAME" 2>/dev/null || true
           xcrun simctl bootstatus "$SIMULATOR_NAME" -b
           
-          # 先 resolve 依赖
-          echo "=== Resolving SPM dependencies ==="
-          swift package resolve
-          
-          # 列出可用的 scheme
-          echo "=== Available schemes ==="
-          xcodebuild -list 2>&1 || true
-          
-          # 为 iOS 模拟器构建 Libmpv 库
-          echo "=== Building Libmpv for iOS Simulator ==="
-          xcodebuild build \
-            -scheme Libmpv \
-            -destination "platform=iOS Simulator,name=$SIMULATOR_NAME" \
-            -configuration Debug \
-            -derivedDataPath .build \
-            2>&1 | tee build-output.log
-          
-          BUILD_EXIT_CODE=${PIPESTATUS[0]}
-          if [ $BUILD_EXIT_CODE -ne 0 ]; then
-            echo "❌ Build failed with exit code $BUILD_EXIT_CODE"
-            cat build-output.log
-            exit 1
-          fi
-          
-          # 运行测试
-          echo "=== Running tests for iOS Simulator ==="
-          if xcodebuild test \
+          xcodebuild test \
             -scheme MPVScreenshotTests \
             -destination "platform=iOS Simulator,name=$SIMULATOR_NAME" \
             -configuration Debug \
             -derivedDataPath .build \
-            2>&1 | tee xcodebuild-test-output.log; then
-            echo "✅ Tests passed successfully"
-            cp xcodebuild-test-output.log test-output.log
-            echo "=== Test output saved to test-output.log ==="
-          else
-            echo "❌ Tests failed"
-            cat xcodebuild-test-output.log
-            exit 1
-          fi
+            2>&1 | tee test-output.log
 
       # === 收集测试产物（截图文件）===
       - name: Collect screenshot artifacts
