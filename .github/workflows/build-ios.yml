@@ -184,16 +184,21 @@ jobs:
       # === 编译 mpv for simulator ===
       - name: Build libmpv for simulator
         run: |
-          echo "=== Building libmpv for simulator (arm64) ==="
+          echo "=== Building dependencies for simulator (arm64) ==="
           
-          # 依赖库已经在 scratch/arm64 中（来自 dependencies job）
-          # 直接编译模拟器版本，build.sh 会使用 arm64-simulator 目录
+          # 为模拟器编译所有依赖库
           chmod +x build.sh
           chmod +x scripts/*-build
+          ./build.sh -e simulator -s 1
+          ./build.sh -e simulator -s 2
+          ./build.sh -e simulator -s 3
+          
+          echo "=== Building libmpv for simulator (arm64) ==="
           ./build.sh -e simulator -s 4
           
           echo "=== Simulator build completed ==="
           ls -la scratch/arm64-simulator/lib/libmpv.a 2>/dev/null || echo "Simulator libmpv.a not found"
+          ls -la scratch/arm64-simulator/lib/ 2>/dev/null || echo "Simulator lib directory not found"
 
       # === 准备最终产物 ===
       - name: Prepare artifacts
@@ -348,9 +353,6 @@ jobs:
             exit 1
           fi
           
-          # 创建包含所有依赖库的 fat library
-          echo "=== Creating fat libraries ==="
-          
           # 列出所有库文件
           echo "=== Device libraries ==="
           ls -la scratch/arm64/lib/
@@ -358,41 +360,34 @@ jobs:
           ls -la scratch/arm64-simulator/lib/ 2>/dev/null || echo "Simulator lib not found"
           
           # 设备版本 - 合并所有静态库
+          echo "=== Creating device fat library ==="
           mkdir -p lib_device
           cd lib_device
-          # 提取所有 .a 文件中的 .o 文件
           for lib in ../scratch/arm64/lib/*.a; do
             echo "Extracting $lib..."
             ar -x "$lib"
           done
-          # 创建合并的静态库
           ar -rcs libmpv_full.a *.o
           rm -f *.o
           cd ..
-          echo "Device fat library created:"
-          ls -la lib_device/
+          echo "Device fat library size:"
+          ls -lh lib_device/libmpv_full.a
           
           # 模拟器版本 - 合并所有静态库
+          echo "=== Creating simulator fat library ==="
           mkdir -p lib_simulator
           cd lib_simulator
-          # 模拟器版本的 libmpv
-          ar -x ../scratch/arm64-simulator/lib/libmpv.a
-          # 其他依赖库复用设备版本（都是 arm64 静态库）
-          for lib in ../scratch/arm64/lib/*.a; do
-            libname=$(basename "$lib")
-            if [ "$libname" != "libmpv.a" ]; then
-              echo "Extracting $lib..."
-              ar -x "$lib"
-            fi
+          for lib in ../scratch/arm64-simulator/lib/*.a; do
+            echo "Extracting $lib..."
+            ar -x "$lib"
           done
-          # 创建合并的静态库
           ar -rcs libmpv_full.a *.o
           rm -f *.o
           cd ..
-          echo "Simulator fat library created:"
-          ls -la lib_simulator/
+          echo "Simulator fat library size:"
+          ls -lh lib_simulator/libmpv_full.a
           
-          # 创建 XCFramework（包含设备和模拟器架构）
+          # 创建 XCFramework
           mkdir -p lib
           xcodebuild -create-xcframework \
             -library lib_device/libmpv_full.a \
