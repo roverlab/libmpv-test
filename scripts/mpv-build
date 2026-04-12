@@ -170,7 +170,6 @@ meson setup build \
 	-Dpdf-build=disabled \
 	-Dlibplacebo:opengl=disabled \
 	-Dlibplacebo:vulkan=disabled \
-	-Dlibplacebo:lcms2=disabled \
 	-Diconv=disabled \
 	-Dlibarchive=disabled \
 	-Duchardet=disabled \
@@ -189,9 +188,14 @@ find "$SCRATCH/$ARCH_DIR" -name "libmpv.a" -exec cp {} "$SCRATCH/$ARCH_DIR/lib/"
 # subprojects/wraps, 'ninja install' only installs the top-level mpv outputs.
 # The subproject .a files stay inside the build tree and must be copied manually
 # so they get included in the fat XCFramework library.
+#
+# NOTE: lcms2 is a wrap dependency of libplacebo (which itself is a subproject
+# of mpv). Its .a file lives deep in the build tree at e.g.:
+#   build/subprojects/libplacebo/subprojects/lcms2/liblcms2.a
+# A shallow find would miss it — always search recursively.
 echo "=== Copying subproject static libs ==="
-# Find all .a files in the meson build tree (not already in the install prefix)
-find "$(pwd)/build" -name "*.a" | while read lib; do
+# Find all .a files recursively in the meson build tree (not already in the install prefix)
+find "$(pwd)/build" -name "*.a" -type f | while read lib; do
     libname=$(basename "$lib")
     dest="$SCRATCH/$ARCH_DIR/lib/$libname"
     if [ ! -f "$dest" ]; then
