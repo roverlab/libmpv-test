@@ -26,12 +26,7 @@ else
 fi
 
 # Set PKG_CONFIG_PATH for dependencies
-# 注意：模拟器版本复用设备版本的依赖库（都是 arm64 静态库）
-if [ "$ENVIRONMENT" = "simulator" ]; then
-    export PKG_CONFIG_PATH="$SCRATCH/arm64/lib/pkgconfig"
-else
-    export PKG_CONFIG_PATH="$SCRATCH/$ARCH_DIR/lib/pkgconfig"
-fi
+export PKG_CONFIG_PATH="$SCRATCH/$ARCH_DIR/lib/pkgconfig"
 echo "  ARCH_DIR=$ARCH_DIR"
 echo "  PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
 

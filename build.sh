@@ -115,13 +115,8 @@ for ARCH in $ARCHS; do
             ACFLAGS="-arch $ARCH -isysroot $SDKPATH -mios-version-min=$DEPLOYMENT_TARGET"
             ALDFLAGS="-arch $ARCH -isysroot $SDKPATH -lbz2"
         fi
-	elif [[ $ARCH = "x86_64" ]]; then
-        HOSTFLAG="x86_64"
-		export SDKPATH="$(xcodebuild -sdk iphonesimulator -version Path)"
-		ACFLAGS="-arch $ARCH -isysroot $SDKPATH -mios-simulator-version-min=$DEPLOYMENT_TARGET"
-		ALDFLAGS="-arch $ARCH -isysroot $SDKPATH -lbz2"
-	else
-        echo "Unhandled architecture option"
+    else
+        echo "Unhandled architecture option: $ARCH"
         exit 1
     fi
 
@@ -136,12 +131,8 @@ for ARCH in $ARCHS; do
 
     mkdir -p $SCRATCH
 
-    # 模拟器版本复用设备版本的依赖库（都是 arm64 静态库）
-    if [[ "$ENVIRONMENT" = "simulator" ]]; then
-        PKG_CONFIG_PATH="$SCRATCH/arm64/lib/pkgconfig"
-    else
-        PKG_CONFIG_PATH="$SCRATCH/$ARCH_DIR/lib/pkgconfig"
-    fi
+    # 设置 PKG_CONFIG_PATH
+    PKG_CONFIG_PATH="$SCRATCH/$ARCH_DIR/lib/pkgconfig"
     COMMON_OPTIONS="--prefix=$SCRATCH/$ARCH_DIR --exec-prefix=$SCRATCH/$ARCH_DIR --build=x86_64-apple-darwin14 --enable-static \
                     --disable-shared --disable-dependency-tracking --with-pic --host=$HOSTFLAG"
     

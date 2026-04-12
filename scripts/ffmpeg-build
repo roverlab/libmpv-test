@@ -26,9 +26,14 @@ fi
 
 if [[ "$ARCH" = "arm64" ]]; then
 	EXPORT="GASPP_FIX_XCODE5=1"
-	PLATFORM="iPhoneOS"
-elif [[ "$ARCH" = "x86_64" ]]; then
-	PLATFORM="iPhoneSimulator"
+	if [[ "$ENVIRONMENT" = "simulator" ]]; then
+		PLATFORM="iPhoneSimulator"
+	else
+		PLATFORM="iPhoneOS"
+	fi
+else
+	echo "ERROR: Unsupported architecture: $ARCH"
+	exit 1
 fi
 
 XCRUN_SDK=`echo $PLATFORM | tr '[:upper:]' '[:lower:]'`

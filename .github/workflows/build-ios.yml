@@ -53,79 +53,74 @@ env:
   UCHARDET_VERSION: ${{ github.event.inputs.uchardet_version || '0.0.5' }}
 
 jobs:
-  # Job 1: 编译所有依赖库（字体库、uchardet、ffmpeg），缓存结果
-  dependencies:
-    name: Build dependencies
+  # Job 1: 编译设备版 (arm64 iOS Device)
+  build-device:
+    name: Build for Device (arm64)
     runs-on: macos-latest
 
     steps:
-      # === 先检查缓存，缓存命中则跳过所有安装和编译步骤 ===
-      - name: Cache dependencies
-        id: cache-deps
-        uses: actions/cache@v4
-        with:
-          path: |
-            scratch
-          key: ios-deps-v2-${{ runner.os }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.LIBASS_VERSION }}-${{ env.UCHARDET_VERSION }}-${{ env.FFMPEG_VERSION }}
-
       - name: Checkout repository
-        if: steps.cache-deps.outputs.cache-hit != 'true'
         uses: actions/checkout@v4
 
       - name: Setup Xcode
-        if: steps.cache-deps.outputs.cache-hit != 'true'
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
 
       - name: Install dependencies
-        if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
           brew install pkg-config
           brew install nasm
           brew install meson
+          brew install python@3.13
 
       - name: Install gas-preprocessor
-        if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
           sudo curl -L https://github.com/libav/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl
           sudo chmod +x /usr/local/bin/gas-preprocessor.pl
 
       - name: Download sources
-        if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
           chmod +x download.sh
           ./download.sh
 
       - name: Make build scripts executable
-        if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
           chmod +x build.sh
           chmod +x clean.sh
           chmod +x scripts/*-build
 
-      # === 编译所有依赖（libplacebo 和 mpv 除外）===
-      - name: Build dependencies (Step 1-3)
-        if: steps.cache-deps.outputs.cache-hit != 'true'
+      - name: Build dependencies
         run: |
-          echo "=== Building all dependencies (font libs, uchardet, ffmpeg) ==="
+          echo "=== Building dependencies for device (arm64) ==="
           ./build.sh -e distribution -s 1
           ./build.sh -e distribution -s 2
           ./build.sh -e distribution -s 3
 
-      # === 上传依赖作为 artifact，供 mpv job 使用 ===
-      - name: Upload dependencies artifact
+      - name: Build libmpv
+        run: |
+          echo "=== Building libmpv for device (arm64) ==="
+          ./build.sh -e distribution -s 4
+
+      - name: Verify build
+        run: |
+          echo "=== Device build results ==="
+          ls -la scratch/arm64/lib/
+          ls -la scratch/arm64/lib/libmpv.a
+
+      - name: Upload device artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ios-dependencies
-          path: scratch/
-          retention-days: 30
+          name: libmpv-device
+          path: |
+            scratch/arm64/lib/
+            scratch/arm64/include/
+          retention-days: 1
 
-  # Job 2: 编译 mpv（依赖 Job 1 的结果）
-  build:
-    name: Build libmpv for iOS
+  # Job 2: 编译模拟器版 (arm64 iOS Simulator)
+  build-simulator:
+    name: Build for Simulator (arm64)
     runs-on: macos-latest
-    needs: dependencies
 
     steps:
       - name: Checkout repository
@@ -141,9 +136,12 @@ jobs:
           brew install pkg-config
           brew install nasm
           brew install meson
-          # Python 3.14 breaks libplacebo's utils_gen.py (ElementTree API change)
-          # Install Python 3.13 for meson/subproject code generation
           brew install python@3.13
+
+      - name: Install gas-preprocessor
+        run: |
+          sudo curl -L https://github.com/libav/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl
+          sudo chmod +x /usr/local/bin/gas-preprocessor.pl
 
       - name: Download sources
         run: |
@@ -156,148 +154,36 @@ jobs:
           chmod +x clean.sh
           chmod +x scripts/*-build
 
-      # === 下载依赖 artifact ===
-      - name: Download dependencies
-        uses: actions/download-artifact@v4
-        with:
-          name: ios-dependencies
-          path: scratch/
-
-      # === 编译 mpv（libplacebo 作为 subproject 自动编译）===
-      - name: Build libmpv for device
-        run: |
-          echo "=== Building libmpv for device (arm64) ==="
-          chmod +x build.sh
-          chmod +x scripts/*-build
-          ./build.sh -e distribution -s 4
-          
-          # 保存设备版本的 libmpv.a
-          mkdir -p scratch/arm64-device
-          if [ -f "scratch/arm64/lib/libmpv.a" ]; then
-            cp scratch/arm64/lib/libmpv.a scratch/arm64-device/
-          fi
-          # 保存设备版本的头文件
-          if [ -d "scratch/arm64/include/mpv" ]; then
-            cp -r scratch/arm64/include/mpv scratch/arm64-device/
-          fi
-
-      # === 编译 mpv for simulator ===
-      - name: Build libmpv for simulator
+      - name: Build dependencies
         run: |
           echo "=== Building dependencies for simulator (arm64) ==="
-          
-          # 为模拟器编译所有依赖库
-          chmod +x build.sh
-          chmod +x scripts/*-build
           ./build.sh -e simulator -s 1
           ./build.sh -e simulator -s 2
           ./build.sh -e simulator -s 3
-          
+
+      - name: Build libmpv
+        run: |
           echo "=== Building libmpv for simulator (arm64) ==="
           ./build.sh -e simulator -s 4
-          
-          echo "=== Simulator build completed ==="
-          ls -la scratch/arm64-simulator/lib/libmpv.a 2>/dev/null || echo "Simulator libmpv.a not found"
-          ls -la scratch/arm64-simulator/lib/ 2>/dev/null || echo "Simulator lib directory not found"
 
-      # === 准备最终产物 ===
-      - name: Prepare artifacts
+      - name: Verify build
         run: |
-          mkdir -p artifacts
-          if [ -d "lib" ]; then
-            cp -r lib/* artifacts/
-          fi
-          if [ -d "scratch/arm64/lib" ]; then
-            mkdir -p artifacts/arm64
-            cp -r scratch/arm64/lib/*.a artifacts/arm64/ 2>/dev/null || true
-            # Also copy libmpv.a to artifacts root for compatibility
-            cp scratch/arm64/lib/libmpv.a artifacts/ 2>/dev/null || true
-          fi
-          find scratch/arm64/lib -name "*.dylib" -exec cp {} artifacts/ \; 2>/dev/null || true
-          echo "=== Artifacts contents ==="
-          ls -laR artifacts/ 2>/dev/null || echo "No artifacts found"
+          echo "=== Simulator build results ==="
+          ls -la scratch/arm64-simulator/lib/
+          ls -la scratch/arm64-simulator/lib/libmpv.a
 
-      - name: Create distribution archive
-        run: |
-          cd artifacts
-          if [ -n "$(ls -A . 2>/dev/null)" ]; then
-            tar -czvf libmpv-ios-distribution.tar.gz *
-          else
-            echo "No files to archive, creating empty marker"
-            touch libmpv-ios-distribution.tar.gz
-          fi
-
-      - name: Upload artifacts
+      - name: Upload simulator artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: libmpv-ios-distribution
-          path: artifacts/libmpv-ios-distribution.tar.gz
-          retention-days: 30
+          name: libmpv-simulator
+          path: scratch/arm64-simulator/lib/
+          retention-days: 1
 
-      - name: Upload library files
-        uses: actions/upload-artifact@v4
-        with:
-          name: libmpv-libraries-distribution
-          path: |
-            lib/*.a
-          retention-days: 30
-          if-no-files-found: warn
-
-      # === 验证头文件是否存在 ===
-      - name: Verify mpv headers
-        run: |
-          echo "=== Verifying mpv headers ==="
-          
-          # 检查 scratch/arm64 目录结构
-          echo "=== scratch/arm64 directory structure ==="
-          ls -la scratch/arm64/ 2>/dev/null || echo "scratch/arm64 not found"
-          
-          # 检查 src 目录
-          echo "=== src directory ==="
-          ls -la src/ 2>/dev/null || echo "src not found"
-          
-          if [ -d "scratch/arm64/include/mpv" ]; then
-            echo "Headers found in scratch/arm64/include/mpv:"
-            ls -la scratch/arm64/include/mpv/
-          else
-            echo "WARNING: scratch/arm64/include/mpv not found"
-            echo "Attempting to copy headers from source..."
-            MPV_SRC_DIR=$(ls -d src/mpv-* 2>/dev/null | head -1)
-            if [ -n "$MPV_SRC_DIR" ]; then
-              mkdir -p scratch/arm64/include/mpv
-              cp "$MPV_SRC_DIR/libmpv/client.h" scratch/arm64/include/mpv/ 2>/dev/null || true
-              cp "$MPV_SRC_DIR/video/out/opengl_cb.h" scratch/arm64/include/mpv/ 2>/dev/null || true
-              cp "$MPV_SRC_DIR/video/out/gpu/hwdec.h" scratch/arm64/include/mpv/ 2>/dev/null || true
-              cp "$MPV_SRC_DIR/render.h" scratch/arm64/include/mpv/ 2>/dev/null || true
-              cp "$MPV_SRC_DIR/render_gl.h" scratch/arm64/include/mpv/ 2>/dev/null || true
-              cp "$MPV_SRC_DIR/stream_cb.h" scratch/arm64/include/mpv/ 2>/dev/null || true
-              cp "$MPV_SRC_DIR/sub/sub.h" scratch/arm64/include/mpv/ 2>/dev/null || true
-              cp "$MPV_SRC_DIR/player/scripting/qjs.h" scratch/arm64/include/mpv/ 2>/dev/null || true
-              echo "Headers copied:"
-              ls -la scratch/arm64/include/mpv/
-            else
-              echo "ERROR: mpv source directory not found"
-              exit 1
-            fi
-          fi
-
-      # === 上传完整 scratch 目录（含头文件和库，供测试 job 使用）===
-      # 注意：即使缓存命中，也需要上传 artifact 供后续 job 使用
-      - name: Upload build artifacts for testing
-        uses: actions/upload-artifact@v4
-        with:
-          name: libmpv-build-artifacts
-          path: |
-            scratch/
-            src/
-          retention-days: 30
-          if-no-files-found: error
-
-  # Job 4: 验证编译产物
-  verify-build:
-    name: Verify Build Artifacts
+  # Job 3: 创建 XCFramework 并验证
+  create-xcframework:
+    name: Create XCFramework
     runs-on: macos-latest
-    needs: build
+    needs: [build-device, build-simulator]
 
     steps:
       - name: Checkout repository
@@ -308,57 +194,29 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      # === 下载 build job 的完整编译产物（含 scratch 和 src）===
-      - name: Download build artifacts
+      - name: Download device artifacts
         uses: actions/download-artifact@v4
         with:
-          name: libmpv-build-artifacts
-          path: ./
-        continue-on-error: true
+          name: libmpv-device
+          path: scratch/arm64/
 
-      # === 验证下载的产物 ===
-      - name: Verify downloaded artifacts
-        run: |
-          echo "=== Checking downloaded artifacts ==="
-          echo "scratch directory:"
-          ls -la scratch/ 2>/dev/null || echo "scratch/ not found"
-          echo "src directory:"
-          ls -la src/ 2>/dev/null || echo "src/ not found"
-          
-          # 检查设备版
-          echo "=== Device build (arm64) ==="
-          if [ -d "scratch/arm64/lib" ]; then
-            echo "libmpv.a (device):"
-            ls -la scratch/arm64/lib/libmpv.a 2>/dev/null || echo "libmpv.a not found in scratch/arm64"
-          fi
-          
-          # 检查模拟器版
-          echo "=== Simulator build (arm64-simulator) ==="
-          if [ -d "scratch/arm64-simulator/lib" ]; then
-            echo "libmpv.a (simulator):"
-            ls -la scratch/arm64-simulator/lib/libmpv.a 2>/dev/null || echo "libmpv.a not found in scratch/arm64-simulator"
-          fi
+      - name: Download simulator artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: libmpv-simulator
+          path: scratch/arm64-simulator/lib/
 
-      # === 创建 XCFramework 用于验证 ===
-      - name: Create XCFramework for verification
+      - name: Verify artifacts
         run: |
-          echo "=== Creating Libmpv.xcframework ==="
-          
-          # 创建头文件目录
-          mkdir -p include_temp
-          if [ -d "scratch/arm64/include/mpv" ]; then
-            cp scratch/arm64/include/mpv/*.h include_temp/
-          else
-            echo "ERROR: mpv headers not found"
-            exit 1
-          fi
-          
-          # 列出所有库文件
           echo "=== Device libraries ==="
           ls -la scratch/arm64/lib/
           echo "=== Simulator libraries ==="
-          ls -la scratch/arm64-simulator/lib/ 2>/dev/null || echo "Simulator lib not found"
-          
+          ls -la scratch/arm64-simulator/lib/
+          echo "=== Headers ==="
+          ls -la scratch/arm64/include/mpv/
+
+      - name: Create fat libraries
+        run: |
           # 设备版本 - 合并所有静态库
           echo "=== Creating device fat library ==="
           mkdir -p lib_device
@@ -386,6 +244,14 @@ jobs:
           cd ..
           echo "Simulator fat library size:"
           ls -lh lib_simulator/libmpv_full.a
+
+      - name: Create XCFramework
+        run: |
+          echo "=== Creating Libmpv.xcframework ==="
+          
+          # 创建头文件目录
+          mkdir -p include_temp
+          cp scratch/arm64/include/mpv/*.h include_temp/
           
           # 创建 XCFramework
           mkdir -p lib
@@ -399,79 +265,41 @@ jobs:
           ls -la lib/
           ls -laR lib/Libmpv.xcframework/
 
-      # === 验证 SPM 集成 ===
-      - name: Verify SPM integration (iOS Device)
-        run: |
-          echo "=== Verifying SPM can resolve the package ==="
-          swift package resolve 2>&1 || echo "SPM resolve completed"
-          
-          echo "=== Building package (iOS Device) ==="
-          xcodebuild build \
-            -scheme LibMpv-iOS \
-            -destination "generic/platform=iOS" \
-            -configuration Release \
-            -derivedDataPath .build-device \
-            2>&1 | tail -50
-          
-          echo "=== Device build completed ==="
-
-      - name: Verify SPM integration (iOS Simulator)
-        run: |
-          echo "=== Building package (iOS Simulator) ==="
-          xcodebuild build \
-            -scheme LibMpv-iOS \
-            -destination "generic/platform=iOS Simulator" \
-            -configuration Release \
-            -derivedDataPath .build-simulator \
-            2>&1 | tail -50
-          
-          echo "=== Simulator build completed ==="
-
-      - name: Upload xcframework
+      - name: Upload XCFramework
         uses: actions/upload-artifact@v4
         with:
           name: Libmpv-xcframework
           path: lib/Libmpv.xcframework
           retention-days: 30
 
+  # Job 4: 创建 Release
   release:
     name: Create Release
-    needs: [build, verify-build]
     runs-on: macos-latest
+    needs: create-xcframework
     if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download xcframework
+      - name: Download XCFramework
         uses: actions/download-artifact@v4
         with:
           name: Libmpv-xcframework
           path: lib/Libmpv.xcframework
 
-      - name: Download distribution artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: libmpv-ios-distribution
-          path: artifacts
-
       - name: Prepare release assets
         run: |
           echo "=== Checking downloaded files ==="
-          ls -la lib/ 2>/dev/null || echo "lib/ not found"
-          ls -la lib/Libmpv.xcframework/ 2>/dev/null || echo "lib/Libmpv.xcframework not found"
+          ls -la lib/
+          ls -la lib/Libmpv.xcframework/
           
           # Create zip of xcframework for SPM
           cd lib
-          if [ -d "Libmpv.xcframework" ]; then
-            zip -r Libmpv.xcframework.zip Libmpv.xcframework
-            echo "=== Created Libmpv.xcframework.zip ==="
-            ls -la Libmpv.xcframework.zip
-          else
-            echo "ERROR: Libmpv.xcframework not found!"
-            exit 1
-          fi
+          zip -r Libmpv.xcframework.zip Libmpv.xcframework
+          echo "=== Created Libmpv.xcframework.zip ==="
+          ls -la Libmpv.xcframework.zip
           
           # Generate checksum for SPM
           CHECKSUM=$(swift package compute-checksum Libmpv.xcframework.zip)
@@ -482,7 +310,6 @@ jobs:
           cd ..
           mkdir -p release
           mv lib/Libmpv.xcframework.zip release/
-          cp artifacts/* release/ 2>/dev/null || true
           
           # Create checksum file
           echo "$CHECKSUM" > release/checksum.txt
@@ -492,7 +319,6 @@ jobs:
 
       - name: Update Package.swift with checksum
         run: |
-          # Update Package.swift with the new checksum and release URL
           RELEASE_URL="https://github.com/roverlab/libmpv-test/releases/download/${{ github.ref_name }}/Libmpv.xcframework.zip"
           sed -i '' "s|url: \".*\"|url: \"$RELEASE_URL\"|" Package.swift
           sed -i '' "s|checksum: \".*\"|checksum: \"$CHECKSUM\"|" Package.swift
