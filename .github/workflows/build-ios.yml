@@ -279,16 +279,18 @@ jobs:
         run: |
           echo "=== Creating Libmpv.xcframework ==="
           
-          # 创建头文件目录结构（XCFramework 要求的 headers 布局）
-          # xcodebuild -create-xcframework -headers 期望的格式：
+          # 创建头文件目录结构（XCFramework + SPM binaryTarget 兼容格式）
+          # 关键：headers 必须放在以模块名命名的子目录中
+          # 结构：
           #   headers_dir/
-          #     module.modulemap
-          #     <header_files>
-          mkdir -p include_temp
-          cp scratch/arm64/include/mpv/*.h include_temp/
+          #     Libmpv/           ← 模块名子目录（SPM 要求）
+          #       module.modulemap
+          #       *.h            ← 所有头文件
+          mkdir -p include_temp/Libmpv
+          cp scratch/arm64/include/mpv/*.h include_temp/Libmpv/
           
           # 创建 module.modulemap（Swift/SPM 识别 C 模块所必需）
-          cat > include_temp/module.modulemap << 'EOF'
+          cat > include_temp/Libmpv/module.modulemap << 'EOF'
           module Libmpv {
               header "client.h"
               header "opengl_cb.h"
@@ -298,6 +300,7 @@ jobs:
               header "stream_cb.h"
               header "sub.h"
               header "qjs.h"
+              link "mpv"
               export *
           }
           EOF
@@ -367,6 +370,14 @@ jobs:
           find lib/Libmpv.xcframework -name "module.modulemap" -exec echo "✅ Found: {}" \;
           if [ -z "$(find lib/Libmpv.xcframework -name 'module.modulemap')" ]; then
               echo "❌ ERROR: module.modulemap not found in XCFramework!"
+              exit 1
+          fi
+          echo ""
+          echo "=== Check headers exist in XCFramework ==="
+          find lib/Libmpv.xcframework -name "*.h" -exec echo "✅ Header: {}" \;
+          find lib/Libmpv.xcframework -name "client.h" -exec echo "✅ client.h found" \;
+          if [ -z "$(find lib/Libmpv.xcframework -name 'client.h')" ]; then
+              echo "❌ ERROR: client.h not found in XCFramework!"
               exit 1
           fi
 
@@ -469,14 +480,25 @@ jobs:
         run: |
           cd Tests/VerifyLibmpv
 
+          # 先解析包依赖（便于调试）
+          swift package resolve 2>&1 || true
+          
+          echo "=== XCFramework path check ==="
+          ls -la ../../lib/Libmpv.xcframework || echo "❌ XCFramework not found at expected path!"
+          find ../../lib/Libmpv.xcframework -type f 2>/dev/null | head -30 || echo "❌ No files in XCFramework!"
+          
+          echo "=== Resolving package dependencies ==="
+          xcodebuild -resolvePackageDependencies \
+            -scheme VerifyLibmpv-Package \
+            -platform iOS 2>&1 || true
+
           # 用 xcodebuild 编译 iOS Simulator 版本
           # 这是最接近真实使用场景的验证方式（与 Xcode IDE 行为一致）
           xcodebuild build \
             -scheme VerifyLibmpv-Package \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest' \
             -configuration Debug \
             -skip-testing:VerifyLibmpvTests \
-            -quiet \
             ONLY_ACTIVE_ARCH=YES
 
           echo "✅ xcodebuild succeeded — 'import Libmpv' resolves correctly in iOS Simulator build"
@@ -488,10 +510,9 @@ jobs:
           # 在模拟器上运行单元测试
           xcodebuild test \
             -scheme VerifyLibmpv-Package \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest' \
             -configuration Debug \
-            -only-testing:VerifyLibmpvImportTests \
-            -quiet
+            -only-testing:VerifyLibmpvImportTests
 
           echo "✅ All Libmpv import tests passed on iOS Simulator"
 
