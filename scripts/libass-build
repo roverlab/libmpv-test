@@ -9,6 +9,15 @@ OPT="--disable-fontconfig \
 	--disable-directwrite \
 	--enable-coretext"
 
+# For simulator builds, disable assembly optimizations:
+#   libass NEON .S files compile fine individually, but their object file names
+#   (e.g. blur.o, rasterizer.o) collide with objects from other archives during
+#   the libtool -static merge step, causing the NEON symbols to be silently
+#   dropped. The C fallback paths are functionally identical for CI testing.
+if [ "$ENVIRONMENT" = "simulator" ]; then
+    OPT="$OPT --disable-asm"
+fi
+
 $SRC/libass*/configure $COMMON_OPTIONS $OPT
-							
-make install
+
+make -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4) install

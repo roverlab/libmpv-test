@@ -181,6 +181,24 @@ ninja -C build install
 # Copy libmpv.a to lib directory
 find "$SCRATCH/$ARCH_DIR" -name "libmpv.a" -exec cp {} "$SCRATCH/$ARCH_DIR/lib/" \; 2>/dev/null || true
 
+# Copy subproject static libraries that meson does NOT install to the prefix.
+# When libplacebo (and its deps: lcms2, libdovi, etc.) are built as meson
+# subprojects/wraps, 'ninja install' only installs the top-level mpv outputs.
+# The subproject .a files stay inside the build tree and must be copied manually
+# so they get included in the fat XCFramework library.
+echo "=== Copying subproject static libs ==="
+# Find all .a files in the meson build tree (not already in the install prefix)
+find "$(pwd)/build" -name "*.a" | while read lib; do
+    libname=$(basename "$lib")
+    dest="$SCRATCH/$ARCH_DIR/lib/$libname"
+    if [ ! -f "$dest" ]; then
+        echo "  Copying subproject lib: $libname"
+        cp "$lib" "$dest"
+    fi
+done
+echo "=== All libs in $SCRATCH/$ARCH_DIR/lib/ ==="
+ls -lh "$SCRATCH/$ARCH_DIR/lib/"
+
 # Copy mpv public API headers to scratch include directory (for framework creation / CI artifact)
 # Only copy headers from libmpv/ — these are the canonical public API headers.
 # DO NOT copy internal headers (e.g. video/out/gpu/hwdec.h) that depend on
