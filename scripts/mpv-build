@@ -51,7 +51,9 @@ echo "  AR=$AR_PATH"
 echo "  STRIP=$STRIP_PATH"
 
 # Create cross-file for iOS cross-compilation
-CROSS_FILE=$(mktemp)
+# Use a persistent path instead of mktemp to allow meson reconfigure
+CROSS_FILE="$SCRATCH/$ARCH/mpv-cross-file.txt"
+mkdir -p "$SCRATCH/$ARCH"
 
 # Determine the correct minimum version flag
 if [ "$ENVIRONMENT" = "simulator" ] || [ "$SDK_NAME" = "iphonesimulator" ]; then
@@ -160,8 +162,6 @@ meson setup build \
 
 ninja -C build -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
 ninja -C build install
-
-rm -f "$CROSS_FILE"
 
 # Copy libmpv.a to lib directory
 find "$SCRATCH/$ARCH" -name "libmpv.a" -exec cp {} "$SCRATCH/$ARCH/lib/" \; 2>/dev/null || true
