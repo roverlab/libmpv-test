@@ -76,12 +76,10 @@ DEPLOYMENT_TARGET="11.0"
 
 if [[ "$ENVIRONMENT" = "distribution" ]]; then
     ARCHS="arm64"
-elif [[ "$ENVIRONMENT" = "development" ]]; then
-    ARCHS="x86_64 arm64"
 elif [[ "$ENVIRONMENT" = "simulator" ]]; then
     ARCHS="arm64"
 elif [[ "$ENVIRONMENT" = "" ]]; then
-    echo "An environment option is required (-e development, -e distribution, or -e simulator)"
+    echo "An environment option is required (-e distribution or -e simulator)"
     exit 1
 else
     echo "Unhandled environment option"
@@ -127,7 +125,7 @@ for ARCH in $ARCHS; do
         exit 1
     fi
 
-    if [[ "$ENVIRONMENT" = "development" ]] || [[ "$ENVIRONMENT" = "simulator" ]]; then
+    if [[ "$ENVIRONMENT" = "simulator" ]]; then
         CFLAGS="$ACFLAGS"
         LDFLAGS="$ALDFLAGS"
     else
@@ -168,11 +166,7 @@ for ARCH in $ARCHS; do
 				mkdir -p $SCRATCH/$ARCH_DIR/ffmpeg && cd $_ && $SCRIPTS/ffmpeg-build
 				;;
             "libmpv" )
-                if [[ "$ENVIRONMENT" = "development" ]]; then
-                    CFLAGS="$ACFLAGS -fembed-bitcode -g2 -Og"
-                    LDFLAGS="$ALDFLAGS -fembed-bitcode -g2 -Og"
-                fi
-				$SCRIPTS/mpv-build
+								$SCRIPTS/mpv-build
 				# ninja install already places libmpv.a in $SCRATCH/$ARCH_DIR/lib/
 				# Verify the output file exists
 				if [ ! -f "$SCRATCH/$ARCH_DIR/lib/libmpv.a" ]; then
@@ -188,16 +182,8 @@ for ARCH in $ARCHS; do
     done
 done
 
-if [[ "$ENVIRONMENT" = "development" ]]; then
-    for LIBRARY in $LIBRARIES; do
-        if [[ "$LIBRARY" != "ffmpeg" ]] && [[ "$LIBRARY" != "libplacebo" ]]; then
-            lipo -create $SCRATCH/arm64/lib/$LIBRARY.a $SCRATCH/x86_64/lib/$LIBRARY.a -o $LIB/$LIBRARY.a
-        fi
-    done
-else
-    for LIBRARY in $LIBRARIES; do
-        if [[ "$LIBRARY" != "ffmpeg" ]] && [[ "$LIBRARY" != "libplacebo" ]]; then
-            cp $SCRATCH/arm64/lib/$LIBRARY.a $LIB/$LIBRARY.a
-        fi
-    done
-fi
+for LIBRARY in $LIBRARIES; do
+    if [[ "$LIBRARY" != "ffmpeg" ]] && [[ "$LIBRARY" != "libplacebo" ]]; then
+        cp $SCRATCH/arm64/lib/$LIBRARY.a $LIB/$LIBRARY.a
+    fi
+done

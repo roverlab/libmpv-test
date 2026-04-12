@@ -172,7 +172,7 @@ xcodebuild -create-xcframework \
 | arm64 | iOS Device | ✅ Supported |
 | arm64 | iOS Simulator (Apple Silicon Mac) | ✅ Supported |
 
-Note: x86_64 simulator (Intel Mac) is not included in the pre-built binaries. If you need it, build from source with `./build.sh -e development`.
+Note: x86_64 simulator (Intel Mac) is not included in the pre-built binaries.
 
 ## License
 

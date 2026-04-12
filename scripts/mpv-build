@@ -108,12 +108,7 @@ C_ARGS="-fembed-bitcode -Os"
 CPP_ARGS="-fembed-bitcode -Os"
 C_LINK_ARGS="-lbz2 -fembed-bitcode -Os"
 
-if [[ "$ENVIRONMENT" = "development" ]]; then
-    BUILDTYPE="debug"
-    C_ARGS="-fembed-bitcode -g2 -Og"
-    CPP_ARGS="-fembed-bitcode -g2 -Og"
-    C_LINK_ARGS="-lbz2 -fembed-bitcode -g2 -Og"
-elif [[ "$ENVIRONMENT" = "simulator" ]]; then
+if [[ "$ENVIRONMENT" = "simulator" ]]; then
     # Simulator doesn't need bitcode
     BUILDTYPE="release"
     C_ARGS="-Os"
