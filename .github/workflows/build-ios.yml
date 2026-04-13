@@ -190,33 +190,16 @@ jobs:
               echo "=== Creating ${label} fat library ==="
               mkdir -p "$output_dir"
 
-              # Separate libs into force-load and regular groups
-              FORCE_LIBS=""
-              REGULAR_LIBS=""
-              for lib in $(ls "${arch_dir}"lib/*.a); do
-                  case $(basename "$lib") in
-                      libplacebo*|libglslang*|liblcms2*|libdovi*)
-                          FORCE_LIBS="$FORCE_LIBS $lib" ;;
-                      *)
-                          REGULAR_LIBS="$REGULAR_LIBS $lib" ;;
-                  esac
-              done
+              # Collect all .a files
+              ALL_LIBS=$(ls "${arch_dir}"lib/*.a)
+              echo "All libs to merge:$ALL_LIBS"
 
-              echo "Force-load libs:$FORCE_LIBS"
-              echo "Regular libs:$REGULAR_LIBS"
-
-              # Step 1: If there are force-load libs, pre-merge them
-              if [ -n "$FORCE_LIBS" ]; then
-                  libtool -static -o "${output_dir}/_force_merged.a" $FORCE_LIBS
-                  # Use the merged archive as a regular lib in final merge
-                  REGULAR_LIBS="${output_dir}/_force_merged.a $REGULAR_LIBS"
-              fi
-
-              # Step 2: Merge everything into the final fat library
-              libtool -static -o "${output_dir}/libmpv_full.a" $REGULAR_LIBS
-
-              # Clean up intermediate file
-              rm -f "${output_dir}/_force_merged.a"
+              # Merge ALL static libraries into the final fat library.
+              # libtool -static includes ALL object files from every input archive,
+              # so no symbol can ever be missed (unlike the linker which does dead-code
+              # stripping). This is critical for indirect/referenced-via-function-pointer
+              # symbols like libplacebo's ra_* and lcms2's _cms_* .
+              libtool -static -o "${output_dir}/libmpv_full.a" $ALL_LIBS
 
               echo "${label} fat library size:"
               ls -lh "${output_dir}/libmpv_full.a"

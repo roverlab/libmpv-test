@@ -204,7 +204,16 @@ find "$SCRATCH/$ARCH_DIR" -name "libmpv.a" -exec cp {} "$SCRATCH/$ARCH_DIR/lib/"
 #   build/subprojects/libplacebo/subprojects/lcms2/liblcms2.a
 # A shallow find would miss it — always search recursively.
 echo "=== Copying subproject static libs ==="
-# Find all .a files recursively in the meson build tree (not already in the install prefix)
+# Find all .a files recursively in the meson build tree (not already in the install prefix).
+# lcms2 is a wrap dependency of libplacebo (which is a subproject of mpv), so its
+# .a file can be deeply nested, e.g.:
+#   build/subprojects/libplacebo/subprojects/lcms2/liblcms2.a
+#   build/subprojects/libplacebo/subprojects/lcms2/liblcms2_static.a
+# A recursive find is essential — shallow searches will miss it.
+echo "=== All .a files in meson build tree ==="
+find "$(pwd)/build" -name "*.a" -type f | sort
+echo ""
+
 find "$(pwd)/build" -name "*.a" -type f | while read lib; do
     libname=$(basename "$lib")
     dest="$SCRATCH/$ARCH_DIR/lib/$libname"
@@ -213,6 +222,21 @@ find "$(pwd)/build" -name "*.a" -type f | while read lib; do
         cp "$lib" "$dest"
     fi
 done
+
+# Safety net: explicitly verify that critical subproject libs exist
+for critical_lib in liblcms2.a liblcms2_static.a; do
+    if [ ! -f "$SCRATCH/$ARCH_DIR/lib/$critical_lib" ]; then
+        # Try harder: search for any file matching the pattern anywhere in build tree
+        FOUND=$(find "$(pwd)/build" -name "$critical_lib" -type f 2>/dev/null | head -1)
+        if [ -n "$FOUND" ]; then
+            echo "  Safety net: found and copying $critical_lib from $FOUND"
+            cp "$FOUND" "$SCRATCH/$ARCH_DIR/lib/$critical_lib"
+        else
+            echo "  WARNING: $critical_lib not found anywhere in build tree"
+        fi
+    fi
+done
+
 echo "=== All libs in $SCRATCH/$ARCH_DIR/lib/ ==="
 ls -lh "$SCRATCH/$ARCH_DIR/lib/"
 
