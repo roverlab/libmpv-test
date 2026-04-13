@@ -177,6 +177,10 @@ jobs:
           echo "✅ Test project created"
           find Tests/VerifyLibmpv -type f | sort
 
+      - name: Make build scripts executable
+        run: |
+          chmod +x scripts/*.sh scripts/components/*.sh
+
       - name: Symbol integrity check (linker test)
         run: |
           # 在启动模拟器之前，先用真实链接器检测符号完整性

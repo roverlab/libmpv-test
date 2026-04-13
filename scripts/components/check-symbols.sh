@@ -9,7 +9,7 @@
 #   3. 输出原始链接器错误
 #   4. CI: PASS=exit0, FAIL=exit1+full log
 #
-# 框架列表从 mpv cross-file 的 c_link_args 读取，不硬编码
+# 链接参数来源：ninja -v 抓完整 link line（含 @link.rsp），零解析
 # =========================================================================
 
 set -e
@@ -54,38 +54,32 @@ for lib in \
     fi
 done
 
-# 从 cross-file 提取 c_link_args 中的 framework 和系统库参数
-CROSS_FILE="$SCRATCH/$ARCH_DIR/mpv-cross-file.txt"
+# 从 ninja 构建目录抓取完整的链接命令（含 @link.rsp）
+MPV_BUILD_DIR="$SRC/mpv*/build"
 
-if [ -f "$CROSS_FILE" ]; then
-    # 从 c_link_args 行提取 -framework 和 -l 参数
-    # cross-file 格式: c_link_args = ['-target', ..., '-framework', 'Foundation', ...]
-    LINK_ARGS=$(grep "^c_link_args" "$CROSS_FILE" | sed "s/^c_link_args = //" | tr -d "'" | tr ',' ' ')
+if [ -d "$MPV_BUILD_DIR" ]; then
+    # ninja -C build -v 输出完整命令行，包含 @link.rsp response file
+    # 找到第一个包含 .a 的链接行，直接复用其 @rsp 文件
+    LINK_LINE=$(ninja -C "$MPV_BUILD_DIR" -v 2>/dev/null | grep "\.a" | grep -oE '@[^ ]+' | head -1)
     
-    FRAMEWORKS=""
-    SYSTEM_LIBS=""
-    
-    # 解析参数：收集 -framework X 和 -lX
-    PREV_ARG=""
-    for arg in $LINK_ARGS; do
-        if [ "$PREV_ARG" = "-framework" ]; then
-            FRAMEWORKS="$FRAMEWORKS -framework $arg"
-        elif [ "$PREV_ARG" = "-l" ] || [[ "$arg" == -l* ]]; then
-            if [[ "$arg" == -l* ]]; then
-                SYSTEM_LIBS="$SYSTEM_LIBS $arg"
-            else
-                SYSTEM_LIBS="$SYSTEM_LIBS -l$arg"
-            fi
+    if [ -n "$LINK_LINE" ]; then
+        # 直接复用 rsp 文件 — 零解析，构建系统给什么就用什么
+        RSP_FILE="${LINK_LINE#@}"
+        
+        if [ -f "$RSP_FILE" ]; then
+            EXTRA_LINK_ARGS="@$RSP_FILE"
+            echo "  Reusing linker rsp: $RSP_FILE"
+        else
+            echo "  ⚠️  Rsp file not found: $RSP_FILE, using minimal"
+            EXTRA_LINK_ARGS="-framework Foundation -framework CoreFoundation"
         fi
-        PREV_ARG="$arg"
-    done
-    
-    echo "  Frameworks from cross-file: $(echo $FRAMEWORKS | wc -w | tr -d ' ') items"
+    else
+        echo "  ⚠️  No link line in ninja, using minimal"
+        EXTRA_LINK_ARGS="-framework Foundation -framework CoreFoundation"
+    fi
 else
-    # fallback: 最小基础（仅 Foundation + CoreFoundation）
-    echo "  ⚠️  No cross-file found, using minimal frameworks"
-    FRAMEWORKS="-framework Foundation -framework CoreFoundation"
-    SYSTEM_LIBS=""
+    echo "  ⚠️  No build dir ($MPV_BUILD_DIR), using minimal"
+    EXTRA_LINK_ARGS="-framework Foundation -framework CoreFoundation"
 fi
 
 echo "Linking..."
@@ -95,7 +89,7 @@ LOG="$TEMP_DIR/link.log"
 clang -target "$TARGET_TRIPLE" \
      -isysroot "$SDKPATH" $MIN_VERSION_FLAG \
      "$TEMP_DIR/dummy.c" -o "$TEMP_DIR/dummy" \
-     $FORCE_LIBS $FRAMEWORKS $SYSTEM_LIBS \
+     $FORCE_LIBS $EXTRA_LINK_ARGS \
      -Wl,-undefined,error \
      > "$LOG" 2>&1
 
