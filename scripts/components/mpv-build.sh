@@ -163,7 +163,7 @@ meson setup build \
     -Dlibplacebo:dovi=disabled \
     -Dlibplacebo:libdovi=disabled \
     -Dlibplacebo:xxhash=disabled \
-    -Diconv=disabled \
+    -Diconv=enabled \
     -Dlibarchive=disabled \
     -Duchardet=enabled \
     -Dlcms2=disabled \
