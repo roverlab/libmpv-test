@@ -177,26 +177,9 @@ jobs:
             release/checksum.txt
           generate_release_notes: true
           body: |
-            ## Libmpv for iOS
+            ## ${{ needs.resolve-version.outputs.version }}
 
-            Pre-built libmpv library for iOS.
-
-            ### Installation
-
-            Add to your `Package.swift`:
-            ```swift
-            dependencies: [
-                .package(url: "https://github.com/${{ github.repository }}", from: "${{ needs.resolve-version.outputs.tag }}")
-            ]
-            ```
-
-            Or in Xcode: File > Add Packages > enter repository URL.
-
-            ### Included Libraries
-            Versions are defined in [download.sh](blob/main/scripts/download.sh).
-
-            ### Checksum
-            `$CHECKSUM`
+            **Checksum:** `$CHECKSUM`
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
