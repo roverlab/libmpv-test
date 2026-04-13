@@ -260,8 +260,10 @@ echo ""
 echo "=== Symbol integrity check ==="
 MPV_LIB="$SCRATCH/$ARCH_DIR/lib/libmpv.a"
 if [ -f "$MPV_LIB" ]; then
-    # Step 1: Extract ALL undefined symbols from libmpv.a
-    UNDEFINED=$(nm -gU "$MPV_LIB" 2>/dev/null | awk '{print $2}' | sort -u)
+    # Step 1: Extract ALL undefined (U) symbols from libmpv.a
+    # macOS nm format: "                 U _symbol_name"  (U is in column 2, name in column 3)
+    # Use grep to filter only U lines, then extract the symbol name (last field)
+    UNDEFINED=$(nm -gU "$MPV_LIB" 2>/dev/null | grep ' U ' | awk '{print $NF}' | sort -u | grep -v '^$')
     UNDEF_COUNT=$(echo "$UNDEFINED" | grep -c . 2>/dev/null || echo "0")
 
     if [ "$UNDEF_COUNT" -eq 0 ]; then
@@ -269,9 +271,10 @@ if [ -f "$MPV_LIB" ]; then
     else
         echo "  Found $UNDEF_COUNT undefined symbol(s) in libmpv.a, checking resolvability ..."
 
-        # Step 2: Build a lookup of ALL defined symbols (T = global text, t = local text)
-        # from every .a file EXCEPT libmpv.a itself
-        DEFINED=$(nm -g "$SCRATCH/$ARCH_DIR"/lib/*.a 2>/dev/null | grep -v "$MPV_LIB" | awk '/ [Tt] / {print $3}' | sort -u)
+        # Step 2: Build a lookup of ALL defined symbols from every other .a file
+        # macOS nm format for defined symbols: "address T/t/D/etc _symbol_name"
+        # Extract the symbol name (last field) for all non-U entries
+        DEFINED=$(nm -g "$SCRATCH/$ARCH_DIR"/lib/*.a 2>/dev/null | grep -v "$MPV_LIB" | grep -v ' U ' | awk '{print $NF}' | sort -u | grep -v '^$')
 
         # Step 3: Check each undefined symbol
         MISSING=0
