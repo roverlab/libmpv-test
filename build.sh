@@ -1,16 +1,14 @@
 #!/bin/sh -e
 
-# 第1步：字体相关库（容易出错）
-FONT_LIBRARIES="libfreetype libharfbuzz libfribidi libass"
-# 第2步：其他依赖库（不含 ffmpeg）
-OTHER_LIBRARIES="libuchardet"
-# 第3步：FFmpeg（可独立缓存）
+# 第1步：字体及相关库（容易出错）
+FONT_LIBRARIES="libfreetype libharfbuzz libfribidi libass libuchardet"
+# 第2步：FFmpeg（可独立缓存）
 FFMPEG_LIBRARIES="ffmpeg"
 # libplacebo 现在作为 mpv 的 subproject 自动编译，不再需要单独步骤
 # 第4步：libmpv（最后编译）
 MPV_LIBRARIES="libmpv"
 # 所有库（默认）
-ALL_LIBRARIES="$FONT_LIBRARIES $OTHER_LIBRARIES"
+ALL_LIBRARIES="$FONT_LIBRARIES"
 # LGPL licensed projects should be built as dynamic framework bundles (todo: automate that in this script)
 # FRAMEWORKS="libmpv ffmpeg libfribidi"
 
@@ -42,32 +40,28 @@ case $OPTION in
 done
 
 # 所有库（默认）
-ALL_LIBRARIES="$FONT_LIBRARIES $OTHER_LIBRARIES $FFMPEG_LIBRARIES $MPV_LIBRARIES"
+ALL_LIBRARIES="$FONT_LIBRARIES $FFMPEG_LIBRARIES $MPV_LIBRARIES"
 
 # 根据步骤选择要编译的库
 case $STEP in
 	1|font)
 		LIBRARIES="$FONT_LIBRARIES"
-		echo "=== Step 1: Building font libraries ==="
+		echo "=== Step 1: Building font + uchardet libraries ==="
 		;;
-	2|other)
-		LIBRARIES="$OTHER_LIBRARIES"
-		echo "=== Step 2: Building other libraries (uchardet) ==="
-		;;
-	3|ffmpeg)
+	2|ffmpeg)
 		LIBRARIES="$FFMPEG_LIBRARIES"
-		echo "=== Step 3: Building FFmpeg ==="
+		echo "=== Step 2: Building FFmpeg ==="
 		;;
-	4|mpv)
+	3|mpv)
 		LIBRARIES="$MPV_LIBRARIES"
-		echo "=== Step 5: Building libmpv ==="
+			echo "=== Step 3: Building libmpv ==="
 		;;
 	"")
 		LIBRARIES="$ALL_LIBRARIES"
 		echo "=== Building all libraries ==="
 		;;
 		*)
-		echo "Invalid step: $STEP (use 1-4 or omit for all)"
+			echo "Invalid step: $STEP (use 1-3 or omit for all)"
 		exit 1
 		;;
 esac

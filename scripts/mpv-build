@@ -171,7 +171,7 @@ meson setup build \
 	-Dmanpage-build=disabled \
 	-Dhtml-build=disabled \
 	-Dpdf-build=disabled \
-	-Dlibplacebo:opengl=disabled \
+	-Dlibplacebo:opengl=enabled \
 	-Dlibplacebo:vulkan=disabled \
 	-Dlibplacebo:glslang=disabled \
 	-Dlibplacebo:shaderc=disabled \

@@ -79,19 +79,7 @@ jobs:
           sudo curl -L https://github.com/libav/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl
           sudo chmod +x /usr/local/bin/gas-preprocessor.pl
 
-      - name: Cache device build (scratch + src)
-        id: cache-device
-        uses: actions/cache@v4
-        with:
-          path: |
-            scratch/
-            src/
-          key: device-ios13-${{ env.MPV_VERSION }}-${{ env.FFMPEG_VERSION }}-${{ env.LIBASS_VERSION }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.UCHARDET_VERSION }}-${{ env.LIBPLACEBO_VERSION }}
-          restore-keys: |
-            device-
-
       - name: Download sources
-        if: steps.cache-device.outputs.cache-hit != 'true'
         run: |
           chmod +x download.sh
           ./download.sh
@@ -106,18 +94,15 @@ jobs:
           chmod +x scripts/*-build
 
       - name: Build dependencies
-        if: steps.cache-device.outputs.cache-hit != 'true'
         run: |
           echo "=== Building dependencies for device (arm64) ==="
           ./build.sh -e distribution -s 1
           ./build.sh -e distribution -s 2
-          ./build.sh -e distribution -s 3
 
       - name: Build libmpv
-        if: steps.cache-device.outputs.cache-hit != 'true'
         run: |
           echo "=== Building libmpv for device (arm64) ==="
-          ./build.sh -e distribution -s 4
+          ./build.sh -e distribution -s 3
 
       - name: Verify build
         run: |
@@ -160,19 +145,7 @@ jobs:
           sudo curl -L https://github.com/libav/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl
           sudo chmod +x /usr/local/bin/gas-preprocessor.pl
 
-      - name: Cache simulator build (scratch + src)
-        id: cache-simulator
-        uses: actions/cache@v4
-        with:
-          path: |
-            scratch/
-            src/
-          key: sim-ios13-${{ env.MPV_VERSION }}-${{ env.FFMPEG_VERSION }}-${{ env.LIBASS_VERSION }}-${{ env.FREETYPE_VERSION }}-${{ env.HARFBUZZ_VERSION }}-${{ env.FRIBIDI_VERSION }}-${{ env.UCHARDET_VERSION }}-${{ env.LIBPLACEBO_VERSION }}
-          restore-keys: |
-            sim-
-
       - name: Download sources
-        if: steps.cache-simulator.outputs.cache-hit != 'true'
         run: |
           chmod +x download.sh
           ./download.sh
@@ -187,18 +160,15 @@ jobs:
           chmod +x scripts/*-build
 
       - name: Build dependencies
-        if: steps.cache-simulator.outputs.cache-hit != 'true'
         run: |
           echo "=== Building dependencies for simulator (arm64) ==="
           ./build.sh -e simulator -s 1
           ./build.sh -e simulator -s 2
-          ./build.sh -e simulator -s 3
 
       - name: Build libmpv
-        if: steps.cache-simulator.outputs.cache-hit != 'true'
         run: |
           echo "=== Building libmpv for simulator (arm64) ==="
-          ./build.sh -e simulator -s 4
+          ./build.sh -e simulator -s 3
 
       - name: Verify build
         run: |

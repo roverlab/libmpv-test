@@ -93,6 +93,7 @@ jobs:
                           .linkedFramework("AVFoundation"),
                           .linkedFramework("AudioToolbox"),
                           .linkedFramework("CoreMedia"),
+                          .linkedFramework("VideoToolbox"),
                           .linkedLibrary("bz2"),
                           .linkedLibrary("z"),
                           .linkedLibrary("iconv"),
