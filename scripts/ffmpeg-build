@@ -18,11 +18,14 @@ FFMPEG_OPTIONS="${COMMON_OPTIONS%% *} \
 		--disable-audiotoolbox \
 		--enable-videotoolbox \
 		--disable-coreimage \
-		--disable-metal"
-		# ^ libjpeg is NOT a system library on iOS. FFmpeg auto-detects the macOS
-		# host libjpeg during cross-compile configure and then tries to reference it
-		# in the iOS product causing undefined _jpeg_* symbols. FFmpeg has its own
-		# internal MJPEG codec that does not require external libjpeg.
+		--disable-metal \
+		--disable-libjpeg"
+		# ^ --disable-libjpeg: libjpeg is NOT a system library on iOS.
+		# FFmpeg auto-detects the macOS host libjpeg during cross-compile
+		# configure and then tries to reference it in the iOS product, causing
+		# undefined _jpeg_* symbols at link time.
+		# FFmpeg has its own internal MJPEG codec that does not require
+		# external libjpeg, so disabling it is safe.
 
 if [[ ! `which gas-preprocessor.pl` ]]; then
 	curl -L https://github.com/libav/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl \

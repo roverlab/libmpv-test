@@ -183,9 +183,8 @@ meson setup build \
 	-Dlibarchive=disabled \
 	-Duchardet=disabled \
 	-Dlcms2=disabled \
-	-Dmacos-media-player=disabled
-
-#	-Djpeg=disabled 
+	-Dmacos-media-player=disabled \
+	-Djpeg=disabled 
 
 
 ninja -C build -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
