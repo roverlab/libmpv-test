@@ -86,6 +86,21 @@ fi
 # is still in PATH (for any tools that need it), just not first.
 export PATH="/usr/bin:/usr/local/bin:/bin:$(echo $PATH | tr ':' '\n' | grep -v '^/usr/bin$' | grep -v '^/usr/local/bin$' | grep -v '^/bin$' | tr '\n' ':')"
 
+# Resolve absolute paths for the NATIVE (build machine) compiler.
+# This is critical because build.sh prepends the Xcode toolchain bin
+# directory to PATH for FFmpeg's configure script.  Without absolute paths,
+# Meson would pick up the iOS cross-compiler as the "native" compiler and
+# fail with: "No build machine compiler for ... gen-unicode-version.c"
+NATIVE_CC="$(/usr/bin/which clang 2>/dev/null || echo /usr/bin/clang)"
+NATIVE_CXX="$(/usr/bin/which clang++ 2>/dev/null || echo /usr/bin/clang++)"
+NATIVE_AR="$(/usr/bin/which ar 2>/dev/null || echo /usr/bin/ar)"
+NATIVE_STRIP="$(/usr/bin/which strip 2>/dev/null || echo /usr/bin/strip)"
+
+echo "Native (build-machine) compilers:"
+echo "  CC  = $NATIVE_CC"
+echo "  CXX = $NATIVE_CXX"
+echo "  AR  = $NATIVE_AR"
+
 cat > "$CROSS_FILE" << EOF
 [binaries]
 c = 'clang'
@@ -95,6 +110,16 @@ objcpp = 'clang++'
 ar = 'ar'
 strip = 'strip'
 pkg-config = 'pkg-config'
+
+# Native (build-machine) binaries — used by meson to compile generators
+# such as fribidi's gen-unicode-version, harfbuzz's hb-subset, etc.
+# Absolute paths ensure we always get the macOS system compiler even when
+# the Xcode toolchain bin directory is at the front of PATH.
+[native_binaries]
+c = '$NATIVE_CC'
+cpp = '$NATIVE_CXX'
+ar = '$NATIVE_AR'
+strip = '$NATIVE_STRIP'
 
 [host_machine]
 system = 'darwin'
