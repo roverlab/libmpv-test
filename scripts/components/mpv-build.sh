@@ -160,14 +160,14 @@ meson setup build \
     -Dlibplacebo:vulkan=disabled \
     -Dlibplacebo:glslang=disabled \
     -Dlibplacebo:shaderc=disabled \
-    -Dlibplacebo:lcms=enabled \
+    -Dlibplacebo:lcms=disabled \
     -Dlibplacebo:dovi=disabled \
     -Dlibplacebo:libdovi=disabled \
     -Dlibplacebo:xxhash=disabled \
     -Diconv=disabled \
     -Dlibarchive=disabled \
     -Duchardet=enabled \
-    -Dlcms2=enabled \
+    -Dlcms2=disabled \
     -Dmacos-media-player=disabled \
     -Djpeg=disabled \
     -Dlibass:coretext=enabled \
