@@ -60,13 +60,13 @@ cd subprojects
 [ ! -d "harfbuzz" ] && git clone --depth 1 https://github.com/harfbuzz/harfbuzz.git
 [ ! -d "freetype2" ] && git clone --depth 1 https://gitlab.freedesktop.org/freetype/freetype.git freetype2
 
-# 处理 FreeType2 HVF 模块
-cd freetype2
-if [ -f "modules.cfg" ] && ! grep -q "hvf" modules.cfg; then
-    echo "FONT_MODULES += hvf" >> modules.cfg
-    echo "Added HVF module to FreeType2 modules.cfg"
-fi
-cd .. # 退回到 subprojects 目录
+# # 处理 FreeType2 HVF 模块
+# cd freetype2
+# if [ -f "modules.cfg" ] && ! grep -q "hvf" modules.cfg; then
+#     echo "FONT_MODULES += hvf" >> modules.cfg
+#     echo "Added HVF module to FreeType2 modules.cfg"
+# fi
+# cd .. # 退回到 subprojects 目录
 
 # 【核心修复点】: 必须再次 cd .. 退回 mpv 源码根目录，meson wrap 才能正常工作
 cd .. 
@@ -158,14 +158,14 @@ meson setup build \
     -Dlibplacebo:vulkan=disabled \
     -Dlibplacebo:glslang=disabled \
     -Dlibplacebo:shaderc=disabled \
-    -Dlibplacebo:lcms=enabled \
+    -Dlibplacebo:lcms=disabled \
     -Dlibplacebo:dovi=disabled \
     -Dlibplacebo:libdovi=disabled \
     -Dlibplacebo:xxhash=disabled \
     -Diconv=disabled \
     -Dlibarchive=disabled \
     -Duchardet=enabled \
-    -Dlcms2=enabled \
+    -Dlcms2=disabled \
     -Dmacos-media-player=disabled \
     -Djpeg=disabled \
     -Dlibass:coretext=enabled \
