@@ -208,12 +208,9 @@ meson setup build \
 	-Dmacos-media-player=disabled \
 	-Djpeg=disabled \
 	-Dlibass:coretext=enabled \
-	-Dlibass:fontconfig=disabled \
-	-Dlibass:harfbuzz=enabled \
-	-Dlibass:freetype=enabled \
-	-Dlibass:directwrite=disabled \
-	-Dlibass:require_system_font_provider=false \
-	-Dlibass:asm=disabled \
+    -Dlibass:fontconfig=disabled \
+    -Dlibass:asm=disabled \
+    -Dlibass:directwrite=disabled \
 	-Dfreetype2:png=disabled \
 	-Dfreetype2:bzip2=disabled \
 	-Dfreetype2:brotli=disabled \
