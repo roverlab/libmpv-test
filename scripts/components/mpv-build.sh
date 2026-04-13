@@ -30,16 +30,11 @@ if [ "$ARCH" = "arm64" ]; then
     CPU="arm64"
     if [ "$ENVIRONMENT" = "simulator" ]; then
         TARGET_TRIPLE="arm64-apple-ios13.0-simulator"
-        MIN_VERSION_FLAG="-mios-simulator-version-min=13.0"
+        MIN_VERSION_FLAG="-miphonesimulator-version-min=13.0"
     else
         TARGET_TRIPLE="arm64-apple-ios13.0"
         MIN_VERSION_FLAG="-miphoneos-version-min=13.0"
     fi
-elif [ "$ARCH" = "x86_64" ]; then
-    CPU_FAMILY="x86_64"
-    CPU="x86_64"
-    TARGET_TRIPLE="x86_64-apple-ios13.0-simulator"
-    MIN_VERSION_FLAG="-mios-simulator-version-min=13.0"
 else
     echo "ERROR: Unsupported architecture: $ARCH"
     exit 1
@@ -101,10 +96,6 @@ endian = 'little'
 needs_exe_wrapper = true
 
 [built-in options]
-prefix = '$SCRATCH/$ARCH_DIR'
-libdir = 'lib'
-default_library = 'static'
-
 c_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
 cpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
 objc_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-fobjc-arc']
