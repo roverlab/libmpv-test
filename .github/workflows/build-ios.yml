@@ -86,7 +86,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-${{ matrix.environment }}
-          path: scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/lib/
+          path: |
+            scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/lib/
+            scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/include/
           retention-days: 1
 
   # Job 1: 编译 libmpv (device + simulator) — FFmpeg 从缓存恢复，matrix 并行
@@ -134,13 +136,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ffmpeg-${{ matrix.environment }}
-          path: scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/lib/
+          path: scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/
 
       - name: Verify FFmpeg libraries
         run: |
           ARCH_DIR="${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}"
           echo "=== FFmpeg libraries (restored from cache/artifact) ==="
           ls -la scratch/$ARCH_DIR/lib/libav*.a scratch/$ARCH_DIR/lib/libsw*.a 2>/dev/null || echo "No FFmpeg libs found"
+          echo "=== FFmpeg headers ==="
+          ls -la scratch/$ARCH_DIR/include/libavutil/frame.h 2>/dev/null || echo "FFmpeg headers not found"
 
       - name: Build fribidi
         run: |
