@@ -123,26 +123,25 @@ unset SDKROOT CFLAGS CXXFLAGS LDFLAGS CPPFLAGS
 export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
 
 # =========================================================================
-# 5. Patch mpv meson.build for iOS cross-compilation
+# 5. Patch mpv source for iOS cross-compilation
 # =========================================================================
-# Problem: mpv's meson.build line 846 compiles ao_coreaudio_chmap.c when
-# avfoundation is enabled. But that file uses macOS-only types (AudioDeviceID,
-# AudioStreamID) which don't exist in iOS SDK.
-# Fix: Remove 'avfoundation' from the chmap/utils source condition so that
-# only true coreaudio/audiounit (macOS) builds include those files.
-echo "=== Patching mpv meson.build for iOS compatibility ==="
+# MPV has two issues when building for iOS with avfoundation enabled:
+#
+# Issue A: meson.build line ~846 compiles ao_coreaudio_chmap.c and
+#          ao_coreaudio_utils.c when avfoundation is enabled. These files use
+#          macOS-only types (AudioDeviceID, AudioStreamID, CoreAudio APIs).
+# Fix A:   Remove 'avfoundation' from that condition.
+#
+# Issue B: audio/out/ao_avfoundation.m #includes "ao_coreaudio_utils.h" at
+#          line 21, which pulls in the same macOS-only headers even though
+#          the utils .c file isn't compiled.
+# Fix B:   Comment out that #include in ao_avfoundation.m.
+echo "=== Patching mpv source for iOS compatibility ==="
+
+# --- Patch A: meson.build ---
+echo "[Patch A] Fixing meson.build ao_coreaudio_chmap condition..."
 if [ -f "meson.build" ]; then
-    # Check if this specific line still contains the avfoundation condition (unpatched)
-    # The problematic line in mpv meson.build (~line 846) is:
-    #   if features['audiounit'] or features['coreaudio'] or features['avfoundation']
-    # We need to remove ' or features['avfoundation']' so that iOS builds don't
-    # compile ao_coreaudio_chmap.c which uses macOS-only CoreAudio APIs.
-    if grep -q "features\['avfoundation'\].*ao_coreaudio_chmap" meson.build 2>/dev/null; then
-        echo "  Already patched, skipping"
-    elif grep -q "features\['audiounit'\] or features\['coreaudio'\] or features\['avfoundation'\]" meson.build; then
-        # Use python for reliable multi-platform sed replacement
-        python3 -c "
-import re
+    python3 -c "
 with open('meson.build', 'r') as f:
     content = f.read()
 old = \"if features['audiounit'] or features['coreaudio'] or features['avfoundation']\"
@@ -151,22 +150,40 @@ if old in content:
     content = content.replace(old, new)
     with open('meson.build', 'w') as f:
         f.write(content)
-    print('  Patched: removed avfoundation from ao_coreaudio_chmap condition')
+    print('  OK: removed avfoundation from chmap/utils compile condition')
 else:
-    print('  Pattern not found - already patched or mpv version changed')
+    print('  SKIP: pattern not found (already patched or mpv version changed)')
 "
-        # Verify the patch worked
-        if grep -q "features\['audiounit'\] or features\['coreaudio'\] or features\['avfoundation'\]" meson.build; then
-            echo "  ERROR: Patch failed! Falling back to direct sed..."
-            # Fallback: use perl which handles special chars better
-            perl -pi.bak -e "s/features\['audiounit'\] or features\['coreaudio'\] or features\['avfoundation'\]/features['audiounit'] or features['coreaudio']/g" meson.build
-        fi
-    else
-        echo "  Pattern not found (may already be patched or mpv version differs)"
-    fi
-    echo "  Patch status:"
-    grep -n "audiounit.*coreaudio.*avfoundation\|audiounit.*coreaudio'" meson.build | head -5 || true
 fi
+
+# --- Patch B: ao_avfoundation.m ---
+echo "[Patch B] Fixing ao_avfoundation.m removing ao_coreaudio_utils.h include..."
+AVF_FILE="audio/out/ao_avfoundation.m"
+if [ -f "$AVF_FILE" ]; then
+    python3 -c "
+with open('$AVF_FILE', 'r') as f:
+    lines = f.readlines()
+new_lines = []
+patched = False
+for line in lines:
+    stripped = line.strip()
+    if stripped == '#include \"ao_coreaudio_utils.h\"' and not patched:
+        new_lines.append('/* PATCHED OUT FOR iOS: #include \"ao_coreaudio_utils.h\" */\n')
+        patched = True
+    else:
+        new_lines.append(line)
+if patched:
+    with open('$AVF_FILE', 'w') as f:
+        f.writelines(new_lines)
+    print('  OK: commented out ao_coreaudio_utils.h include')
+else:
+    print('  SKIP: include not found (already patched or mpv version changed)')
+"
+else
+    echo "  WARN: $AVF_FILE not found"
+fi
+
+echo "=== Patching complete ==="
 
 # =========================================================================
 # 6. Meson 构建
