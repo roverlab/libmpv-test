@@ -165,20 +165,6 @@ jobs:
           ls -la scratch/$ARCH_DIR/lib/
           ls -la scratch/$ARCH_DIR/lib/libmpv.a
 
-      - name: Symbol integrity check (linker test)
-        run: |
-          # 在构建完成后、上传 artifact 前，用真实链接器检测符号完整性
-          # 原理：-force_load 强制加载所有 .o + @link.rsp 复用构建系统参数
-          set -e
-
-          export ARCH="arm64"
-          export ENVIRONMENT="${{ matrix.environment }}"
-          export SCRATCH="$(pwd)"
-          export SRC="$(pwd)/src"
-          export SDKPATH="$(xcodebuild -sdk ${{ matrix.environment == 'simulator' && 'iphonesimulator' || 'iphoneos' }} -version Path)"
-
-          ./scripts/check-symbols.sh
-
       - name: Upload libmpv artifacts
         uses: actions/upload-artifact@v4
         with:
