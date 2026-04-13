@@ -223,20 +223,6 @@ find "$(pwd)/build" -name "*.a" -type f | while read lib; do
     fi
 done
 
-# Safety net: explicitly verify that critical subproject libs exist
-for critical_lib in liblcms2.a liblcms2_static.a; do
-    if [ ! -f "$SCRATCH/$ARCH_DIR/lib/$critical_lib" ]; then
-        # Try harder: search for any file matching the pattern anywhere in build tree
-        FOUND=$(find "$(pwd)/build" -name "$critical_lib" -type f 2>/dev/null | head -1)
-        if [ -n "$FOUND" ]; then
-            echo "  Safety net: found and copying $critical_lib from $FOUND"
-            cp "$FOUND" "$SCRATCH/$ARCH_DIR/lib/$critical_lib"
-        else
-            echo "  WARNING: $critical_lib not found anywhere in build tree"
-        fi
-    fi
-done
-
 echo "=== All libs in $SCRATCH/$ARCH_DIR/lib/ ==="
 ls -lh "$SCRATCH/$ARCH_DIR/lib/"
 
@@ -257,4 +243,63 @@ if [ -n "$MPV_SRC_DIR" ]; then
     cp "$MPV_SRC_DIR/libmpv/stream_cb.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || true
     echo "mpv public API headers copied to $MPV_INCLUDE_DIR/"
     ls -la "$MPV_INCLUDE_DIR/"
+fi
+
+# === Symbol integrity check ===
+# Verify that ALL undefined symbols in libmpv.a can be resolved by the other
+# .a files in $SCRATCH/$ARCH_DIR/lib/.  This catches missing subproject
+# dependencies (e.g. lcms2) at build time instead of failing later during
+# Xcode/SPM linking.
+#
+# How it works:
+#   1. Extract every undefined (U) symbol from libmpv.a
+#   2. Build a lookup table of all defined (T/t) symbols from all other .a files
+#   3. Report any undefined symbol that has no matching definition
+#
+echo ""
+echo "=== Symbol integrity check ==="
+MPV_LIB="$SCRATCH/$ARCH_DIR/lib/libmpv.a"
+if [ -f "$MPV_LIB" ]; then
+    # Step 1: Extract ALL undefined symbols from libmpv.a
+    UNDEFINED=$(nm -gU "$MPV_LIB" 2>/dev/null | awk '{print $2}' | sort -u)
+    UNDEF_COUNT=$(echo "$UNDEFINED" | grep -c . 2>/dev/null || echo "0")
+
+    if [ "$UNDEF_COUNT" -eq 0 ]; then
+        echo "  ✅ No undefined symbols in libmpv.a"
+    else
+        echo "  Found $UNDEF_COUNT undefined symbol(s) in libmpv.a, checking resolvability ..."
+
+        # Step 2: Build a lookup of ALL defined symbols (T = global text, t = local text)
+        # from every .a file EXCEPT libmpv.a itself
+        DEFINED=$(nm -g "$SCRATCH/$ARCH_DIR"/lib/*.a 2>/dev/null | grep -v "$MPV_LIB" | awk '/ [Tt] / {print $3}' | sort -u)
+
+        # Step 3: Check each undefined symbol
+        MISSING=0
+        MISSING_LIST=""
+        for sym in $UNDEFINED; do
+            if ! echo "$DEFINED" | grep -qx "$sym"; then
+                MISSING=$((MISSING + 1))
+                MISSING_LIST="$MISSING_LIST $sym"
+            fi
+        done
+
+        if [ "$MISSING" -gt 0 ]; then
+            echo "  ❌ $MISSING unresolved symbol(s) detected!"
+            echo "     These will cause linker errors at Xcode/SPM build time:"
+            echo "$MISSING_LIST" | tr ' ' '\n' | grep -v '^$' | sed 's/^/       /'
+            echo ""
+            echo "     Common causes:"
+            echo "       • A subproject .a file was not copied to $SCRATCH/$ARCH_DIR/lib/"
+            echo "       • A meson dependency is disabled but its symbols are still referenced"
+            echo ""
+            echo "     Debug commands:"
+            echo "       nm -gU $MPV_LIB | head -30          # see undefined symbols"
+            echo "       ls $SCRATCH/$ARCH_DIR/lib/*.a         # see available libraries"
+            exit 1
+        else
+            echo "  ✅ All $UNDEF_COUNT undefined symbols are resolvable by local .a files"
+        fi
+    fi
+else
+    echo "  ⚠️  libmpv.a not found, skipping symbol check"
 fi
