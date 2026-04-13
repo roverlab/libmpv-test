@@ -75,11 +75,17 @@ else
     MIN_VERSION_FLAG="-miphoneos-version-min=13.0"
 fi
 
-# IMPORTANT: Use simple string format for compilers (like the working CI version).
-# Do NOT use array format with -target/-isysroot embedded in the compiler entry.
-# When the compiler is a complex array, Meson's cross-compilation detection can get
-# confused and fail to find the build machine compiler for native executables (e.g.
-# fribidi's gen-unicode-version).  Instead, pass target flags via c_args / c_link_args.
+# IMPORTANT: build.sh prepends the Xcode toolchain bin directory to PATH so that
+# FFmpeg's configure script can find the iOS cross-compiler.  However, this causes
+# Meson's native (build machine) compiler detection to pick up the iOS clang
+# instead of the macOS system clang, failing with:
+#   "No build machine compiler for ... gen-unicode-version.c"
+#
+# Fix: put /usr/bin back at the FRONT of PATH before running meson, so that
+# Meson auto-detects the correct macOS native compiler.  The Xcode toolchain
+# is still in PATH (for any tools that need it), just not first.
+export PATH="/usr/bin:/usr/local/bin:/bin:$(echo $PATH | tr ':' '\n' | grep -v '^/usr/bin$' | grep -v '^/usr/local/bin$' | grep -v '^/bin$' | tr '\n' ':')"
+
 cat > "$CROSS_FILE" << EOF
 [binaries]
 c = 'clang'
@@ -103,48 +109,19 @@ needs_exe_wrapper = true
 prefix = '$SCRATCH/$ARCH_DIR'
 libdir = 'lib'
 default_library = 'static'
-EOF
 
-# Set buildtype and compiler flags based on environment
-BUILDTYPE="release"
-C_ARGS="-fembed-bitcode -Os"
-CPP_ARGS="-fembed-bitcode -Os"
-C_LINK_ARGS="-lbz2 -fembed-bitcode -Os"
-
-if [[ "$ENVIRONMENT" = "simulator" ]]; then
-    # Simulator doesn't need bitcode
-    BUILDTYPE="release"
-    C_ARGS="-Os"
-    CPP_ARGS="-Os"
-    C_LINK_ARGS="-lbz2 -Os"
-fi
-
-# Convert space-separated flags to meson array format: ['-a', '-b', '-c']
-to_meson_array() {
-    local input="$1"
-    local result=""
-    for word in $input; do
-        if [ -n "$result" ]; then result="$result, "; fi
-        result="'$word'"
-    done
-    echo "[$result]"
-}
-
-# Write build options to cross-file (c_args, cpp_args, objc_args, objcpp_args, c_link_args)
-# Match the working CI version: pass target-specific flags here, NOT in [binaries].
-cat >> "$CROSS_FILE" << EOF
 c_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
 cpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
 objc_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-fobjc-arc']
 objcpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-fobjc-arc']
-c_link_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
+c_link_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-framework', 'Foundation', '-framework', 'CoreFoundation', '-framework', 'AudioToolbox', '-framework', 'AVFoundation', '-framework', 'CoreMedia', '-framework', 'CoreVideo', '-framework', 'OpenGLES', '-framework', 'QuartzCore', '-framework', 'IOSurface']
 cpp_link_args = c_link_args
 objc_link_args = c_link_args
 objcpp_link_args = c_link_args
 EOF
 
 echo "Cross-file created at: $CROSS_FILE"
-cat "$CROSS_FILE" | head -20
+cat "$CROSS_FILE"
 
 # Clean previous build directory to avoid stale configuration
 # This is important when switching between device and simulator builds
@@ -153,20 +130,17 @@ if [ -d "build" ]; then
     rm -rf build
 fi
 
-# audiounit uses CoreAudio's AudioDeviceID which is macOS-only (not available on
-# iOS at all — neither device nor simulator).  Always disable for iOS builds.
-
 # Unset environment variables exported by build.sh (CFLAGS, LDFLAGS, etc.)
 # because Meson applies them to the *native* (build machine) compiler when
 # cross-compiling.  The working CI version does NOT set CC/CXX at all —
 # it lets Meson auto-detect the build machine compiler from PATH.
 unset CFLAGS CXXFLAGS LDFLAGS AR STRIP CC CXX
 
-echo "Cross-compilation: letting Meson auto-detect native (build) compiler"
+echo "Cross-compilation: letting Meson auto-detect native (build) compiler from PATH"
 
 meson setup build \
 	--cross-file "$CROSS_FILE" \
-	--buildtype=$BUILDTYPE \
+	--buildtype=release \
 	--wrap-mode=forcefallback \
 	-Ddefault_library=static \
 	-Dcplayer=false \
@@ -219,7 +193,6 @@ meson setup build \
 	-Dharfbuzz:cairo=disabled \
 	-Dharfbuzz:freetype=enabled \
 	-Dfribidi:tests=false 
-
 
 ninja -C build -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
 ninja -C build install
