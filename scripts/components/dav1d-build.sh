@@ -34,6 +34,9 @@ else
     ARCH_DIR="$ARCH"
 fi
 
+# 确保输出目录存在
+mkdir -p "$SCRATCH/$ARCH_DIR"
+
 # 创建 Cross-file
 CROSS_FILE="$SCRATCH/$ARCH_DIR/dav1d-cross-file.txt"
 
