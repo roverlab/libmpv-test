@@ -2,7 +2,6 @@
 
 [![Build](https://github.com/roverlab/libmpv-test/actions/workflows/build-ios.yml/badge.svg)](https://github.com/roverlab/libmpv-test/actions/workflows/build-ios.yml)
 [![Release](https://img.shields.io/github/v/release/roverlab/libmpv-test)](https://github.com/roverlab/libmpv-test/releases)
-[![License](https://img.shields.io/github/license/roverlab/libmpv-test)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-iOS%2013%2B%20-lightgrey)](https://www.apple.com/ios/)
 
 预编译的 [libmpv](https://github.com/mpv-player/mpv) iOS 静态库，通过 Swift Package Manager 分发。
