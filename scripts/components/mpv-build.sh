@@ -142,7 +142,7 @@ meson setup build \
     -Dcoreaudio=disabled \
     -Daudiounit=enabled \
     -Davfoundation=enabled \
-    -Dvideotoolbox-pl=enabled \
+    -Dvideotoolbox-pl=disabled \
     -Dvideotoolbox-gl=enabled \
     -Dgl=enabled \
     -Degl=disabled \
