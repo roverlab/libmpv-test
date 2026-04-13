@@ -147,17 +147,28 @@ fi
 # cross-compiling. Passing iOS sysroot flags to the macOS native compiler
 # causes the compiler sanity check to fail, leading to:
 # "ERROR: No build machine compiler for ..."
-unset CFLAGS CXXFLAGS LDFLAGS
+#
+# Also unset CC/CXX because in cross-compilation mode, Meson gives environment
+# variables higher priority than the cross-file [binaries] section.  If we set
+# CC=macos-clang here, it would override the iOS cross-compiler defined in
+# the cross-file and target code would be built for macOS instead of iOS.
+unset CFLAGS CXXFLAGS LDFLAGS CC CXX AR STRIP
 
-# Set native (build machine) compiler for meson generator programs.
-# Also needed as fallback when meson can't auto-detect a native C compiler.
-export CC="$(xcrun -sdk macosx --find clang)"
-export CXX="$(xcrun -sdk macosx --find clang++)"
-export CC_FOR_BUILD="$CC"
-export CXX_FOR_BUILD="$CXX"
+# Create a native-file so Meson can find a build-machine C compiler for
+# generator programs (e.g. fribidi's gen-unicode-version.c).
+# Without this, cross-compiling on an ARM64 Mac runner causes:
+#   ERROR: No build machine compiler for '...gen-unicode-version.c'
+NATIVE_FILE="$SCRATCH/$ARCH_DIR/mpv-native-file.txt"
+cat > "$NATIVE_FILE" << EOF
+[binaries]
+c = ['$(xcrun -sdk macosx --find clang)']
+cpp = ['$(xcrun -sdk macosx --find clang++)']
+EOF
+echo "Native-file created at: $NATIVE_FILE"
 
 meson setup build \
 	--cross-file "$CROSS_FILE" \
+	--native-file "$NATIVE_FILE" \
 	--buildtype=$BUILDTYPE \
 	--wrap-mode=forcefallback \
 	-Ddefault_library=static \
