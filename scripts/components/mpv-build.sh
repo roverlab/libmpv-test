@@ -207,7 +207,6 @@ meson setup build \
 	-Dlcms2=enabled \
 	-Dmacos-media-player=disabled \
 	-Djpeg=disabled \
-	# Subproject options: libass and its dependency chain
 	-Dlibass:coretext=true \
 	-Dlibass:fontconfig=disabled \
 	-Dlibass:harfbuzz=enabled \
