@@ -20,7 +20,7 @@ FFMPEG_URL="https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n${FFMPEG_VERSION
 LIBASS_GIT_URL="https://github.com/libass/libass.git"
 FREETYPE_GIT_URL="https://github.com/freetype/freetype.git"
 HARFBUZZ_GIT_URL="https://github.com/harfbuzz/harfbuzz.git"
-FRIBIDI_GIT_URL="https://github.com/fribidi/fribidi.git"
+FRIBIDI_URL="https://github.com/fribidi/fribidi/releases/download/v$FRIBIDI_VERSION/fribidi-$FRIBIDI_VERSION.tar.xz"
 UCHARDET_GIT_URL="https://github.com/BYVoid/uchardet.git"
 
 # libplacebo uses git submodules (glad, jinja, markupsafe, etc.) which are NOT
@@ -129,17 +129,29 @@ clone_subproject "libplacebo" "$LIBPLACEBO_GIT_URL" "v$LIBPLACEBO_VERSION" "libp
 clone_subproject "libass"     "$LIBASS_GIT_URL"     "$LIBASS_VERSION"     "libass"
 clone_subproject "freetype"  "$FREETYPE_GIT_URL"    "VER-${FREETYPE_VERSION//./-}" "freetype2"
 clone_subproject "harfbuzz"  "$HARFBUZZ_GIT_URL"    "$HARFBUZZ_VERSION"   "harfbuzz"
-# fribidi 单独下载到 src 目录，不作为 subproject
-FRIBIDI_SRC_DIR="$ROOT/src/fribidi"
-if [ ! -d "$FRIBIDI_SRC_DIR" ]; then
-    echo ""
-    echo ">>> Cloning fribidi v$FRIBIDI_VERSION (separate build)"
-    git clone --depth 1 --branch "v$FRIBIDI_VERSION" "$FRIBIDI_GIT_URL" "$FRIBIDI_SRC_DIR"
-    echo "    Cloned successfully into $FRIBIDI_SRC_DIR"
+# fribidi 单独下载到 src 目录，使用 tar.xz 压缩包
+FRIBIDI_TARNAME="fribidi-$FRIBIDI_VERSION.tar.xz"
+echo ""
+echo ">>> Processing: $FRIBIDI_TARNAME"
+echo "    URL: $FRIBIDI_URL"
+if [ ! -f "downloads/$FRIBIDI_TARNAME" ]; then
+    echo "    Downloading..."
+    curl -f -L -- "$FRIBIDI_URL" > downloads/$FRIBIDI_TARNAME
+    if [ $? -ne 0 ]; then
+        echo "    ERROR: Failed to download $FRIBIDI_TARNAME"
+        exit 1
+    fi
+    echo "    Downloaded successfully"
 else
-    echo ""
-    echo ">>> fribidi already exists at $FRIBIDI_SRC_DIR, skipping"
+    echo "    Using cached file"
 fi
+echo "    Extracting..."
+tar xvf downloads/$FRIBIDI_TARNAME -C src
+if [ $? -ne 0 ]; then
+    echo "    ERROR: Failed to extract $FRIBIDI_TARNAME"
+    exit 1
+fi
+echo "    Done"
 clone_subproject "uchardet"  "$UCHARDET_GIT_URL"     "v$UCHARDET_VERSION"   "uchardet"
 
 echo ""

@@ -142,12 +142,17 @@ jobs:
           echo "=== FFmpeg libraries (restored from cache/artifact) ==="
           ls -la scratch/$ARCH_DIR/lib/libav*.a scratch/$ARCH_DIR/lib/libsw*.a 2>/dev/null || echo "No FFmpeg libs found"
 
+      - name: Build fribidi
+        run: |
+          echo "=== Building fribidi for ${{ matrix.environment }} (arm64) ==="
+          ./scripts/build.sh -e ${{ matrix.environment }} -s 2
+
       - name: Build libmpv (+ subprojects)
         run: |
           echo "=== Building libmpv for ${{ matrix.environment }} (arm64) ==="
-          echo "    Subprojects: libass, freetype2, harfbuzz, fribidi, uchardet, libplacebo, lcms2"
+          echo "    Subprojects: libass, freetype2, harfbuzz, uchardet, libplacebo, lcms2"
           echo "    FFmpeg: restored from cache (skipped rebuild)"
-          ./scripts/build.sh -e ${{ matrix.environment }} -s 2
+          ./scripts/build.sh -e ${{ matrix.environment }} -s 3
 
       - name: Verify build
         run: |
