@@ -140,7 +140,7 @@ meson setup build \
     -Dswift-build=disabled \
     -Dmacos-cocoa-cb=disabled \
     -Dcoreaudio=disabled \
-    -Daudiounit=enabled \
+    -Daudiounit=disabled \
     -Davfoundation=enabled \
     -Dvideotoolbox-pl=disabled \
     -Dvideotoolbox-gl=enabled \
