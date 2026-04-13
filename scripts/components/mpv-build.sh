@@ -75,15 +75,6 @@ else
     MIN_VERSION_FLAG="-miphoneos-version-min=13.0"
 fi
 
-# Set CC_FOR_BUILD / CXX_FOR_BUILD so meson can find a native (build machine)
-# compiler to build generator programs (e.g. fribidi's gen-unicode-version.c).
-# Without this, cross-compiling on an ARM64 Mac runner causes:
-#   ERROR: No build machine compiler for '...gen-unicode-version.c'
-export CC_FOR_BUILD="$(xcrun -sdk macosx --find clang)"
-export CXX_FOR_BUILD="$(xcrun -sdk macosx --find clang++)"
-echo "CC_FOR_BUILD=$CC_FOR_BUILD"
-echo "CXX_FOR_BUILD=$CXX_FOR_BUILD"
-
 cat > "$CROSS_FILE" << EOF
 [binaries]
 c = ['$CC_PATH', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
@@ -156,7 +147,14 @@ fi
 # cross-compiling. Passing iOS sysroot flags to the macOS native compiler
 # causes the compiler sanity check to fail, leading to:
 # "ERROR: No build machine compiler for ..."
-unset CFLAGS CXXFLAGS LDFLAGS CC CXX AR STRIP
+unset CFLAGS CXXFLAGS LDFLAGS
+
+# Set native (build machine) compiler for meson generator programs.
+# Also needed as fallback when meson can't auto-detect a native C compiler.
+export CC="$(xcrun -sdk macosx --find clang)"
+export CXX="$(xcrun -sdk macosx --find clang++)"
+export CC_FOR_BUILD="$CC"
+export CXX_FOR_BUILD="$CXX"
 
 meson setup build \
 	--cross-file "$CROSS_FILE" \
