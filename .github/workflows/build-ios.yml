@@ -173,20 +173,43 @@ jobs:
           # "Undefined symbol" linker errors. libtool handles this correctly.
 
           # 设备版本 - 合并所有静态库
+          # -force_load for libplacebo libs: ra_* symbols (ra_gl, ra_create_wrapped_tex, etc.)
+          # are referenced indirectly through function pointers at runtime. Without
+          # -force_load, the linker prunes these .o files as "unused", causing
+          # "Undefined symbol: _ra_gl_get" errors at link time.
           echo "=== Creating device fat library ==="
           mkdir -p lib_device
           DEVICE_LIBS=$(ls scratch/arm64/lib/*.a)
           echo "Merging: $DEVICE_LIBS"
-          libtool -static -o lib_device/libmpv_full.a $DEVICE_LIBS
+          # Build libtool args: force_load libplacebo libs, regular for others
+          LIBTOOL_ARGS=""
+          for lib in $DEVICE_LIBS; do
+              case $(basename "$lib") in
+                  libplacebo*|libglslang*|liblcms2*|libdovi*)
+                      LIBTOOL_ARGS="$LIBTOOL_ARGS -force_load $lib" ;;
+                  *)
+                      LIBTOOL_ARGS="$LIBTOOL_ARGS $lib" ;;
+              esac
+          done
+          libtool -static -o lib_device/libmpv_full.a $LIBTOOL_ARGS
           echo "Device fat library size:"
           ls -lh lib_device/libmpv_full.a
 
-          # 模拟器版本 - 合并所有静态库
+          # 模拟器版本 - 合并所有静态库（同设备版，使用 -force_load）
           echo "=== Creating simulator fat library ==="
           mkdir -p lib_simulator
           SIM_LIBS=$(ls scratch/arm64-simulator/lib/*.a)
           echo "Merging: $SIM_LIBS"
-          libtool -static -o lib_simulator/libmpv_full.a $SIM_LIBS
+          LIBTOOL_ARGS=""
+          for lib in $SIM_LIBS; do
+              case $(basename "$lib") in
+                  libplacebo*|libglslang*|liblcms2*|libdovi*)
+                      LIBTOOL_ARGS="$LIBTOOL_ARGS -force_load $lib" ;;
+                  *)
+                      LIBTOOL_ARGS="$LIBTOOL_ARGS $lib" ;;
+              esac
+          done
+          libtool -static -o lib_simulator/libmpv_full.a $LIBTOOL_ARGS
           echo "Simulator fat library size:"
           ls -lh lib_simulator/libmpv_full.a
 
