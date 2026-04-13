@@ -212,20 +212,41 @@ cp libmpv/stream_cb.h "$MPV_INCLUDE_DIR/" 2>/dev/null || true
 # =========================================================================
 echo "=== Symbol integrity check ==="
 MPV_LIB="$SCRATCH/$ARCH_DIR/lib/libmpv.a"
-if [ -f "$MPV_LIB" ]; then
-    nm -gU "$MPV_LIB" | awk '{print $NF}' | sort -u > und_syms.txt
-    find "$SCRATCH/$ARCH_DIR/lib" -name "*.a" ! -name "libmpv.a" -print0 | xargs -0 nm -gj | sort -u > def_syms.txt
-    MISSING_RAW=$(comm -23 und_syms.txt def_syms.txt)
-    REAL_MISSING=$(echo "$MISSING_RAW" | grep -vE '^(_objc|_OBJC|_dispatch|_os_|_CF|_SC|_UI|_NS|_GL|_CV|_CM|_Audio|_fmod|_sin|_cos|_malloc|_free|_memcpy|_strlen|_fprintf|_dlopen|_dlsym|_kCF)')
-    UNDEF_COUNT=$(echo "$REAL_MISSING" | grep -c . || echo "0")
 
-    if [ "$UNDEF_COUNT" -eq 0 ] || [ "$REAL_MISSING" = "" ]; then
+if [ -f "$MPV_LIB" ]; then
+    # 1. 提取 libmpv.a 需要的符号 (Undefined)
+    # 使用 -g(全局) -u(仅未定义) -j(仅符号名)
+    nm -guj "$MPV_LIB" | sort -u > und_syms.txt
+    
+    # 2. 提取其他 .a 文件提供的符号 (Defined)
+    # 使用 -g(全局) -U(仅已定义) -j(仅符号名)
+    find "$SCRATCH/$ARCH_DIR/lib" -name "*.a" ! -name "libmpv.a" -print0 | xargs -0 nm -gUj | sort -u > def_syms.txt
+    
+    # 3. 找出在 libmpv.a 中未定义，且其他库也没有提供的符号
+    MISSING_RAW=$(comm -23 und_syms.txt def_syms.txt)
+    
+    # 4. 过滤掉常见的系统符号/框架符号，并剔除空行
+    REAL_MISSING=$(echo "$MISSING_RAW" | grep -vE '^(_objc|_OBJC|_dispatch|_os_|_CF|_SC|_UI|_NS|_GL|_CV|_CM|_Audio|_fmod|_sin|_cos|_malloc|_free|_memcpy|_strlen|_fprintf|_dlopen|_dlsym|_kCF)' | grep -v '^$')
+    
+    # 5. 安全地计算缺失符号的数量
+    if [ -z "$REAL_MISSING" ]; then
+        UNDEF_COUNT=0
+    else
+        # wc -l 统计行数，awk 去除可能产生的前导空格
+        UNDEF_COUNT=$(echo "$REAL_MISSING" | wc -l | awk '{print $1}')
+    fi
+
+    # 6. 判断结果
+    if [ "$UNDEF_COUNT" -eq 0 ]; then
         echo "  ✅ Symbol check passed (all non-system symbols resolved)."
     else
         echo "  ❌ $UNDEF_COUNT potential missing symbols detected!"
+        # 将缺失的符号缩进打印，方便阅读
         echo "$REAL_MISSING" | sed 's/^/      /'
     fi
-    rm und_syms.txt def_syms.txt
+    
+    # 清理临时文件
+    rm -f und_syms.txt def_syms.txt
 else
     echo "  ⚠️ libmpv.a not found"
 fi
