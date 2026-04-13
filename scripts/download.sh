@@ -10,6 +10,7 @@ LIBASS_VERSION="0.17.3"
 FREETYPE_VERSION="2.13.2"
 HARFBUZZ_VERSION="8.4.0"
 FRIBIDI_VERSION="1.0.16"
+DAV1D_VERSION="1.5.0"
 
 MPV_URL="https://github.com/mpv-player/mpv/archive/v$MPV_VERSION.tar.gz"
 FFMPEG_URL="https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n${FFMPEG_VERSION}.tar.gz"
@@ -20,6 +21,7 @@ LIBASS_GIT_URL="https://github.com/libass/libass.git"
 FREETYPE_GIT_URL="https://github.com/freetype/freetype.git"
 HARFBUZZ_GIT_URL="https://github.com/harfbuzz/harfbuzz.git"
 FRIBIDI_URL="https://github.com/fribidi/fribidi/releases/download/v$FRIBIDI_VERSION/fribidi-$FRIBIDI_VERSION.tar.xz"
+DAV1D_URL="https://code.videolan.org/videolan/dav1d/-/archive/$DAV1D_VERSION/dav1d-$DAV1D_VERSION.tar.bz2"
 
 # libplacebo uses git submodules (glad, jinja, markupsafe, etc.) which are NOT
 # included in the tar.gz release. Use git clone --recursive instead.
@@ -33,6 +35,7 @@ echo "libass: $LIBASS_VERSION (git, as subproject)"
 echo "freetype: $FREETYPE_VERSION (git, as subproject)"
 echo "harfbuzz: $HARFBUZZ_VERSION (git, as subproject)"
 echo "fribidi: $FRIBIDI_VERSION (git, separate build)"
+echo "dav1d:     $DAV1D_VERSION (separate build)"
 echo ""
 
 
@@ -150,6 +153,30 @@ if [ $? -ne 0 ]; then
 fi
 echo "    Done"
 
+# dav1d 单独下载到 src 目录，使用 tar.bz2 压缩包
+DAV1D_TARNAME="dav1d-$DAV1D_VERSION.tar.bz2"
+echo ""
+echo ">>> Processing: $DAV1D_TARNAME"
+echo "    URL: $DAV1D_URL"
+if [ ! -f "downloads/$DAV1D_TARNAME" ]; then
+    echo "    Downloading..."
+    curl -f -L -- "$DAV1D_URL" > downloads/$DAV1D_TARNAME
+    if [ $? -ne 0 ]; then
+        echo "    ERROR: Failed to download $DAV1D_TARNAME"
+        exit 1
+    fi
+    echo "    Downloaded successfully"
+else
+    echo "    Using cached file"
+fi
+echo "    Extracting..."
+tar xvf downloads/$DAV1D_TARNAME -C src
+if [ $? -ne 0 ]; then
+    echo "    ERROR: Failed to extract $DAV1D_TARNAME"
+    exit 1
+fi
+echo "    Done"
+
 echo ""
 echo "\033[1;32mDownload complete:\033[0m\n mpv: $MPV_VERSION \
                             \n FFmpeg: $FFMPEG_VERSION \
@@ -158,6 +185,7 @@ echo "\033[1;32mDownload complete:\033[0m\n mpv: $MPV_VERSION \
                             \n freetype: $FREETYPE_VERSION (subproject) \
                             \n harfbuzz: $HARFBUZZ_VERSION (subproject) \
                             \n fribidi: $FRIBIDI_VERSION (separate build) \
+                            \n dav1d:     $DAV1D_VERSION (separate build) \
                             \n uchardet: $UCHARDET_VERSION (subproject)"
 
 echo ""

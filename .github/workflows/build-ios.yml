@@ -70,6 +70,12 @@ jobs:
         run: |
           ./scripts/download.sh
 
+      - name: Build dav1d (AV1 decoder)
+        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+        run: |
+          echo "=== Building dav1d for ${{ matrix.environment }} (cache miss) ==="
+          ./scripts/build.sh -e ${{ matrix.environment }} -s 0
+
       - name: Build FFmpeg
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
         run: |

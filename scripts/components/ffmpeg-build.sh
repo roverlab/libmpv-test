@@ -17,6 +17,7 @@ FFMPEG_OPTIONS="${COMMON_OPTIONS%% *} \
 		--disable-shared \
 		--disable-audiotoolbox \
 		--enable-videotoolbox \
+		--enable-libdav1d \
 		--disable-coreimage \
 		--disable-metal"
 		# ^ --disable-libjpeg: libjpeg is NOT a system library on iOS.

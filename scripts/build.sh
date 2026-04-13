@@ -3,13 +3,16 @@
 # Build script for libmpv iOS
 #
 # Architecture:
+#   Step 0 (dav1d):   Build dav1d AV1 decoder separately (must be before ffmpeg)
 #   Step 1 (ffmpeg):  Build FFmpeg separately (not a meson subproject)
 #   Step 2 (fribidi): Build fribidi separately (not a meson subproject)
 #   Step 3 (mpv):     Build mpv + remaining subprojects (libass, freetype, harfbuzz,
 #                     uchardet, libplacebo, lcms2) via meson
 #
-# FFmpeg and fribidi are built separately before mpv.
+# dav1d, FFmpeg and fribidi are built separately before mpv.
 
+# dav1d（单独编译，必须在 ffmpeg 之前）
+DAV1D_LIBRARIES="dav1d"
 # FFmpeg（单独编译）
 FFMPEG_LIBRARIES="ffmpeg"
 # fribidi（单独编译）
@@ -17,7 +20,7 @@ FRIBIDI_LIBRARIES="fribidi"
 # libmpv（最后编译，包含其他 subprojects）
 MPV_LIBRARIES="libmpv"
 # 所有库
-ALL_LIBRARIES="$FFMPEG_LIBRARIES $FRIBIDI_LIBRARIES $MPV_LIBRARIES"
+ALL_LIBRARIES="$DAV1D_LIBRARIES $FFMPEG_LIBRARIES $FRIBIDI_LIBRARIES $MPV_LIBRARIES"
 
 export PKG_CONFIG_PATH
 export LDFLAGS
@@ -48,6 +51,10 @@ done
 
 # 根据步骤选择要编译的库
 case $STEP in
+	0|dav1d)
+		LIBRARIES="$DAV1D_LIBRARIES"
+		echo "=== Step 0: Building dav1d (AV1 decoder) ==="
+		;;
 	1|ffmpeg)
 		LIBRARIES="$FFMPEG_LIBRARIES"
 		echo "=== Step 1: Building FFmpeg ==="
@@ -65,7 +72,7 @@ case $STEP in
 		echo "=== Building all libraries ==="
 		;;
 		*)
-			echo "Invalid step: $STEP (use 1-3 or omit for all)"
+			echo "Invalid step: $STEP (use 0-3 or omit for all)"
 	exit 1
 		;;
 esac
@@ -137,6 +144,9 @@ for ARCH in $ARCHS; do
     
     for LIBRARY in $LIBRARIES; do
         case $LIBRARY in
+            "dav1d" )
+				$SCRIPTS/components/dav1d-build.sh
+				;;
             "ffmpeg" )
 				mkdir -p $SCRATCH/$ARCH_DIR/ffmpeg && cd $_ && $SCRIPTS/components/ffmpeg-build.sh
 				;;
