@@ -132,14 +132,40 @@ export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
 # only true coreaudio/audiounit (macOS) builds include those files.
 echo "=== Patching mpv meson.build for iOS compatibility ==="
 if [ -f "meson.build" ]; then
-    # Check if already patched to avoid double-patching on re-runs
-    if grep -q "features\['audiounit'\] or features\['coreaudio'\]" meson.build; then
-        # The original line includes avfoundation; patch it out
-        sed -i.bak "s/if features\['audiounit'\] or features\['coreaudio'\] or features\['avfoundation'\]/if features['audiounit'] or features['coreaudio']/" meson.build
-        echo "  Patched: removed avfoundation from ao_coreaudio_chmap condition"
+    # Check if this specific line still contains the avfoundation condition (unpatched)
+    # The problematic line in mpv meson.build (~line 846) is:
+    #   if features['audiounit'] or features['coreaudio'] or features['avfoundation']
+    # We need to remove ' or features['avfoundation']' so that iOS builds don't
+    # compile ao_coreaudio_chmap.c which uses macOS-only CoreAudio APIs.
+    if grep -q "features\['avfoundation'\].*ao_coreaudio_chmap" meson.build 2>/dev/null; then
+        echo "  Already patched, skipping"
+    elif grep -q "features\['audiounit'\] or features\['coreaudio'\] or features\['avfoundation'\]" meson.build; then
+        # Use python for reliable multi-platform sed replacement
+        python3 -c "
+import re
+with open('meson.build', 'r') as f:
+    content = f.read()
+old = \"if features['audiounit'] or features['coreaudio'] or features['avfoundation']\"
+new = \"if features['audiounit'] or features['coreaudio']\"
+if old in content:
+    content = content.replace(old, new)
+    with open('meson.build', 'w') as f:
+        f.write(content)
+    print('  Patched: removed avfoundation from ao_coreaudio_chmap condition')
+else:
+    print('  Pattern not found - already patched or mpv version changed')
+"
+        # Verify the patch worked
+        if grep -q "features\['audiounit'\] or features\['coreaudio'\] or features\['avfoundation'\]" meson.build; then
+            echo "  ERROR: Patch failed! Falling back to direct sed..."
+            # Fallback: use perl which handles special chars better
+            perl -pi.bak -e "s/features\['audiounit'\] or features\['coreaudio'\] or features\['avfoundation'\]/features['audiounit'] or features['coreaudio']/g" meson.build
+        fi
     else
-        echo "  Already patched or pattern not found, skipping"
+        echo "  Pattern not found (may already be patched or mpv version differs)"
     fi
+    echo "  Patch status:"
+    grep -n "audiounit.*coreaudio.*avfoundation\|audiounit.*coreaudio'" meson.build | head -5 || true
 fi
 
 # =========================================================================
