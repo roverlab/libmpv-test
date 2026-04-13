@@ -145,11 +145,11 @@ cat "$CROSS_FILE"
 NATIVE_FILE="$SCRATCH/$ARCH_DIR/mpv-native-file.txt"
 cat > "$NATIVE_FILE" << EOF
 [binaries]
-c = ['$NATIVE_CC']
-cpp = ['$NATIVE_CXX']
-ar = ['$NATIVE_AR']
-strip = ['$NATIVE_STRIP']
-pkg-config = 'pkg-config'
+c = 'clang'
+cpp = 'clang++'
+ar = 'ar'
+strip = 'strip'
+pkg-config = ['pkg-config']
 
 [build_machine]
 system = 'darwin'
@@ -160,6 +160,36 @@ EOF
 
 echo "Native-file created at: $NATIVE_FILE"
 cat "$NATIVE_FILE"
+
+# Fribidi missing native c compiler fix: Explicitly inject add_languages
+echo "Patching subprojects/fribidi/meson.build to ensure native compiler is initialized..."
+if [ -f "subprojects/fribidi/meson.build" ]; then
+    # Add add_languages('c', native: true) safely after the project(...) call ends
+    python3 -c "
+import sys
+try:
+    with open('subprojects/fribidi/meson.build', 'r') as f:
+        content = f.read()
+    idx = 0
+    # Find the end of the project() call
+    while idx < len(content):
+        idx = content.find(')', idx)
+        if idx == -1: break
+        # We just assume the first top-level ')' after project closes it
+        # This is safe for fribidi's meson.build
+        break
+    if idx != -1:
+        nl_idx = content.find('\n', idx)
+        if nl_idx == -1: nl_idx = len(content)
+        new_content = content[:nl_idx] + '\nadd_languages(\\'c\\', native: true)\n' + content[nl_idx:]
+        with open('subprojects/fribidi/meson.build', 'w') as f:
+            f.write(new_content)
+        print('Successfully patched fribidi/meson.build via Python.')
+except Exception as e:
+    print('Failed to patch fribidi:', e)
+"
+fi
+
 
 
 # Clean previous build directory to avoid stale configuration
