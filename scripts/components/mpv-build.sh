@@ -87,10 +87,6 @@ fi
 export PATH="/usr/bin:/usr/local/bin:/bin:$(echo $PATH | tr ':' '\n' | grep -v '^/usr/bin$' | grep -v '^/usr/local/bin$' | grep -v '^/bin$' | tr '\n' ':')"
 
 # Resolve absolute paths for the NATIVE (build machine) compiler.
-# This is critical because build.sh prepends the Xcode toolchain bin
-# directory to PATH for FFmpeg's configure script.  Without absolute paths,
-# Meson would pick up the iOS cross-compiler as the "native" compiler and
-# fail with: "No build machine compiler for ... gen-unicode-version.c"
 NATIVE_CC="$(/usr/bin/which clang 2>/dev/null || echo /usr/bin/clang)"
 NATIVE_CXX="$(/usr/bin/which clang++ 2>/dev/null || echo /usr/bin/clang++)"
 NATIVE_AR="$(/usr/bin/which ar 2>/dev/null || echo /usr/bin/ar)"
@@ -101,6 +97,10 @@ echo "  CC  = $NATIVE_CC"
 echo "  CXX = $NATIVE_CXX"
 echo "  AR  = $NATIVE_AR"
 
+# ---------------------------------------------------------------------------
+# Cross-file: defines the HOST (target=iOS) compiler and toolchain.
+# Passed to meson via --cross-file.
+# ---------------------------------------------------------------------------
 cat > "$CROSS_FILE" << EOF
 [binaries]
 c = 'clang'
@@ -110,16 +110,6 @@ objcpp = 'clang++'
 ar = 'ar'
 strip = 'strip'
 pkg-config = 'pkg-config'
-
-# Native (build-machine) binaries — used by meson to compile generators
-# such as fribidi's gen-unicode-version, harfbuzz's hb-subset, etc.
-# Absolute paths ensure we always get the macOS system compiler even when
-# the Xcode toolchain bin directory is at the front of PATH.
-[native_binaries]
-c = '$NATIVE_CC'
-cpp = '$NATIVE_CXX'
-ar = '$NATIVE_AR'
-strip = '$NATIVE_STRIP'
 
 [host_machine]
 system = 'darwin'
@@ -149,7 +139,6 @@ echo "Cross-file created at: $CROSS_FILE"
 cat "$CROSS_FILE"
 
 # Clean previous build directory to avoid stale configuration
-# This is important when switching between device and simulator builds
 if [ -d "build" ]; then
     echo "Cleaning previous build directory..."
     rm -rf build
@@ -157,67 +146,70 @@ fi
 
 # Unset environment variables exported by build.sh (CFLAGS, LDFLAGS, etc.)
 # because Meson applies them to the *native* (build machine) compiler when
-# cross-compiling.  The working CI version does NOT set CC/CXX at all —
-# it lets Meson auto-detect the build machine compiler from PATH.
+# cross-compiling.
 unset CFLAGS CXXFLAGS LDFLAGS AR STRIP CC CXX
 
-echo "Cross-compilation: letting Meson auto-detect native (build) compiler from PATH"
+echo "Cross-compilation: Forcing Meson to use explicit native (build) compiler for tools like fribidi"
 
+# 关键修复：显式注入 CC_FOR_BUILD 和 CXX_FOR_BUILD
+CC_FOR_BUILD="$NATIVE_CC" \
+CXX_FOR_BUILD="$NATIVE_CXX" \
+AR_FOR_BUILD="$NATIVE_AR" \
 meson setup build \
-	--cross-file "$CROSS_FILE" \
-	--buildtype=release \
-	--wrap-mode=forcefallback \
-	-Ddefault_library=static \
-	-Dcplayer=false \
-	-Dgpl=false \
-	-Dlibmpv=true \
-	-Dlua=disabled \
-	-Djavascript=disabled \
-	-Dcocoa=disabled \
-	-Dswift-build=disabled \
-	-Dmacos-cocoa-cb=disabled \
-	-Dcoreaudio=disabled \
-	-Daudiounit=enabled \
-	-Davfoundation=disabled \
-	-Dvideotoolbox-pl=disabled \
-	-Dvideotoolbox-gl=disabled \
-	-Dgl=disabled \
-	-Degl=disabled \
-	-Dvulkan=disabled \
-	-Dplain-gl=disabled \
-	-Dx11=disabled \
-	-Dwayland=disabled \
-	-Dalsa=disabled \
-	-Dios-gl=enabled \
-	-Dmanpage-build=disabled \
-	-Dhtml-build=disabled \
-	-Dpdf-build=disabled \
-	-Dlibplacebo:opengl=enabled \
-	-Dlibplacebo:vulkan=disabled \
-	-Dlibplacebo:glslang=disabled \
-	-Dlibplacebo:shaderc=disabled \
-	-Dlibplacebo:lcms=enabled \
-	-Dlibplacebo:dovi=disabled \
-	-Dlibplacebo:libdovi=disabled \
-	-Dlibplacebo:xxhash=disabled \
-	-Diconv=disabled \
-	-Dlibarchive=disabled \
-	-Duchardet=enabled \
-	-Dlcms2=enabled \
-	-Dmacos-media-player=disabled \
-	-Djpeg=disabled \
-	-Dlibass:coretext=enabled \
+    --cross-file "$CROSS_FILE" \
+    --buildtype=release \
+    --wrap-mode=forcefallback \
+    -Ddefault_library=static \
+    -Dcplayer=false \
+    -Dgpl=false \
+    -Dlibmpv=true \
+    -Dlua=disabled \
+    -Djavascript=disabled \
+    -Dcocoa=disabled \
+    -Dswift-build=disabled \
+    -Dmacos-cocoa-cb=disabled \
+    -Dcoreaudio=disabled \
+    -Daudiounit=enabled \
+    -Davfoundation=disabled \
+    -Dvideotoolbox-pl=disabled \
+    -Dvideotoolbox-gl=disabled \
+    -Dgl=disabled \
+    -Degl=disabled \
+    -Dvulkan=disabled \
+    -Dplain-gl=disabled \
+    -Dx11=disabled \
+    -Dwayland=disabled \
+    -Dalsa=disabled \
+    -Dios-gl=enabled \
+    -Dmanpage-build=disabled \
+    -Dhtml-build=disabled \
+    -Dpdf-build=disabled \
+    -Dlibplacebo:opengl=enabled \
+    -Dlibplacebo:vulkan=disabled \
+    -Dlibplacebo:glslang=disabled \
+    -Dlibplacebo:shaderc=disabled \
+    -Dlibplacebo:lcms=enabled \
+    -Dlibplacebo:dovi=disabled \
+    -Dlibplacebo:libdovi=disabled \
+    -Dlibplacebo:xxhash=disabled \
+    -Diconv=disabled \
+    -Dlibarchive=disabled \
+    -Duchardet=enabled \
+    -Dlcms2=enabled \
+    -Dmacos-media-player=disabled \
+    -Djpeg=disabled \
+    -Dlibass:coretext=enabled \
     -Dlibass:fontconfig=disabled \
     -Dlibass:asm=disabled \
     -Dlibass:directwrite=disabled \
-	-Dfreetype2:png=disabled \
-	-Dfreetype2:bzip2=disabled \
-	-Dfreetype2:brotli=disabled \
-	-Dharfbuzz:glib=disabled \
-	-Dharfbuzz:icu=disabled \
-	-Dharfbuzz:cairo=disabled \
-	-Dharfbuzz:freetype=enabled \
-	-Dfribidi:tests=false 
+    -Dfreetype2:png=disabled \
+    -Dfreetype2:bzip2=disabled \
+    -Dfreetype2:brotli=disabled \
+    -Dharfbuzz:glib=disabled \
+    -Dharfbuzz:icu=disabled \
+    -Dharfbuzz:cairo=disabled \
+    -Dharfbuzz:freetype=enabled \
+    -Dfribidi:tests=false 
 
 ninja -C build -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
 ninja -C build install
@@ -226,22 +218,7 @@ ninja -C build install
 find "$SCRATCH/$ARCH_DIR" -name "libmpv.a" -exec cp {} "$SCRATCH/$ARCH_DIR/lib/" \; 2>/dev/null || true
 
 # Copy subproject static libraries that meson does NOT install to the prefix.
-# When libplacebo (and its deps: lcms2, libdovi, etc.) are built as meson
-# subprojects/wraps, 'ninja install' only installs the top-level mpv outputs.
-# The subproject .a files stay inside the build tree and must be copied manually
-# so they get included in the fat XCFramework library.
-#
-# NOTE: lcms2 is a wrap dependency of libplacebo (which itself is a subproject
-# of mpv). Its .a file lives deep in the build tree at e.g.:
-#   build/subprojects/libplacebo/subprojects/lcms2/liblcms2.a
-# A shallow find would miss it — always search recursively.
 echo "=== Copying subproject static libs ==="
-# Find all .a files recursively in the meson build tree (not already in the install prefix).
-# lcms2 is a wrap dependency of libplacebo (which is a subproject of mpv), so its
-# .a file can be deeply nested, e.g.:
-#   build/subprojects/libplacebo/subprojects/lcms2/liblcms2.a
-#   build/subprojects/libplacebo/subprojects/lcms2/liblcms2_static.a
-# A recursive find is essential — shallow searches will miss it.
 echo "=== All .a files in meson build tree ==="
 find "$(pwd)/build" -name "*.a" -type f | sort
 echo ""
@@ -258,17 +235,11 @@ done
 echo "=== All libs in $SCRATCH/$ARCH_DIR/lib/ ==="
 ls -lh "$SCRATCH/$ARCH_DIR/lib/"
 
-# Copy mpv public API headers to scratch include directory (for framework creation / CI artifact)
-# Only copy headers from libmpv/ — these are the canonical public API headers.
-# DO NOT copy internal headers (e.g. video/out/gpu/hwdec.h) that depend on
-# FFmpeg's libavutil/hwcontext.h, because those headers are not bundled in the
-# XCFramework and will cause Clang's module dependency scanner to fail with:
-#   fatal error: 'libavutil/hwcontext.h' file not found
+# Copy mpv public API headers
 MPV_INCLUDE_DIR="$SCRATCH/$ARCH_DIR/include/mpv"
 mkdir -p "$MPV_INCLUDE_DIR"
 MPV_SRC_DIR="$(ls -d ${SRC}/mpv-* 2>/dev/null | head -1)"
 if [ -n "$MPV_SRC_DIR" ]; then
-    # Public headers from the libmpv/ subdirectory only
     cp "$MPV_SRC_DIR/libmpv/client.h"    "$MPV_INCLUDE_DIR/" 2>/dev/null || true
     cp "$MPV_SRC_DIR/libmpv/render.h"    "$MPV_INCLUDE_DIR/" 2>/dev/null || true
     cp "$MPV_SRC_DIR/libmpv/render_gl.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || true
@@ -277,27 +248,13 @@ if [ -n "$MPV_SRC_DIR" ]; then
     ls -la "$MPV_INCLUDE_DIR/"
 fi
 
-
-
 echo "=== Symbol integrity check (Improved) ==="
 MPV_LIB="$SCRATCH/$ARCH_DIR/lib/libmpv.a"
 if [ -f "$MPV_LIB" ]; then
-    # 1. 提取 libmpv.a 的未定义符号，存入临时文件
     nm -gU "$MPV_LIB" | awk '{print $NF}' | sort -u > und_syms.txt
-    
-    # 2. 提取所有本地依赖库的已定义符号
-    # 排除 libmpv.a 本身，避免循环引用误导
     find "$SCRATCH/$ARCH_DIR/lib" -name "*.a" ! -name "libmpv.a" -print0 | xargs -0 nm -gj | sort -u > def_syms.txt
-
-    # 3. 找出在本地库中找不到定义的符号 (只存在于 und_syms 但不存在于 def_syms)
-    # comm -23 返回只在第一个文件中存在的行
     MISSING_RAW=$(comm -23 und_syms.txt def_syms.txt)
-
-    # 4. 关键：过滤掉 iOS/macOS 系统常见的符号前缀
-    # 过滤掉以 _objc, _os_, _dispatch, _OBJC_, _CF, _SC, _AS, _vk (如果用系统vulkan) 等开头的符号
-    # 同时也过滤掉常见的 C 标准库函数
     REAL_MISSING=$(echo "$MISSING_RAW" | grep -vE '^(_objc|_OBJC|_dispatch|_os_|_CF|_SC|_UI|_NS|_GL|_CV|_CM|_Audio|_fmod|_sin|_cos|_malloc|_free|_memcpy|_strlen|_fprintf|_dlopen|_dlsym)')
-
     UNDEF_COUNT=$(echo "$REAL_MISSING" | grep -c . || echo "0")
 
     if [ "$UNDEF_COUNT" -eq 0 ] || [ "$REAL_MISSING" = "" ]; then
@@ -306,7 +263,6 @@ if [ -f "$MPV_LIB" ]; then
         echo "  ❌ $UNDEF_COUNT potential missing symbols detected!"
         echo "$REAL_MISSING" | sed 's/^/      /'
         echo "  (Note: If these are system symbols, add them to the filter list)"
-        # exit 1 # 建议先观察是否有误报，再决定是否强制退出
     fi
     rm und_syms.txt def_syms.txt
 else
