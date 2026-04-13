@@ -54,7 +54,6 @@ cd subprojects
 # fribidi 现在单独编译，不再作为子项目
 [ ! -d "harfbuzz" ] && git clone --depth 1 https://github.com/harfbuzz/harfbuzz.git
 [ ! -d "freetype2" ] && git clone --depth 1 https://gitlab.freedesktop.org/freetype/freetype.git freetype2
-[ ! -d "uchardet" ] && git clone --depth 1 https://gitlab.freedesktop.org/uchardet/uchardet.git
 
 # 返回 mpv 源码根目录（meson.build 在这里）
 cd ..
@@ -166,7 +165,7 @@ meson setup build \
     -Dlibplacebo:xxhash=disabled \
     -Diconv=enabled \
     -Dlibarchive=disabled \
-    -Duchardet=enabled \
+    -Duchardet=disabled \
     -Dlcms2=disabled \
     -Dmacos-media-player=disabled \
     -Djpeg=disabled \

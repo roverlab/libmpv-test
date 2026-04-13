@@ -10,7 +10,6 @@ LIBASS_VERSION="0.17.3"
 FREETYPE_VERSION="2.13.2"
 HARFBUZZ_VERSION="8.4.0"
 FRIBIDI_VERSION="1.0.16"
-UCHARDET_VERSION="0.0.5"
 
 MPV_URL="https://github.com/mpv-player/mpv/archive/v$MPV_VERSION.tar.gz"
 FFMPEG_URL="https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n${FFMPEG_VERSION}.tar.gz"
@@ -21,7 +20,6 @@ LIBASS_GIT_URL="https://github.com/libass/libass.git"
 FREETYPE_GIT_URL="https://github.com/freetype/freetype.git"
 HARFBUZZ_GIT_URL="https://github.com/harfbuzz/harfbuzz.git"
 FRIBIDI_URL="https://github.com/fribidi/fribidi/releases/download/v$FRIBIDI_VERSION/fribidi-$FRIBIDI_VERSION.tar.xz"
-UCHARDET_GIT_URL="https://github.com/BYVoid/uchardet.git"
 
 # libplacebo uses git submodules (glad, jinja, markupsafe, etc.) which are NOT
 # included in the tar.gz release. Use git clone --recursive instead.
@@ -35,7 +33,6 @@ echo "libass: $LIBASS_VERSION (git, as subproject)"
 echo "freetype: $FREETYPE_VERSION (git, as subproject)"
 echo "harfbuzz: $HARFBUZZ_VERSION (git, as subproject)"
 echo "fribidi: $FRIBIDI_VERSION (git, separate build)"
-echo "uchardet: $UCHARDET_VERSION (git, as subproject)"
 echo ""
 
 
@@ -152,7 +149,6 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 echo "    Done"
-clone_subproject "uchardet"  "$UCHARDET_GIT_URL"     "v$UCHARDET_VERSION"   "uchardet"
 
 echo ""
 echo "\033[1;32mDownload complete:\033[0m\n mpv: $MPV_VERSION \
