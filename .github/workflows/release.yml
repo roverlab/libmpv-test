@@ -179,7 +179,7 @@ jobs:
           body: |
             ## ${{ needs.resolve-version.outputs.version }}
 
-            **Checksum:** `$CHECKSUM`
+            **Checksum:** `${{ env.CHECKSUM }}`
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
