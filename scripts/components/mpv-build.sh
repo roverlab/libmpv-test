@@ -75,6 +75,23 @@ else
     MIN_VERSION_FLAG="-miphoneos-version-min=13.0"
 fi
 
+# Create native-file for the build machine compiler.
+# When cross-compiling on an ARM64 Mac (macos-latest runners are Apple Silicon),
+# meson needs a separate "native" C compiler to build generator programs (e.g.
+# fribidi's gen-unicode-version.c). Without this, meson errors with:
+#   No build machine compiler for '...gen-unicode-version.c'
+NATIVE_FILE="$SCRATCH/$ARCH_DIR/mpv-native-file.txt"
+NATIVE_CC="$(xcrun -sdk macosx --find clang 2>/dev/null || which clang || echo clang)"
+cat > "$NATIVE_FILE" << EOF
+[binaries]
+c = ['$NATIVE_CC']
+cpp = ['$(xcrun -sdk macosx --find clang++ 2>/dev/null || which clang++ || echo clang++)']
+ar = '$AR_PATH'
+strip = '$STRIP_PATH'
+EOF
+echo "Native-file created at: $NATIVE_FILE"
+cat "$NATIVE_FILE"
+
 cat > "$CROSS_FILE" << EOF
 [binaries]
 c = ['$CC_PATH', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
@@ -144,6 +161,7 @@ fi
 
 meson setup build \
 	--cross-file "$CROSS_FILE" \
+	--native-file "$NATIVE_FILE" \
 	--buildtype=$BUILDTYPE \
 	--wrap-mode=forcefallback \
 	-Ddefault_library=static \
