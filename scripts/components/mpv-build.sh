@@ -145,7 +145,7 @@ fi
 meson setup build \
 	--cross-file "$CROSS_FILE" \
 	--buildtype=$BUILDTYPE \
-	--wrap-mode=nodownload \
+	--wrap-mode=forcefallback \
 	-Ddefault_library=static \
 	-Dcplayer=false \
 	-Dgpl=false \
