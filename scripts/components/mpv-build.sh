@@ -75,21 +75,29 @@ else
     MIN_VERSION_FLAG="-miphoneos-version-min=13.0"
 fi
 
+# IMPORTANT: Use simple string format for compilers (like the working CI version).
+# Do NOT use array format with -target/-isysroot embedded in the compiler entry.
+# When the compiler is a complex array, Meson's cross-compilation detection can get
+# confused and fail to find the build machine compiler for native executables (e.g.
+# fribidi's gen-unicode-version).  Instead, pass target flags via c_args / c_link_args.
 cat > "$CROSS_FILE" << EOF
 [binaries]
-c = ['$CC_PATH', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
-cpp = ['$CXX_PATH', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
-objc = ['$CC_PATH', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
-objcpp = ['$CXX_PATH', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
-ar = ['$AR_PATH']
-strip = ['$STRIP_PATH']
-pkg-config = ['pkg-config']
+c = 'clang'
+cpp = 'clang++'
+objc = 'clang'
+objcpp = 'clang++'
+ar = 'ar'
+strip = 'strip'
+pkg-config = 'pkg-config'
 
 [host_machine]
 system = 'darwin'
 cpu_family = '$CPU_FAMILY'
 cpu = '$CPU'
 endian = 'little'
+
+[properties]
+needs_exe_wrapper = true
 
 [built-in options]
 prefix = '$SCRATCH/$ARCH_DIR'
@@ -122,11 +130,17 @@ to_meson_array() {
     echo "[$result]"
 }
 
-# Write build options to cross-file (c_args, cpp_args, c_link_args)
+# Write build options to cross-file (c_args, cpp_args, objc_args, objcpp_args, c_link_args)
+# Match the working CI version: pass target-specific flags here, NOT in [binaries].
 cat >> "$CROSS_FILE" << EOF
-c_args = $(to_meson_array "$C_ARGS")
-cpp_args = $(to_meson_array "$CPP_ARGS")
-c_link_args = $(to_meson_array "$C_LINK_ARGS")
+c_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
+cpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
+objc_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-fobjc-arc']
+objcpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-fobjc-arc']
+c_link_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
+cpp_link_args = c_link_args
+objc_link_args = c_link_args
+objcpp_link_args = c_link_args
 EOF
 
 echo "Cross-file created at: $CROSS_FILE"
@@ -144,24 +158,11 @@ fi
 
 # Unset environment variables exported by build.sh (CFLAGS, LDFLAGS, etc.)
 # because Meson applies them to the *native* (build machine) compiler when
-# cross-compiling.  We replace them with explicit per-role compilers below.
-unset CFLAGS CXXFLAGS LDFLAGS AR STRIP
+# cross-compiling.  The working CI version does NOT set CC/CXX at all —
+# it lets Meson auto-detect the build machine compiler from PATH.
+unset CFLAGS CXXFLAGS LDFLAGS AR STRIP CC CXX
 
-# When cross-compiling, Meson needs TWO compilers:
-#   CC / CXX        -> target (iOS) compiler   -- builds code that runs on the device
-#   CC_FOR_BUILD / CXX_FOR_BUILD -> build (macOS) compiler -- builds generator executables
-#     that run on the CI machine during compilation (e.g. fribidi's gen-unicode-version)
-#
-# We set both explicitly so Meson never has to auto-detect anything.
-export CC="$CC_PATH"
-export CXX="$CXX_PATH"
-export CC_FOR_BUILD="$(xcrun -sdk macosx --find clang)"
-export CXX_FOR_BUILD="$(xcrun -sdk macosx --find clang++)"
-
-echo "Target compiler:    CC=$CC"
-echo "Target compiler:    CXX=$CXX"
-echo "Build compiler:     CC_FOR_BUILD=$CC_FOR_BUILD"
-echo "Build compiler:     CXX_FOR_BUILD=$CXX_FOR_BUILD"
+echo "Cross-compilation: letting Meson auto-detect native (build) compiler"
 
 meson setup build \
 	--cross-file "$CROSS_FILE" \
