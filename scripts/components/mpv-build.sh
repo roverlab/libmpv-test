@@ -132,8 +132,6 @@ fi
 # =========================================================================
 unset IPHONEOS_DEPLOYMENT_TARGET
 unset TVOS_DEPLOYMENT_TARGET
-unset MACOSX_DEPLOYMENT_TARGET
-unset SDKROOT
 unset CFLAGS CXXFLAGS LDFLAGS AR STRIP CC CXX OBJC OBJCXX
 
 echo "Building with perfectly clean host environment..."
