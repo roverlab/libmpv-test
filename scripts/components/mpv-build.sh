@@ -92,11 +92,11 @@ endian = 'little'
 needs_exe_wrapper = true
 
 [built-in options]
-c_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
+c_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-D', 'AudioDeviceID=unsigned int', '-D', 'AudioStreamID=unsigned int']
 cpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
 objc_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-fobjc-arc']
 objcpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-fobjc-arc']
-c_link_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-framework', 'Foundation', '-framework', 'CoreFoundation', '-framework', 'AudioToolbox', '-framework', 'CoreAudio', '-framework', 'AVFoundation', '-framework', 'CoreMedia', '-framework', 'CoreVideo', '-framework', 'OpenGLES', '-framework', 'QuartzCore', '-framework', 'IOSurface']
+c_link_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-framework', 'Foundation', '-framework', 'CoreFoundation', '-framework', 'AudioToolbox', '-framework', 'AVFoundation', '-framework', 'CoreMedia', '-framework', 'CoreVideo', '-framework', 'OpenGLES', '-framework', 'QuartzCore', '-framework', 'IOSurface']
 cpp_link_args = c_link_args
 objc_link_args = c_link_args
 objcpp_link_args = c_link_args
