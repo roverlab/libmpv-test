@@ -207,7 +207,7 @@ meson setup build \
 	-Dlcms2=enabled \
 	-Dmacos-media-player=disabled \
 	-Djpeg=disabled \
-	-Dlibass:coretext=true \
+	-Dlibass:coretext=enabled \
 	-Dlibass:fontconfig=disabled \
 	-Dlibass:harfbuzz=enabled \
 	-Dlibass:freetype=enabled \
