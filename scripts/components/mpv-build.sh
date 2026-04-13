@@ -74,6 +74,8 @@ objcpp = 'clang++'
 ar = 'ar'
 strip = 'strip'
 pkg-config = 'pkg-config'
+c_for_build = 'clang'
+cpp_for_build = 'clang++'
 
 [host_machine]
 system = 'darwin'
@@ -102,6 +104,18 @@ EOF
 echo "Cross-file created at: $CROSS_FILE"
 cat "$CROSS_FILE"
 
+# Fribidi missing native c compiler fix: Explicitly inject add_languages
+echo "Patching subprojects/fribidi/meson.build to ensure native compiler is initialized..."
+if [ -f "subprojects/fribidi/meson.build" ]; then
+    # Use perl (available on all macOS runners) to robustly insert the directive
+    if ! grep -q "add_languages('c', native: true)" subprojects/fribidi/meson.build; then
+        perl -pi -e "s/(subdir\('gen\.tab'\))/add_languages('c', native: true)\n\$1/" subprojects/fribidi/meson.build
+        echo "Successfully patched fribidi/meson.build via Perl."
+    else
+        echo "fribidi/meson.build already patched."
+    fi
+fi
+
 # Clean previous build directory to avoid stale configuration
 if [ -d "build" ]; then
     echo "Cleaning previous build directory..."
@@ -126,6 +140,9 @@ echo "Building with perfectly clean host environment..."
 
 export PKG_CONFIG_LIBDIR="$SCRATCH/$ARCH_DIR/lib/pkgconfig"
 unset PKG_CONFIG_PATH
+
+echo "Fetching lcms2 dependency via meson wrapdb..."
+meson wrap install lcms2
 
 meson setup build \
     --cross-file "$CROSS_FILE" \
@@ -160,14 +177,14 @@ meson setup build \
     -Dlibplacebo:vulkan=disabled \
     -Dlibplacebo:glslang=disabled \
     -Dlibplacebo:shaderc=disabled \
-    -Dlibplacebo:lcms=disabled \
+    -Dlibplacebo:lcms=enabled \
     -Dlibplacebo:dovi=disabled \
     -Dlibplacebo:libdovi=disabled \
     -Dlibplacebo:xxhash=disabled \
     -Diconv=disabled \
     -Dlibarchive=disabled \
     -Duchardet=enabled \
-    -Dlcms2=disabled \
+    -Dlcms2=enabled \
     -Dmacos-media-player=disabled \
     -Djpeg=disabled \
     -Dlibass:coretext=enabled \
