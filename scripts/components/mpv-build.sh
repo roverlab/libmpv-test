@@ -3,68 +3,82 @@ set -e
 
 cd $SRC/mpv*
 
-echo "Building mpv with meson (all deps as subprojects)..."
+echo "Building mpv with meson (Optimized clean environment)..."
 echo "  ARCH=$ARCH"
 echo "  ENVIRONMENT=$ENVIRONMENT"
 echo "  SDKPATH=$SDKPATH"
 echo "  SCRATCH=$SCRATCH"
 
-# Validate required environment variables
+# 1. 基础环境变量校验
 if [ -z "$ARCH" ] || [ -z "$SDKPATH" ] || [ -z "$SCRATCH" ]; then
     echo "ERROR: Required environment variables not set"
-    echo "  ARCH=$ARCH"
-    echo "  SDKPATH=$SDKPATH"
-    echo "  SCRATCH=$SCRATCH"
     exit 1
 fi
 
-# 模拟器环境使用单独的目录
 if [ "$ENVIRONMENT" = "simulator" ]; then
     ARCH_DIR="arm64-simulator"
 else
     ARCH_DIR="$ARCH"
 fi
 
-# PKG_CONFIG_PATH is only needed for FFmpeg (built separately, not a subproject)
-export PKG_CONFIG_PATH="$SCRATCH/$ARCH_DIR/lib/pkgconfig"
-echo "  ARCH_DIR=$ARCH_DIR"
-echo "  PKG_CONFIG_PATH=$PKG_CONFIG_PATH (for FFmpeg only)"
+export PKG_CONFIG_LIBDIR="$SCRATCH/$ARCH_DIR/lib/pkgconfig"
+unset PKG_CONFIG_PATH # 防止 macOS 本地的 brew 环境污染交叉编译
 
-# Determine target based on architecture and environment
+# 2. 确定架构和目标 Triple
 if [ "$ARCH" = "arm64" ]; then
     CPU_FAMILY="aarch64"
-    CPU="aarch64"
+    CPU="arm64"
     if [ "$ENVIRONMENT" = "simulator" ]; then
         TARGET_TRIPLE="arm64-apple-ios13.0-simulator"
-        SDK_NAME="iphonesimulator"
+        MIN_VERSION_FLAG="-mios-simulator-version-min=13.0"
     else
         TARGET_TRIPLE="arm64-apple-ios13.0"
-        SDK_NAME="iphoneos"
+        MIN_VERSION_FLAG="-miphoneos-version-min=13.0"
     fi
 elif [ "$ARCH" = "x86_64" ]; then
-    TARGET_TRIPLE="x86_64-apple-ios13.0-simulator"
-    SDK_NAME="iphonesimulator"
     CPU_FAMILY="x86_64"
     CPU="x86_64"
+    TARGET_TRIPLE="x86_64-apple-ios13.0-simulator"
+    MIN_VERSION_FLAG="-mios-simulator-version-min=13.0"
 else
     echo "ERROR: Unsupported architecture: $ARCH"
     exit 1
 fi
 
-# Create cross-file for iOS cross-compilation
-CROSS_FILE="$SCRATCH/$ARCH_DIR/mpv-cross-file.txt"
 mkdir -p "$SCRATCH/$ARCH_DIR"
 
-if [ "$ENVIRONMENT" = "simulator" ] || [ "$SDK_NAME" = "iphonesimulator" ]; then
-    MIN_VERSION_FLAG="-mios-simulator-version-min=13.0"
-else
-    MIN_VERSION_FLAG="-miphoneos-version-min=13.0"
-fi
+# =========================================================================
+# 3. 准备子项目 (替代极易出错的 wrapdb 自动下载)
+# =========================================================================
+echo "=== Preparing subprojects ==="
+mkdir -p subprojects
+cd subprojects
 
-# ---------------------------------------------------------------------------
-# Cross-file: defines the HOST (target=iOS) compiler and toolchain.
-# Passed to meson via --cross-file.
-# ---------------------------------------------------------------------------
+[ ! -d "libplacebo" ] && git clone --depth 1 https://code.videolan.org/videolan/libplacebo.git && (cd libplacebo && git submodule update --init --depth 1)
+[ ! -d "libass" ] && git clone --depth 1 https://github.com/libass/libass.git
+[ ! -d "fribidi" ] && git clone --depth 1 https://github.com/fribidi/fribidi.git
+[ ! -d "harfbuzz" ] && git clone --depth 1 https://github.com/harfbuzz/harfbuzz.git
+[ ! -d "freetype2" ] && git clone --depth 1 https://gitlab.freedesktop.org/freetype/freetype.git freetype2
+
+# 处理 FreeType2 HVF 模块
+cd freetype2
+if [ -f "modules.cfg" ] && ! grep -q "hvf" modules.cfg; then
+    echo "FONT_MODULES += hvf" >> modules.cfg
+    echo "Added HVF module to FreeType2 modules.cfg"
+fi
+cd ..
+
+# LCMS2 依然可以通过 wrap 获取，或者你也可以像上面一样 git clone
+if [ ! -f "lcms2.wrap" ] && [ ! -d "lcms2" ]; then
+    meson wrap install lcms2
+fi
+cd ..
+
+# =========================================================================
+# 4. 生成 Cross-file (关键点：不要写 c_for_build，让 Meson 自己找 macOS 原生编译器)
+# =========================================================================
+CROSS_FILE="$SCRATCH/$ARCH_DIR/mpv-cross-file.txt"
+
 cat > "$CROSS_FILE" << EOF
 [binaries]
 c = 'clang'
@@ -74,8 +88,6 @@ objcpp = 'clang++'
 ar = 'ar'
 strip = 'strip'
 pkg-config = 'pkg-config'
-c_for_build = 'clang'
-cpp_for_build = 'clang++'
 
 [host_machine]
 system = 'darwin'
@@ -102,50 +114,20 @@ objcpp_link_args = c_link_args
 EOF
 
 echo "Cross-file created at: $CROSS_FILE"
-cat "$CROSS_FILE"
 
-# Fribidi missing native c compiler fix: Explicitly inject add_languages
-echo "Patching subprojects/fribidi/meson.build to ensure native compiler is initialized..."
-if [ -f "subprojects/fribidi/meson.build" ]; then
-    # Use perl (available on all macOS runners) to robustly insert the directive
-    if ! grep -q "add_languages('c', native: true)" subprojects/fribidi/meson.build; then
-        perl -pi -e "s/(subdir\('gen\.tab'\))/add_languages('c', native: true)\n\$1/" subprojects/fribidi/meson.build
-        echo "Successfully patched fribidi/meson.build via Perl."
-    else
-        echo "fribidi/meson.build already patched."
-    fi
-fi
-
-# Clean previous build directory to avoid stale configuration
 if [ -d "build" ]; then
     echo "Cleaning previous build directory..."
     rm -rf build
 fi
 
 # =========================================================================
-# CRITICAL: Clean Environment
-# `scripts/build.sh` exports IPHONEOS_DEPLOYMENT_TARGET and modifies PATH.
-# This causes Apple's native clang to implicitly build iOS binaries!
-# When Meson checks the build-machine compiler, the resulting binary is an
-# iOS executable, which macOS cannot run. Thus: "executables are not runnable".
-# To fix this, we strictly unset all Apple environment overrides.
+# 5. Meson 构建
 # =========================================================================
-unset IPHONEOS_DEPLOYMENT_TARGET
-unset TVOS_DEPLOYMENT_TARGET
-unset CFLAGS CXXFLAGS LDFLAGS AR STRIP CC CXX OBJC OBJCXX
-
-echo "Building with perfectly clean host environment..."
-
-export PKG_CONFIG_LIBDIR="$SCRATCH/$ARCH_DIR/lib/pkgconfig"
-unset PKG_CONFIG_PATH
-
-echo "Fetching lcms2 dependency via meson wrapdb..."
-meson wrap install lcms2
-
+# 注意：我们这里使用 --wrap-mode=nodownload，因为子项目我们已经手动准备好了
 meson setup build \
     --cross-file "$CROSS_FILE" \
     --buildtype=release \
-    --wrap-mode=forcefallback \
+    --wrap-mode=nodownload \
     -Ddefault_library=static \
     -Dcplayer=false \
     -Dgpl=false \
@@ -201,47 +183,39 @@ meson setup build \
 ninja -C build -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
 ninja -C build install
 
-# Copy libmpv.a to lib directory
-find "$SCRATCH/$ARCH_DIR" -name "libmpv.a" -exec cp {} "$SCRATCH/$ARCH_DIR/lib/" \; 2>/dev/null || true
-
-# Copy subproject static libraries that meson does NOT install to the prefix.
-echo "=== Copying subproject static libs ==="
-echo "=== All .a files in meson build tree ==="
-find "$(pwd)/build" -name "*.a" -type f | sort
-echo ""
-
+# =========================================================================
+# 6. 整理产物 (合并静态库与头文件)
+# =========================================================================
+echo "=== Copying static libs ==="
 find "$(pwd)/build" -name "*.a" -type f | while read lib; do
     libname=$(basename "$lib")
     dest="$SCRATCH/$ARCH_DIR/lib/$libname"
     if [ ! -f "$dest" ]; then
-        echo "  Copying subproject lib: $libname"
         cp "$lib" "$dest"
     fi
 done
 
-echo "=== All libs in $SCRATCH/$ARCH_DIR/lib/ ==="
-ls -lh "$SCRATCH/$ARCH_DIR/lib/"
+# Copy libmpv.a specifically to ensure it's there
+find "$SCRATCH/$ARCH_DIR" -name "libmpv.a" -exec cp {} "$SCRATCH/$ARCH_DIR/lib/" \; 2>/dev/null || true
 
 # Copy mpv public API headers
 MPV_INCLUDE_DIR="$SCRATCH/$ARCH_DIR/include/mpv"
 mkdir -p "$MPV_INCLUDE_DIR"
-MPV_SRC_DIR="$(ls -d ${SRC}/mpv-* 2>/dev/null | head -1)"
-if [ -n "$MPV_SRC_DIR" ]; then
-    cp "$MPV_SRC_DIR/libmpv/client.h"    "$MPV_INCLUDE_DIR/" 2>/dev/null || true
-    cp "$MPV_SRC_DIR/libmpv/render.h"    "$MPV_INCLUDE_DIR/" 2>/dev/null || true
-    cp "$MPV_SRC_DIR/libmpv/render_gl.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || true
-    cp "$MPV_SRC_DIR/libmpv/stream_cb.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || true
-    echo "mpv public API headers copied to $MPV_INCLUDE_DIR/"
-    ls -la "$MPV_INCLUDE_DIR/"
-fi
+cp libmpv/client.h    "$MPV_INCLUDE_DIR/" 2>/dev/null || true
+cp libmpv/render.h    "$MPV_INCLUDE_DIR/" 2>/dev/null || true
+cp libmpv/render_gl.h "$MPV_INCLUDE_DIR/" 2>/dev/null || true
+cp libmpv/stream_cb.h "$MPV_INCLUDE_DIR/" 2>/dev/null || true
 
-echo "=== Symbol integrity check (Improved) ==="
+# =========================================================================
+# 7. 符号完整性检查
+# =========================================================================
+echo "=== Symbol integrity check ==="
 MPV_LIB="$SCRATCH/$ARCH_DIR/lib/libmpv.a"
 if [ -f "$MPV_LIB" ]; then
     nm -gU "$MPV_LIB" | awk '{print $NF}' | sort -u > und_syms.txt
     find "$SCRATCH/$ARCH_DIR/lib" -name "*.a" ! -name "libmpv.a" -print0 | xargs -0 nm -gj | sort -u > def_syms.txt
     MISSING_RAW=$(comm -23 und_syms.txt def_syms.txt)
-    REAL_MISSING=$(echo "$MISSING_RAW" | grep -vE '^(_objc|_OBJC|_dispatch|_os_|_CF|_SC|_UI|_NS|_GL|_CV|_CM|_Audio|_fmod|_sin|_cos|_malloc|_free|_memcpy|_strlen|_fprintf|_dlopen|_dlsym)')
+    REAL_MISSING=$(echo "$MISSING_RAW" | grep -vE '^(_objc|_OBJC|_dispatch|_os_|_CF|_SC|_UI|_NS|_GL|_CV|_CM|_Audio|_fmod|_sin|_cos|_malloc|_free|_memcpy|_strlen|_fprintf|_dlopen|_dlsym|_kCF)')
     UNDEF_COUNT=$(echo "$REAL_MISSING" | grep -c . || echo "0")
 
     if [ "$UNDEF_COUNT" -eq 0 ] || [ "$REAL_MISSING" = "" ]; then
@@ -249,9 +223,10 @@ if [ -f "$MPV_LIB" ]; then
     else
         echo "  ❌ $UNDEF_COUNT potential missing symbols detected!"
         echo "$REAL_MISSING" | sed 's/^/      /'
-        echo "  (Note: If these are system symbols, add them to the filter list)"
     fi
     rm und_syms.txt def_syms.txt
 else
     echo "  ⚠️ libmpv.a not found"
 fi
+
+echo "Build complete!"
