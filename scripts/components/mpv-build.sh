@@ -214,41 +214,38 @@ echo "=== Symbol integrity check ==="
 MPV_LIB="$SCRATCH/$ARCH_DIR/lib/libmpv.a"
 
 if [ -f "$MPV_LIB" ]; then
-    # 1. 提取 libmpv.a 需要的符号 (Undefined)
-    # 使用 -g(全局) -u(仅未定义) -j(仅符号名)
+    # 1. 提取 libmpv.a 需要的符号 (依然是未定义)
     nm -guj "$MPV_LIB" | sort -u > und_syms.txt
     
-    # 2. 提取其他 .a 文件提供的符号 (Defined)
-    # 使用 -g(全局) -U(仅已定义) -j(仅符号名)
-    find "$SCRATCH/$ARCH_DIR/lib" -name "*.a" ! -name "libmpv.a" -print0 | xargs -0 nm -gUj | sort -u > def_syms.txt
+    # 2. 【关键修复】提取所有 .a 文件提供的符号，*不要*排除 libmpv.a 自己！
+    # 这样 mpv 内部相互调用的符号就能被成功抵消掉了
+    find "$SCRATCH/$ARCH_DIR/lib" -name "*.a" -print0 | xargs -0 nm -gUj | sort -u > def_syms.txt
     
-    # 3. 找出在 libmpv.a 中未定义，且其他库也没有提供的符号
+    # 3. 找出真正缺失的符号
     MISSING_RAW=$(comm -23 und_syms.txt def_syms.txt)
     
-    # 4. 过滤掉常见的系统符号/框架符号，并剔除空行
-    REAL_MISSING=$(echo "$MISSING_RAW" | grep -vE '^(_objc|_OBJC|_dispatch|_os_|_CF|_SC|_UI|_NS|_GL|_CV|_CM|_Audio|_fmod|_sin|_cos|_malloc|_free|_memcpy|_strlen|_fprintf|_dlopen|_dlsym|_kCF)' | grep -v '^$')
+    # 4. 【关键修复】扩充了系统和框架的过滤白名单 (加入了 AVFoundation, CoreAudio, C基础函数等)
+    FILTER_REGEX='^(_objc|_OBJC|_dispatch|_os_|_CF|_SC|_UI|_NS|_GL|_CV|_CM|_CG|_VT|_MTL|_Audio|_AV|_ca_|___|_fmod|_sin|_cos|_malloc|_free|_memcpy|_strlen|_fprintf|_dlopen|_dlsym|_kCF|_abort|_accept|_bind|_bsearch|_bzero|_calloc|_close|_closedir|_difftime|_dup2|_exit|_atoi)'    
+    REAL_MISSING=$(echo "$MISSING_RAW" | grep -vE "$FILTER_REGEX" | grep -v '^$')
     
-    # 5. 安全地计算缺失符号的数量
     if [ -z "$REAL_MISSING" ]; then
         UNDEF_COUNT=0
     else
-        # wc -l 统计行数，awk 去除可能产生的前导空格
         UNDEF_COUNT=$(echo "$REAL_MISSING" | wc -l | awk '{print $1}')
     fi
 
-    # 6. 判断结果
+    rm -f und_syms.txt def_syms.txt
+
     if [ "$UNDEF_COUNT" -eq 0 ]; then
         echo "  ✅ Symbol check passed (all non-system symbols resolved)."
     else
-        echo "  ❌ $UNDEF_COUNT potential missing symbols detected!"
-        # 将缺失的符号缩进打印，方便阅读
+        echo "  ❌ FATAL ERROR: $UNDEF_COUNT potential missing symbols detected!"
         echo "$REAL_MISSING" | sed 's/^/      /'
+        exit 1 
     fi
-    
-    # 清理临时文件
-    rm -f und_syms.txt def_syms.txt
 else
-    echo "  ⚠️ libmpv.a not found"
+    echo "  ⚠️ ERROR: libmpv.a not found"
+    exit 1 
 fi
 
 echo "Build complete!"
