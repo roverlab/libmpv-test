@@ -131,6 +131,10 @@ c = 'cc'
 cpp = 'c++'
 EOF
 
+
+unset SDKROOT CFLAGS CXXFLAGS LDFLAGS CPPFLAGS
+export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
+
 # =========================================================================
 # 5. Meson 构建
 # =========================================================================
