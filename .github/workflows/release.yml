@@ -1,0 +1,226 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.2.3). Leave empty to auto-increment from latest release.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  # =========================================================================
+  # Job 0: 确定版本号（自动 +1 或使用手动指定）
+  # =========================================================================
+  resolve-version:
+    name: Resolve Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            # 手动指定版本号
+            VER="${{ inputs.version }}"
+            echo "Using manual version: $VER"
+          else
+            # 自动获取最新 release 并 +1
+            echo "Fetching latest release..."
+            LATEST=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || true)
+
+            if [ -z "$LATEST" ]; then
+              # 没有 release，从 v0.0.0 开始，+1 = v0.0.1
+              VER="0.0.1"
+              echo "No existing release found, starting at v$VER"
+            else
+              # 去掉 v 前缀，解析语义化版本
+              RAW="${LATEST#v}"
+              MAJOR=$(echo "$RAW" | cut -d. -f1)
+              MINOR=$(echo "$RAW" | cut -d. -f2)
+              PATCH=$(echo "$RAW" | cut -d. -f3)
+
+              # PATCH +1
+              PATCH=$((PATCH + 1))
+              VER="$MAJOR.$MINOR.$PATCH"
+              echo "Auto-incremented: $LATEST -> v$VER"
+            fi
+          fi
+
+          echo "version=$VER" >> $GITHUB_OUTPUT
+          echo "tag=v$VER" >> $GITHUB_OUTPUT
+
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # =========================================================================
+  # Job 1: 从最近一次 build-ios 工作流下载 XCFramework artifact
+  # =========================================================================
+  download-artifact:
+    name: Download Artifact from Latest Build
+    runs-on: ubuntu-latest
+    needs: resolve-version
+
+    steps:
+      - name: Find latest build-ios workflow run
+        id: find-run
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+
+            // 查找最近一次成功的 build-ios 工作流
+            const { data: runs } = await github.rest.actions.listWorkflowRuns({
+              owner,
+              repo,
+              workflow_id: 'build-ios.yml',
+              status: 'success',
+              per_page: 1
+            });
+
+            if (runs.total_count === 0) {
+              throw new Error('No successful build-ios workflow runs found');
+            }
+
+            const runId = runs.workflow_runs[0].id;
+            console.log(`Found latest build-ios run: ${runId}`);
+            core.setOutput('run_id', runId.toString());
+
+      - name: Download XCFramework artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Libmpv-xcframework
+          path: lib/Libmpv.xcframework
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ steps.find-run.outputs.run_id }}
+          ignore-not-found: false
+
+      - name: Verify artifact
+        run: |
+          echo "=== XCFramework contents ==="
+          find lib/Libmpv.xcframework -type f | sort
+
+      - name: Upload artifact for release job
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-xcframework
+          path: lib/Libmpv.xcframework
+          retention-days: 1
+
+  # =========================================================================
+  # Job 2: 创建 GitHub Release
+  # =========================================================================
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [resolve-version, download-artifact]
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download XCFramework
+        uses: actions/download-artifact@v4
+        with:
+          name: release-xcframework
+          path: lib/Libmpv.xcframework
+
+      - name: Prepare release assets
+        run: |
+          echo "=== Preparing release assets ==="
+          ls -la lib/
+          ls -la lib/Libmpv.xcframework/
+
+          # Create zip of xcframework for SPM
+          cd lib
+          zip -r Libmpv.xcframework.zip Libmpv.xcframework
+          echo "=== Created Libmpv.xcframework.zip ==="
+          ls -la Libmpv.xcframework.zip
+
+          # Generate checksum for SPM
+          CHECKSUM=$(sha256sum Libmpv.xcframework.zip | awk '{print $1}')
+          echo "XCFramework checksum: $CHECKSUM"
+          echo "CHECKSUM=$CHECKSUM" >> $GITHUB_ENV
+
+          # Move to release directory
+          cd ..
+          mkdir -p release
+          mv lib/Libmpv.xcframework.zip release/
+
+          # Create checksum file
+          echo "$CHECKSUM" > release/checksum.txt
+
+          echo "=== Release files ==="
+          ls -la release/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.resolve-version.outputs.tag }}
+          name: "Libmpv ${{ needs.resolve-version.outputs.version }}"
+          files: |
+            release/Libmpv.xcframework.zip
+            release/checksum.txt
+          generate_release_notes: true
+          body: |
+            ## Libmpv for iOS
+
+            Pre-built libmpv library for iOS.
+
+            ### Installation
+
+            Add to your `Package.swift`:
+            ```swift
+            dependencies: [
+                .package(url: "https://github.com/${{ github.repository }}", from: "${{ needs.resolve-version.outputs.tag }}")
+            ]
+            ```
+
+            Or in Xcode: File > Add Packages > enter repository URL.
+
+            ### Included Libraries
+            Versions are defined in [download.sh](blob/main/scripts/download.sh).
+
+            ### Checksum
+            `$CHECKSUM`
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Package.swift with checksum
+        run: |
+          TAG="${{ needs.resolve-version.outputs.tag }}"
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/Libmpv.xcframework.zip"
+
+          if [ -f "Package.swift" ]; then
+            sed -i "s|url: \".*\"|url: \"$RELEASE_URL\"|" Package.swift
+            sed -i "s|checksum: \".*\"|checksum: \"$CHECKSUM\"|" Package.swift
+            echo "=== Updated Package.swift ==="
+            cat Package.swift
+          else
+            echo "WARNING: Package.swift not found, skipping update"
+          fi
+
+      - name: Commit and push Package.swift to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Package.swift
+          git diff --cached --quiet || {
+            git commit -m "chore: update Package.swift for ${{ needs.resolve-version.outputs.tag }}"
+            git push origin main
+            echo "✅ Pushed Package.swift update to main"
+          }

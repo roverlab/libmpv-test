@@ -144,7 +144,7 @@ meson setup build \
     -Davfoundation=disabled \
     -Dvideotoolbox-pl=disabled \
     -Dvideotoolbox-gl=disabled \
-    -Dgl=disabled \
+    -Dgl=enabled \
     -Degl=disabled \
     -Dvulkan=disabled \
     -Dplain-gl=enabled \
