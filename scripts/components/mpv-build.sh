@@ -3,7 +3,7 @@ set -e
 
 cd $SRC/mpv*
 
-echo "Building mpv with meson (libplacebo as subproject)..."
+echo "Building mpv with meson (all deps as subprojects)..."
 echo "  ARCH=$ARCH"
 echo "  ENVIRONMENT=$ENVIRONMENT"
 echo "  SDKPATH=$SDKPATH"
@@ -25,10 +25,10 @@ else
     ARCH_DIR="$ARCH"
 fi
 
-# Set PKG_CONFIG_PATH for dependencies
+# PKG_CONFIG_PATH is only needed for FFmpeg (built separately, not a subproject)
 export PKG_CONFIG_PATH="$SCRATCH/$ARCH_DIR/lib/pkgconfig"
 echo "  ARCH_DIR=$ARCH_DIR"
-echo "  PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
+echo "  PKG_CONFIG_PATH=$PKG_CONFIG_PATH (for FFmpeg only)"
 
 # Determine target based on architecture and environment
 if [ "$ARCH" = "arm64" ]; then
@@ -181,10 +181,26 @@ meson setup build \
 	-Dlibplacebo:xxhash=disabled \
 	-Diconv=disabled \
 	-Dlibarchive=disabled \
-	-Duchardet=disabled \
+	-Duchardet=enabled \
 	-Dlcms2=enabled \
 	-Dmacos-media-player=disabled \
-	-Djpeg=disabled 
+	-Djpeg=disabled \
+	# Subproject options: libass and its dependency chain
+	-Dlibass:coretext=true \
+	-Dlibass:fontconfig=disabled \
+	-Dlibass:harfbuzz=enabled \
+	-Dlibass:freetype=enabled \
+	-Dlibass:directwrite=disabled \
+	-Dlibass:require_system_font_provider=false \
+	-Dlibass:asm=disabled \
+	-Dfreetype2:png=disabled \
+	-Dfreetype2:bzip2=disabled \
+	-Dfreetype2:brotli=disabled \
+	-Dharfbuzz:glib=disabled \
+	-Dharfbuzz:icu=disabled \
+	-Dharfbuzz:cairo=disabled \
+	-Dharfbuzz:freetype=enabled \
+	-Dfribidi:tests=false 
 
 
 ninja -C build -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)

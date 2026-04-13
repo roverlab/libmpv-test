@@ -44,16 +44,16 @@ jobs:
         run: |
           ./scripts/download.sh
 
-      - name: Build dependencies
+      - name: Build FFmpeg
         run: |
-          echo "=== Building dependencies for device (arm64) ==="
+          echo "=== Building FFmpeg for device (arm64) ==="
           ./scripts/build.sh -e distribution -s 1
-          ./scripts/build.sh -e distribution -s 2
 
-      - name: Build libmpv
+      - name: Build libmpv (+ subprojects)
         run: |
           echo "=== Building libmpv for device (arm64) ==="
-          ./scripts/build.sh -e distribution -s 3
+          echo "    Subprojects: libass, freetype2, harfbuzz, fribidi, uchardet, libplacebo, lcms2"
+          ./scripts/build.sh -e distribution -s 2
 
       - name: Verify build
         run: |
@@ -104,16 +104,16 @@ jobs:
         run: |
           ./scripts/download.sh
 
-      - name: Build dependencies
+      - name: Build FFmpeg
         run: |
-          echo "=== Building dependencies for simulator (arm64) ==="
+          echo "=== Building FFmpeg for simulator (arm64) ==="
           ./scripts/build.sh -e simulator -s 1
-          ./scripts/build.sh -e simulator -s 2
 
-      - name: Build libmpv
+      - name: Build libmpv (+ subprojects)
         run: |
           echo "=== Building libmpv for simulator (arm64) ==="
-          ./scripts/build.sh -e simulator -s 3
+          echo "    Subprojects: libass, freetype2, harfbuzz, fribidi, uchardet, libplacebo, lcms2"
+          ./scripts/build.sh -e simulator -s 2
 
       - name: Verify build
         run: |

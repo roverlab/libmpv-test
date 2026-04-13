@@ -1,16 +1,20 @@
 #!/bin/sh -e
 
-# 第1步：字体及相关库（容易出错）
-FONT_LIBRARIES="libfreetype libharfbuzz libfribidi libass libuchardet"
-# 第2步：FFmpeg（可独立缓存）
+# Build script for libmpv iOS
+#
+# Architecture:
+#   Step 1 (ffmpeg):  Build FFmpeg separately (not a meson subproject)
+#   Step 2 (mpv):     Build mpv + all subprojects (libass, freetype, harfbuzz,
+#                     fribidi, uchardet, libplacebo, lcms2) via meson
+#
+# All font/text libraries are now mpv subprojects — no separate build needed.
+
+# FFmpeg（唯一需要单独编译的非 subproject 依赖）
 FFMPEG_LIBRARIES="ffmpeg"
-# libplacebo 现在作为 mpv 的 subproject 自动编译，不再需要单独步骤
-# 第4步：libmpv（最后编译）
+# libmpv（最后编译，包含所有 subprojects）
 MPV_LIBRARIES="libmpv"
-# 所有库（默认）
-ALL_LIBRARIES="$FONT_LIBRARIES"
-# LGPL licensed projects should be built as dynamic framework bundles (todo: automate that in this script)
-# FRAMEWORKS="libmpv ffmpeg libfribidi"
+# 所有库
+ALL_LIBRARIES="$FFMPEG_LIBRARIES $MPV_LIBRARIES"
 
 export PKG_CONFIG_PATH
 export LDFLAGS
@@ -39,30 +43,23 @@ case $OPTION in
 	esac
 done
 
-# 所有库（默认）
-ALL_LIBRARIES="$FONT_LIBRARIES $FFMPEG_LIBRARIES $MPV_LIBRARIES"
-
 # 根据步骤选择要编译的库
 case $STEP in
-	1|font)
-		LIBRARIES="$FONT_LIBRARIES"
-		echo "=== Step 1: Building font + uchardet libraries ==="
-		;;
-	2|ffmpeg)
+	1|ffmpeg)
 		LIBRARIES="$FFMPEG_LIBRARIES"
-		echo "=== Step 2: Building FFmpeg ==="
+		echo "=== Step 1: Building FFmpeg ==="
 		;;
-	3|mpv)
+	2|mpv)
 		LIBRARIES="$MPV_LIBRARIES"
-			echo "=== Step 3: Building libmpv ==="
+			echo "=== Step 2: Building libmpv (+ subprojects) ==="
 		;;
 	"")
 		LIBRARIES="$ALL_LIBRARIES"
 		echo "=== Building all libraries ==="
 		;;
 		*)
-			echo "Invalid step: $STEP (use 1-3 or omit for all)"
-		exit 1
+			echo "Invalid step: $STEP (use 1-2 or omit for all)"
+	exit 1
 		;;
 esac
 
@@ -85,7 +82,6 @@ fi
 
 ROOT="$(pwd)"
 SCRIPTS="$ROOT/scripts"
-# FRAMEWORK="$ROOT/framework"
 SCRATCH="$ROOT/scratch"
 LIB="$ROOT/lib"
 export SRC="$ROOT/src"
@@ -127,33 +123,18 @@ for ARCH in $ARCHS; do
 
     mkdir -p $SCRATCH
 
-    # 设置 PKG_CONFIG_PATH
+    # 设置 PKG_CONFIG_PATH (only needed for FFmpeg; subprojects use meson)
     PKG_CONFIG_PATH="$SCRATCH/$ARCH_DIR/lib/pkgconfig"
     COMMON_OPTIONS="--prefix=$SCRATCH/$ARCH_DIR --exec-prefix=$SCRATCH/$ARCH_DIR --build=x86_64-apple-darwin14 --enable-static \
                     --disable-shared --disable-dependency-tracking --with-pic --host=$HOSTFLAG"
     
     for LIBRARY in $LIBRARIES; do
         case $LIBRARY in
-            "libfribidi" )
-				mkdir -p $SCRATCH/$ARCH_DIR/fribidi && cd $_ && $SCRIPTS/components/fribidi-build.sh
-				;;
-            "libfreetype" )
-				mkdir -p $SCRATCH/$ARCH_DIR/freetype && cd $_ && $SCRIPTS/components/freetype-build.sh
-			;;
-            "libharfbuzz" )
-				mkdir -p $SCRATCH/$ARCH_DIR/harfbuzz && cd $_ && $SCRIPTS/components/harfbuzz-build.sh
-				;;
-            "libass" )
-				mkdir -p $SCRATCH/$ARCH_DIR/libass && cd $_ && $SCRIPTS/components/libass-build.sh
-				;;
-            "libuchardet" )
-				mkdir -p $SCRATCH/$ARCH_DIR/uchardet && cd $_ && $SCRIPTS/components/uchardet-build.sh
-				;;
             "ffmpeg" )
 				mkdir -p $SCRATCH/$ARCH_DIR/ffmpeg && cd $_ && $SCRIPTS/components/ffmpeg-build.sh
 				;;
             "libmpv" )
-								$SCRIPTS/components/mpv-build.sh
+				$SCRIPTS/components/mpv-build.sh
 				# ninja install already places libmpv.a in $SCRATCH/$ARCH_DIR/lib/
 				# Verify the output file exists
 				if [ ! -f "$SCRATCH/$ARCH_DIR/lib/libmpv.a" ]; then
@@ -167,11 +148,4 @@ for ARCH in $ARCHS; do
 				;;
         esac
     done
-done
-
-# 复制库文件到 lib 目录
-for LIBRARY in $LIBRARIES; do
-    if [[ "$LIBRARY" != "ffmpeg" ]] && [[ "$LIBRARY" != "libplacebo" ]]; then
-        cp $SCRATCH/$ARCH_DIR/lib/$LIBRARY.a $LIB/$LIBRARY.a
-    fi
 done

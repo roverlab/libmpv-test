@@ -5,6 +5,7 @@
 MPV_VERSION="0.39.0"
 LIBPLACEBO_VERSION="6.338.2"
 FFMPEG_VERSION="7.0"
+# Subproject versions (git tags) — built as mpv subprojects via meson
 LIBASS_VERSION="0.17.3"
 FREETYPE_VERSION="2.13.2"
 HARFBUZZ_VERSION="8.4.0"
@@ -13,11 +14,14 @@ UCHARDET_VERSION="0.0.5"
 
 MPV_URL="https://github.com/mpv-player/mpv/archive/v$MPV_VERSION.tar.gz"
 FFMPEG_URL="https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n${FFMPEG_VERSION}.tar.gz"
-LIBASS_URL="https://github.com/libass/libass/releases/download/$LIBASS_VERSION/libass-$LIBASS_VERSION.tar.gz"
-FREETYPE_URL="https://github.com/freetype/freetype/archive/refs/tags/VER-${FREETYPE_VERSION//./-}.tar.gz"
-HARFBUZZ_URL="https://github.com/harfbuzz/harfbuzz/releases/download/$HARFBUZZ_VERSION/harfbuzz-$HARFBUZZ_VERSION.tar.xz"
-FRIBIDI_URL="https://github.com/fribidi/fribidi/releases/download/v$FRIBIDI_VERSION/fribidi-$FRIBIDI_VERSION.tar.xz"
-UCHARDET_URL="https://github.com/BYVoid/uchardet/archive/v$UCHARDET_VERSION.tar.gz"
+
+# Git URLs for subprojects (cloned into mpv/subprojects/)
+# These libraries all have meson.build and can be built as meson subprojects
+LIBASS_GIT_URL="https://github.com/libass/libass.git"
+FREETYPE_GIT_URL="https://github.com/freetype/freetype.git"
+HARFBUZZ_GIT_URL="https://github.com/harfbuzz/harfbuzz.git"
+FRIBIDI_GIT_URL="https://github.com/fribidi/fribidi.git"
+UCHARDET_GIT_URL="https://github.com/BYVoid/uchardet.git"
 
 # libplacebo uses git submodules (glad, jinja, markupsafe, etc.) which are NOT
 # included in the tar.gz release. Use git clone --recursive instead.
@@ -26,14 +30,13 @@ LIBPLACEBO_GIT_URL="https://github.com/haasn/libplacebo.git"
 echo "=== Downloading sources ==="
 echo "mpv: $MPV_VERSION"
 echo "FFmpeg: $FFMPEG_VERSION"
-echo "libass: $LIBASS_VERSION"
-echo "freetype: $FREETYPE_VERSION"
-echo "harfbuzz: $HARFBUZZ_VERSION"
-echo "fribidi: $FRIBIDI_VERSION"
-echo "uchardet: $UCHARDET_VERSION"
-echo "libplacebo: $LIBPLACEBO_VERSION (git clone with submodules)"
+echo "libplacebo: $LIBPLACEBO_VERSION (git)"
+echo "libass: $LIBASS_VERSION (git, as subproject)"
+echo "freetype: $FREETYPE_VERSION (git, as subproject)"
+echo "harfbuzz: $HARFBUZZ_VERSION (git, as subproject)"
+echo "fribidi: $FRIBIDI_VERSION (git, as subproject)"
+echo "uchardet: $UCHARDET_VERSION (git, as subproject)"
 echo ""
-
 
 
 
@@ -41,7 +44,7 @@ rm -rf src
 mkdir -p src downloads
 
 # Download tarball-based sources (no submodules needed)
-for URL in $UCHARDET_URL $FREETYPE_URL $HARFBUZZ_URL $FRIBIDI_URL $LIBASS_URL $FFMPEG_URL $MPV_URL; do
+for URL in $FFMPEG_URL $MPV_URL; do
 	TARNAME=${URL##*/}
 	echo ""
 	echo ">>> Processing: $TARNAME"
@@ -60,7 +63,7 @@ for URL in $UCHARDET_URL $FREETYPE_URL $HARFBUZZ_URL $FRIBIDI_URL $LIBASS_URL $F
 	    fi
 	    echo "    Downloaded successfully"
     else
-	    echo "    Using cached file"
+        echo "    Using cached file"
     fi
     echo "    Extracting..."
     tar xvf downloads/$TARNAME -C src
@@ -71,33 +74,74 @@ for URL in $UCHARDET_URL $FREETYPE_URL $HARFBUZZ_URL $FRIBIDI_URL $LIBASS_URL $F
     echo "    Done"
 done
 
-# libplacebo: use git clone --recursive to get all submodules (glad, jinja, etc.)
-# Clone into mpv's subprojects/ directory so meson builds it as a subproject
+# =============================================================================
+# Clone subprojects into mpv/subprojects/
+# These will be built automatically by meson when building mpv.
+# Meson subproject directory name must match the dependency name:
+#   libass     → subprojects/libass
+#   freetype   → subprojects/freetype2  (mpv's meson.build uses 'freetype2')
+#   harfbuzz   → subprojects/harfbuzz
+#   fribidi    → subprojects/fribidi
+#   uchardet   → subprojects/uchardet
+#   libplacebo → subprojects/libplacebo
+# =============================================================================
 MPV_DIR=$(ls -d src/mpv-* 2>/dev/null | head -1)
-echo ""
-echo ">>> Processing: libplacebo v$LIBPLACEBO_VERSION (as mpv subproject)"
-if [ -n "$MPV_DIR" ] && [ ! -d "$MPV_DIR/subprojects/libplacebo" ]; then
-    echo "    Cloning from git (with recursive submodules)..."
-    mkdir -p "$MPV_DIR/subprojects"
-    git clone --recurse-submodules --branch "v$LIBPLACEBO_VERSION" "$LIBPLACEBO_GIT_URL" "$MPV_DIR/subprojects/libplacebo"
-    if [ $? -ne 0 ]; then
-        echo "    ERROR: Failed to clone libplacebo"
-        exit 1
-    fi
-    echo "    Cloned successfully with all submodules into $MPV_DIR/subprojects/libplacebo"
-elif [ -z "$MPV_DIR" ]; then
-    echo "    ERROR: mpv source directory not found, cannot setup libplacebo subproject"
+if [ -z "$MPV_DIR" ]; then
+    echo "ERROR: mpv source directory not found, cannot setup subprojects"
     exit 1
-else
-    echo "    Already exists at $MPV_DIR/subprojects/libplacebo, skipping"
 fi
 
+mkdir -p "$MPV_DIR/subprojects"
+
+# Helper function to clone a subproject if not already present
+clone_subproject() {
+    local name="$1"
+    local url="$2"
+    local version="$3"
+    local target_dir="$4"  # optional: custom directory name inside subprojects/
+    local extra_flags="$5" # optional: extra git clone flags
+
+    if [ -z "$target_dir" ]; then
+        target_dir="$name"
+    fi
+
+    local full_path="$MPV_DIR/subprojects/$target_dir"
+
+    echo ""
+    echo ">>> Processing: $name v$version (as mpv subproject: $target_dir)"
+    if [ ! -d "$full_path" ]; then
+        echo "    Cloning from git..."
+        git clone --depth 1 --branch "$version" $extra_flags "$url" "$full_path"
+        if [ $? -ne 0 ]; then
+            echo "    ERROR: Failed to clone $name"
+            exit 1
+        fi
+        echo "    Cloned successfully into $full_path"
+    else
+        echo "    Already exists at $full_path, skipping"
+    fi
+}
+
+# Clone all subprojects
+# Note: freetype must be named 'freetype2' because mpv's meson.build looks for
+# dependency('freetype2') which maps to subprojects/freetype2
+clone_subproject "libplacebo" "$LIBPLACEBO_GIT_URL" "v$LIBPLACEBO_VERSION" "libplacebo" "--recurse-submodules"
+clone_subproject "libass"     "$LIBASS_GIT_URL"     "$LIBASS_VERSION"     "libass"
+clone_subproject "freetype"  "$FREETYPE_GIT_URL"    "VER-${FREETYPE_VERSION//./-}" "freetype2"
+clone_subproject "harfbuzz"  "$HARFBUZZ_GIT_URL"    "$HARFBUZZ_VERSION"   "harfbuzz"
+clone_subproject "fribidi"   "$FRIBIDI_GIT_URL"     "v$FRIBIDI_VERSION"    "fribidi"
+clone_subproject "uchardet"  "$UCHARDET_GIT_URL"     "v$UCHARDET_VERSION"   "uchardet"
+
 echo ""
-echo "\033[1;32mDownloaded: \033[0m\n mpv: $MPV_VERSION \
+echo "\033[1;32mDownload complete:\033[0m\n mpv: $MPV_VERSION \
                             \n FFmpeg: $FFMPEG_VERSION \
-                            \n libass: $LIBASS_VERSION \
-                            \n freetype: $FREETYPE_VERSION \
-                            \n harfbuzz: $HARFBUZZ_VERSION \
-                            \n fribidi: $FRIBIDI_VERSION \
-                            \n uchardet: $UCHARDET_VERSION \
-                            \n libplacebo: $LIBPLACEBO_VERSION "
+                            \n libplacebo: $LIBPLACEBO_VERSION (subproject) \
+                            \n libass: $LIBASS_VERSION (subproject) \
+                            \n freetype: $FREETYPE_VERSION (subproject) \
+                            \n harfbuzz: $HARFBUZZ_VERSION (subproject) \
+                            \n fribidi: $FRIBIDI_VERSION (subproject) \
+                            \n uchardet: $UCHARDET_VERSION (subproject)"
+
+echo ""
+echo "=== Subprojects in mpv/subprojects/ ==="
+ls -la "$MPV_DIR/subprojects/"
