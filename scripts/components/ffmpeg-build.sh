@@ -2,7 +2,7 @@
 set -e
 
 # 确保 configure 脚本有执行权限
-chmod +x $SRC/ffmpeg*/configure 2>/dev/null || true
+chmod +x $SRC/FFmpeg*/configure 2>/dev/null || true
 
 FFMPEG_OPTIONS="${COMMON_OPTIONS%% *} \
 		--enable-cross-compile \
@@ -53,7 +53,7 @@ else
 fi
 
 
-$SRC/ffmpeg*/configure $FFMPEG_OPTIONS \
+cd $SRC/FFmpeg* && ./configure $FFMPEG_OPTIONS \
 		--target-os=darwin \
 		--arch=$ARCH \
 		--cc="$CC" \
