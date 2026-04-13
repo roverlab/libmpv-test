@@ -4,17 +4,20 @@
 #
 # Architecture:
 #   Step 1 (ffmpeg):  Build FFmpeg separately (not a meson subproject)
-#   Step 2 (mpv):     Build mpv + all subprojects (libass, freetype, harfbuzz,
-#                     fribidi, uchardet, libplacebo, lcms2) via meson
+#   Step 2 (fribidi): Build fribidi separately (not a meson subproject)
+#   Step 3 (mpv):     Build mpv + remaining subprojects (libass, freetype, harfbuzz,
+#                     uchardet, libplacebo, lcms2) via meson
 #
-# All font/text libraries are now mpv subprojects — no separate build needed.
+# FFmpeg and fribidi are built separately before mpv.
 
-# FFmpeg（唯一需要单独编译的非 subproject 依赖）
+# FFmpeg（单独编译）
 FFMPEG_LIBRARIES="ffmpeg"
-# libmpv（最后编译，包含所有 subprojects）
+# fribidi（单独编译）
+FRIBIDI_LIBRARIES="fribidi"
+# libmpv（最后编译，包含其他 subprojects）
 MPV_LIBRARIES="libmpv"
 # 所有库
-ALL_LIBRARIES="$FFMPEG_LIBRARIES $MPV_LIBRARIES"
+ALL_LIBRARIES="$FFMPEG_LIBRARIES $FRIBIDI_LIBRARIES $MPV_LIBRARIES"
 
 export PKG_CONFIG_PATH
 export LDFLAGS
@@ -49,16 +52,20 @@ case $STEP in
 		LIBRARIES="$FFMPEG_LIBRARIES"
 		echo "=== Step 1: Building FFmpeg ==="
 		;;
-	2|mpv)
+	2|fribidi)
+		LIBRARIES="$FRIBIDI_LIBRARIES"
+		echo "=== Step 2: Building fribidi ==="
+		;;
+	3|mpv)
 		LIBRARIES="$MPV_LIBRARIES"
-			echo "=== Step 2: Building libmpv (+ subprojects) ==="
+			echo "=== Step 3: Building libmpv (+ subprojects) ==="
 		;;
 	"")
 		LIBRARIES="$ALL_LIBRARIES"
 		echo "=== Building all libraries ==="
 		;;
 		*)
-			echo "Invalid step: $STEP (use 1-2 or omit for all)"
+			echo "Invalid step: $STEP (use 1-3 or omit for all)"
 	exit 1
 		;;
 esac
@@ -132,6 +139,9 @@ for ARCH in $ARCHS; do
         case $LIBRARY in
             "ffmpeg" )
 				mkdir -p $SCRATCH/$ARCH_DIR/ffmpeg && cd $_ && $SCRIPTS/components/ffmpeg-build.sh
+				;;
+            "fribidi" )
+				$SCRIPTS/components/fribidi-build.sh
 				;;
             "libmpv" )
 				$SCRIPTS/components/mpv-build.sh

@@ -51,7 +51,7 @@ cd subprojects
 
 [ ! -d "libplacebo" ] && git clone --depth 1 https://code.videolan.org/videolan/libplacebo.git && (cd libplacebo && git submodule update --init --depth 1)
 [ ! -d "libass" ] && git clone --depth 1 https://github.com/libass/libass.git
-[ ! -d "fribidi" ] && git clone --depth 1 https://github.com/fribidi/fribidi.git
+# fribidi 现在单独编译，不再作为子项目
 [ ! -d "harfbuzz" ] && git clone --depth 1 https://github.com/harfbuzz/harfbuzz.git
 [ ! -d "freetype2" ] && git clone --depth 1 https://gitlab.freedesktop.org/freetype/freetype.git freetype2
 
@@ -63,13 +63,6 @@ cd subprojects
 # fi
 # cd .. # 退回到 subprojects 目录
 
-# 【核心修复点】: 必须再次 cd .. 退回 mpv 源码根目录，meson wrap 才能正常工作
-cd .. 
-
-# LCMS2 依然可以通过 wrap 获取 (此时在项目根目录，要检查 subprojects 里的状态)
-if [ ! -f "subprojects/lcms2.wrap" ] && [ ! -d "subprojects/lcms2" ]; then
-    meson wrap install lcms2
-fi
 
 # =========================================================================
 # 4. 生成 Cross-file
@@ -183,8 +176,7 @@ meson setup build \
     -Dharfbuzz:glib=disabled \
     -Dharfbuzz:icu=disabled \
     -Dharfbuzz:cairo=disabled \
-    -Dharfbuzz:freetype=enabled \
-    -Dfribidi:tests=false 
+    -Dharfbuzz:freetype=enabled 
 
 ninja -C build -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
 ninja -C build install
