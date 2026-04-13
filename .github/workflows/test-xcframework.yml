@@ -177,6 +177,21 @@ jobs:
           echo "✅ Test project created"
           find Tests/VerifyLibmpv -type f | sort
 
+      - name: Symbol integrity check (linker test)
+        run: |
+          # 在启动模拟器之前，先用真实链接器检测符号完整性
+          # 原理：-force_load 强制加载所有 .o，-undefined,error 严格报错
+          # 不猜测、不分类、不修复 — 链接器是唯一权威
+          set -e
+
+          export ARCH="arm64"
+          export ENVIRONMENT="simulator"
+          export SCRATCH="$(pwd)"
+          export SDKPATH="$(xcodebuild -sdk iphonesimulator -version Path)"
+
+          echo "=== Symbol integrity check ==="
+          ./scripts/components/check-symbols.sh
+
       - name: Boot iOS Simulator
         run: |
           # xcodebuild test requires a booted simulator — a registered-but-not-booted
