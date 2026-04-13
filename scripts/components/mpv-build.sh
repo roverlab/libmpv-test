@@ -86,8 +86,8 @@ cat > "$NATIVE_FILE" << EOF
 [binaries]
 c = ['$NATIVE_CC']
 cpp = ['$(xcrun -sdk macosx --find clang++ 2>/dev/null || which clang++ || echo clang++)']
-ar = '$AR_PATH'
-strip = '$STRIP_PATH'
+ar = ['$AR_PATH']
+strip = ['$STRIP_PATH']
 EOF
 echo "Native-file created at: $NATIVE_FILE"
 cat "$NATIVE_FILE"
@@ -98,9 +98,9 @@ c = ['$CC_PATH', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VER
 cpp = ['$CXX_PATH', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
 objc = ['$CC_PATH', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
 objcpp = ['$CXX_PATH', '-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
-ar = '$AR_PATH'
-strip = '$STRIP_PATH'
-pkg-config = 'pkg-config'
+ar = ['$AR_PATH']
+strip = ['$STRIP_PATH']
+pkg-config = ['pkg-config']
 
 [host_machine]
 system = 'darwin'
@@ -158,6 +158,13 @@ fi
 
 # audiounit uses CoreAudio's AudioDeviceID which is macOS-only (not available on
 # iOS at all — neither device nor simulator).  Always disable for iOS builds.
+
+# Unset environment variables exported by build.sh (CFLAGS, LDFLAGS, etc.)
+# because Meson applies them to the *native* (build machine) compiler when
+# cross-compiling. Passing iOS sysroot flags to the macOS native compiler
+# causes the compiler sanity check to fail, leading to:
+# "ERROR: No build machine compiler for ..."
+unset CFLAGS CXXFLAGS LDFLAGS CC CXX AR STRIP
 
 meson setup build \
 	--cross-file "$CROSS_FILE" \
