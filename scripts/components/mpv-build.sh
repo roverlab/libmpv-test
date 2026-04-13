@@ -80,15 +80,41 @@ fi
 # meson needs a separate "native" C compiler to build generator programs (e.g.
 # fribidi's gen-unicode-version.c). Without this, meson errors with:
 #   No build machine compiler for '...gen-unicode-version.c'
+# ----------------------------
+# Create native-file for build machine compiler
+# ----------------------------
 NATIVE_FILE="$SCRATCH/$ARCH_DIR/mpv-native-file.txt"
+
+# Find native compilers (build machine)
 NATIVE_CC="$(xcrun -sdk macosx --find clang 2>/dev/null || which clang || echo clang)"
+NATIVE_CXX="$(xcrun -sdk macosx --find clang++ 2>/dev/null || which clang++ || echo clang++)"
+NATIVE_AR="$(xcrun --find ar)"
+NATIVE_STRIP="$(xcrun --find strip)"
+
+# Print paths for debug
+echo "Native compiler paths:"
+echo "  CC=$NATIVE_CC"
+echo "  CXX=$NATIVE_CXX"
+echo "  AR=$NATIVE_AR"
+echo "  STRIP=$NATIVE_STRIP"
+
+# Write native-file (Meson will use this for build machine tools only)
+mkdir -p "$(dirname "$NATIVE_FILE")"
 cat > "$NATIVE_FILE" << EOF
 [binaries]
 c = ['$NATIVE_CC']
-cpp = ['$(xcrun -sdk macosx --find clang++ 2>/dev/null || which clang++ || echo clang++)']
-ar = ['$AR_PATH']
-strip = ['$STRIP_PATH']
+cpp = ['$NATIVE_CXX']
+ar = ['$NATIVE_AR']
+strip = ['$NATIVE_STRIP']
+
+# Build machine info
+[host_machine]
+system = 'darwin'
+cpu_family = 'aarch64'  # 或者 'aarch64'，取决于 runner，macos-latest 大多是 arm64 Apple Silicon
+cpu = '$(uname -m)'
+endian = 'little'
 EOF
+
 echo "Native-file created at: $NATIVE_FILE"
 cat "$NATIVE_FILE"
 
