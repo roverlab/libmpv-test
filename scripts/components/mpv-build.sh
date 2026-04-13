@@ -92,7 +92,7 @@ endian = 'little'
 needs_exe_wrapper = true
 
 [built-in options]
-c_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-D', 'AudioDeviceID=unsigned int', '-D', 'AudioStreamID=unsigned int']
+c_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
 cpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
 objc_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-fobjc-arc']
 objcpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-fobjc-arc']
@@ -123,7 +123,27 @@ unset SDKROOT CFLAGS CXXFLAGS LDFLAGS CPPFLAGS
 export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
 
 # =========================================================================
-# 5. Meson 构建
+# 5. Patch mpv meson.build for iOS cross-compilation
+# =========================================================================
+# Problem: mpv's meson.build line 846 compiles ao_coreaudio_chmap.c when
+# avfoundation is enabled. But that file uses macOS-only types (AudioDeviceID,
+# AudioStreamID) which don't exist in iOS SDK.
+# Fix: Remove 'avfoundation' from the chmap/utils source condition so that
+# only true coreaudio/audiounit (macOS) builds include those files.
+echo "=== Patching mpv meson.build for iOS compatibility ==="
+if [ -f "meson.build" ]; then
+    # Check if already patched to avoid double-patching on re-runs
+    if grep -q "features\['audiounit'\] or features\['coreaudio'\]" meson.build; then
+        # The original line includes avfoundation; patch it out
+        sed -i.bak "s/if features\['audiounit'\] or features\['coreaudio'\] or features\['avfoundation'\]/if features['audiounit'] or features['coreaudio']/" meson.build
+        echo "  Patched: removed avfoundation from ao_coreaudio_chmap condition"
+    else
+        echo "  Already patched or pattern not found, skipping"
+    fi
+fi
+
+# =========================================================================
+# 6. Meson 构建
 # =========================================================================
 meson setup build \
     --cross-file "$CROSS_FILE" \
