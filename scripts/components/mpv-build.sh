@@ -122,11 +122,21 @@ if [ -d "build" ]; then
     rm -rf build
 fi
 
+
+NATIVE_FILE="$SCRATCH/$ARCH_DIR/native.txt"
+
+cat > "$NATIVE_FILE" << EOF
+[binaries]
+c = 'cc'
+cpp = 'c++'
+EOF
+
 # =========================================================================
 # 5. Meson 构建
 # =========================================================================
 meson setup build \
     --cross-file "$CROSS_FILE" \
+    --native-file "$NATIVE_FILE" \
     --buildtype=release \
     --wrap-mode=nodownload \
     -Ddefault_library=static \
