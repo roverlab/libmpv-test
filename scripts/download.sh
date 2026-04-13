@@ -34,7 +34,7 @@ echo "libplacebo: $LIBPLACEBO_VERSION (git)"
 echo "libass: $LIBASS_VERSION (git, as subproject)"
 echo "freetype: $FREETYPE_VERSION (git, as subproject)"
 echo "harfbuzz: $HARFBUZZ_VERSION (git, as subproject)"
-echo "fribidi: $FRIBIDI_VERSION (git, as subproject)"
+echo "fribidi: $FRIBIDI_VERSION (git, separate build)"
 echo "uchardet: $UCHARDET_VERSION (git, as subproject)"
 echo ""
 
@@ -129,7 +129,17 @@ clone_subproject "libplacebo" "$LIBPLACEBO_GIT_URL" "v$LIBPLACEBO_VERSION" "libp
 clone_subproject "libass"     "$LIBASS_GIT_URL"     "$LIBASS_VERSION"     "libass"
 clone_subproject "freetype"  "$FREETYPE_GIT_URL"    "VER-${FREETYPE_VERSION//./-}" "freetype2"
 clone_subproject "harfbuzz"  "$HARFBUZZ_GIT_URL"    "$HARFBUZZ_VERSION"   "harfbuzz"
-clone_subproject "fribidi"   "$FRIBIDI_GIT_URL"     "v$FRIBIDI_VERSION"    "fribidi"
+# fribidi 单独下载到 src 目录，不作为 subproject
+FRIBIDI_SRC_DIR="$ROOT/src/fribidi"
+if [ ! -d "$FRIBIDI_SRC_DIR" ]; then
+    echo ""
+    echo ">>> Cloning fribidi v$FRIBIDI_VERSION (separate build)"
+    git clone --depth 1 --branch "v$FRIBIDI_VERSION" "$FRIBIDI_GIT_URL" "$FRIBIDI_SRC_DIR"
+    echo "    Cloned successfully into $FRIBIDI_SRC_DIR"
+else
+    echo ""
+    echo ">>> fribidi already exists at $FRIBIDI_SRC_DIR, skipping"
+fi
 clone_subproject "uchardet"  "$UCHARDET_GIT_URL"     "v$UCHARDET_VERSION"   "uchardet"
 
 echo ""
@@ -139,7 +149,7 @@ echo "\033[1;32mDownload complete:\033[0m\n mpv: $MPV_VERSION \
                             \n libass: $LIBASS_VERSION (subproject) \
                             \n freetype: $FREETYPE_VERSION (subproject) \
                             \n harfbuzz: $HARFBUZZ_VERSION (subproject) \
-                            \n fribidi: $FRIBIDI_VERSION (subproject) \
+                            \n fribidi: $FRIBIDI_VERSION (separate build) \
                             \n uchardet: $UCHARDET_VERSION (subproject)"
 
 echo ""
