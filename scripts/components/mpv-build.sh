@@ -55,6 +55,9 @@ cd subprojects
 [ ! -d "harfbuzz" ] && git clone --depth 1 https://github.com/harfbuzz/harfbuzz.git
 [ ! -d "freetype2" ] && git clone --depth 1 https://gitlab.freedesktop.org/freetype/freetype.git freetype2
 
+# 返回 mpv 源码根目录（meson.build 在这里）
+cd ..
+
 # # 处理 FreeType2 HVF 模块
 # cd freetype2
 # if [ -f "modules.cfg" ] && ! grep -q "hvf" modules.cfg; then
