@@ -18,8 +18,7 @@ FFMPEG_OPTIONS="${COMMON_OPTIONS%% *} \
 		--disable-audiotoolbox \
 		--enable-videotoolbox \
 		--disable-coreimage \
-		--disable-metal \
-		--disable-libjpeg"
+		--disable-metal"
 		# ^ --disable-libjpeg: libjpeg is NOT a system library on iOS.
 		# FFmpeg auto-detects the macOS host libjpeg during cross-compile
 		# configure and then tries to reference it in the iOS product, causing
