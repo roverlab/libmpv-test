@@ -51,51 +51,15 @@ else
     exit 1
 fi
 
-# Resolve toolchain paths at shell time (meson won't expand $(...) )
-CC_PATH="$(xcrun -sdk $SDK_NAME --find clang)"
-CXX_PATH="$(xcrun -sdk $SDK_NAME --find clang++)"
-AR_PATH="$(xcrun --find ar)"
-STRIP_PATH="$(xcrun --find strip)"
-
-echo "Resolved toolchain paths:"
-echo "  CC=$CC_PATH"
-echo "  CXX=$CXX_PATH"
-echo "  AR=$AR_PATH"
-echo "  STRIP=$STRIP_PATH"
-
 # Create cross-file for iOS cross-compilation
-# Use a persistent path instead of mktemp to allow meson reconfigure
 CROSS_FILE="$SCRATCH/$ARCH_DIR/mpv-cross-file.txt"
 mkdir -p "$SCRATCH/$ARCH_DIR"
 
-# Determine the correct minimum version flag
 if [ "$ENVIRONMENT" = "simulator" ] || [ "$SDK_NAME" = "iphonesimulator" ]; then
     MIN_VERSION_FLAG="-mios-simulator-version-min=13.0"
 else
     MIN_VERSION_FLAG="-miphoneos-version-min=13.0"
 fi
-
-# IMPORTANT: build.sh prepends the Xcode toolchain bin directory to PATH so that
-# FFmpeg's configure script can find the iOS cross-compiler.  However, this causes
-# Meson's native (build machine) compiler detection to pick up the iOS clang
-# instead of the macOS system clang, failing with:
-#   "No build machine compiler for ... gen-unicode-version.c"
-#
-# Fix: put /usr/bin back at the FRONT of PATH before running meson, so that
-# Meson auto-detects the correct macOS native compiler.  The Xcode toolchain
-# is still in PATH (for any tools that need it), just not first.
-export PATH="/usr/bin:/usr/local/bin:/bin:$(echo $PATH | tr ':' '\n' | grep -v '^/usr/bin$' | grep -v '^/usr/local/bin$' | grep -v '^/bin$' | tr '\n' ':')"
-
-# Resolve absolute paths for the NATIVE (build machine) compiler.
-NATIVE_CC="$(/usr/bin/which clang 2>/dev/null || echo /usr/bin/clang)"
-NATIVE_CXX="$(/usr/bin/which clang++ 2>/dev/null || echo /usr/bin/clang++)"
-NATIVE_AR="$(/usr/bin/which ar 2>/dev/null || echo /usr/bin/ar)"
-NATIVE_STRIP="$(/usr/bin/which strip 2>/dev/null || echo /usr/bin/strip)"
-
-echo "Native (build-machine) compilers:"
-echo "  CC  = $NATIVE_CC"
-echo "  CXX = $NATIVE_CXX"
-echo "  AR  = $NATIVE_AR"
 
 # ---------------------------------------------------------------------------
 # Cross-file: defines the HOST (target=iOS) compiler and toolchain.
@@ -138,80 +102,33 @@ EOF
 echo "Cross-file created at: $CROSS_FILE"
 cat "$CROSS_FILE"
 
-# ---------------------------------------------------------------------------
-# Native-file: defines the BUILD (build machine) compiler and toolchain.
-# Passed to meson via --native-file.
-# ---------------------------------------------------------------------------
-NATIVE_FILE="$SCRATCH/$ARCH_DIR/mpv-native-file.txt"
-cat > "$NATIVE_FILE" << EOF
-[binaries]
-c = 'clang'
-cpp = 'clang++'
-ar = 'ar'
-strip = 'strip'
-pkg-config = ['pkg-config']
-
-[build_machine]
-system = 'darwin'
-cpu_family = '$(uname -m)'
-cpu = '$(uname -m)'
-endian = 'little'
-EOF
-
-echo "Native-file created at: $NATIVE_FILE"
-cat "$NATIVE_FILE"
-
-# Fribidi missing native c compiler fix: Explicitly inject add_languages
-echo "Patching subprojects/fribidi/meson.build to ensure native compiler is initialized..."
-if [ -f "subprojects/fribidi/meson.build" ]; then
-    # Add add_languages('c', native: true) safely after the project(...) call ends
-    python3 -c "
-import sys
-try:
-    with open('subprojects/fribidi/meson.build', 'r') as f:
-        content = f.read()
-    idx = 0
-    # Find the end of the project() call
-    while idx < len(content):
-        idx = content.find(')', idx)
-        if idx == -1: break
-        # We just assume the first top-level ')' after project closes it
-        # This is safe for fribidi's meson.build
-        break
-    if idx != -1:
-        nl_idx = content.find('\n', idx)
-        if nl_idx == -1: nl_idx = len(content)
-        new_content = content[:nl_idx] + '\nadd_languages(\\'c\\', native: true)\n' + content[nl_idx:]
-        with open('subprojects/fribidi/meson.build', 'w') as f:
-            f.write(new_content)
-        print('Successfully patched fribidi/meson.build via Python.')
-except Exception as e:
-    print('Failed to patch fribidi:', e)
-"
-fi
-
-
-
 # Clean previous build directory to avoid stale configuration
 if [ -d "build" ]; then
     echo "Cleaning previous build directory..."
     rm -rf build
 fi
 
-# Unset environment variables exported by build.sh (CFLAGS, LDFLAGS, etc.)
-# because Meson applies them to the *native* (build machine) compiler when
-# cross-compiling.
-unset CFLAGS CXXFLAGS LDFLAGS AR STRIP CC CXX
+# =========================================================================
+# CRITICAL: Clean Environment
+# `scripts/build.sh` exports IPHONEOS_DEPLOYMENT_TARGET and modifies PATH.
+# This causes Apple's native clang to implicitly build iOS binaries!
+# When Meson checks the build-machine compiler, the resulting binary is an
+# iOS executable, which macOS cannot run. Thus: "executables are not runnable".
+# To fix this, we strictly unset all Apple environment overrides.
+# =========================================================================
+unset IPHONEOS_DEPLOYMENT_TARGET
+unset TVOS_DEPLOYMENT_TARGET
+unset MACOSX_DEPLOYMENT_TARGET
+unset SDKROOT
+unset CFLAGS CXXFLAGS LDFLAGS AR STRIP CC CXX OBJC OBJCXX
 
-echo "Cross-compilation: Forcing Meson to use explicit native (build) compiler for tools like fribidi"
+echo "Building with perfectly clean host environment..."
 
-# 关键修复：显式注入 CC_FOR_BUILD 和 CXX_FOR_BUILD 以及使用 native-file
-CC_FOR_BUILD="$NATIVE_CC" \
-CXX_FOR_BUILD="$NATIVE_CXX" \
-AR_FOR_BUILD="$NATIVE_AR" \
+export PKG_CONFIG_LIBDIR="$SCRATCH/$ARCH_DIR/lib/pkgconfig"
+unset PKG_CONFIG_PATH
+
 meson setup build \
     --cross-file "$CROSS_FILE" \
-    --native-file "$NATIVE_FILE" \
     --buildtype=release \
     --wrap-mode=forcefallback \
     -Ddefault_library=static \
