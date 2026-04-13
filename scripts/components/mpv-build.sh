@@ -138,6 +138,30 @@ EOF
 echo "Cross-file created at: $CROSS_FILE"
 cat "$CROSS_FILE"
 
+# ---------------------------------------------------------------------------
+# Native-file: defines the BUILD (build machine) compiler and toolchain.
+# Passed to meson via --native-file.
+# ---------------------------------------------------------------------------
+NATIVE_FILE="$SCRATCH/$ARCH_DIR/mpv-native-file.txt"
+cat > "$NATIVE_FILE" << EOF
+[binaries]
+c = ['$NATIVE_CC']
+cpp = ['$NATIVE_CXX']
+ar = ['$NATIVE_AR']
+strip = ['$NATIVE_STRIP']
+pkg-config = 'pkg-config'
+
+[build_machine]
+system = 'darwin'
+cpu_family = '$(uname -m)'
+cpu = '$(uname -m)'
+endian = 'little'
+EOF
+
+echo "Native-file created at: $NATIVE_FILE"
+cat "$NATIVE_FILE"
+
+
 # Clean previous build directory to avoid stale configuration
 if [ -d "build" ]; then
     echo "Cleaning previous build directory..."
@@ -151,12 +175,13 @@ unset CFLAGS CXXFLAGS LDFLAGS AR STRIP CC CXX
 
 echo "Cross-compilation: Forcing Meson to use explicit native (build) compiler for tools like fribidi"
 
-# 关键修复：显式注入 CC_FOR_BUILD 和 CXX_FOR_BUILD
+# 关键修复：显式注入 CC_FOR_BUILD 和 CXX_FOR_BUILD 以及使用 native-file
 CC_FOR_BUILD="$NATIVE_CC" \
 CXX_FOR_BUILD="$NATIVE_CXX" \
 AR_FOR_BUILD="$NATIVE_AR" \
 meson setup build \
     --cross-file "$CROSS_FILE" \
+    --native-file "$NATIVE_FILE" \
     --buildtype=release \
     --wrap-mode=forcefallback \
     -Ddefault_library=static \
