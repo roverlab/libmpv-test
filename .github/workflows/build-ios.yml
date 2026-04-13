@@ -36,25 +36,24 @@ jobs:
           sudo curl -L https://github.com/libav/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl
           sudo chmod +x /usr/local/bin/gas-preprocessor.pl
 
-      - name: Download sources
-        run: |
-          chmod +x download.sh
-          ./download.sh
-
       - name: Make build scripts executable
         run: |
-          chmod +x *.sh scripts/*-build
+          chmod +x scripts/*.sh scripts/components/*.sh
+
+      - name: Download sources
+        run: |
+          ./scripts/download.sh
 
       - name: Build dependencies
         run: |
           echo "=== Building dependencies for device (arm64) ==="
-          ./build.sh -e distribution -s 1
-          ./build.sh -e distribution -s 2
+          ./scripts/build.sh -e distribution -s 1
+          ./scripts/build.sh -e distribution -s 2
 
       - name: Build libmpv
         run: |
           echo "=== Building libmpv for device (arm64) ==="
-          ./build.sh -e distribution -s 3
+          ./scripts/build.sh -e distribution -s 3
 
       - name: Verify build
         run: |
@@ -97,25 +96,24 @@ jobs:
           sudo curl -L https://github.com/libav/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl
           sudo chmod +x /usr/local/bin/gas-preprocessor.pl
 
-      - name: Download sources
-        run: |
-          chmod +x download.sh
-          ./download.sh
-
       - name: Make build scripts executable
         run: |
-          chmod +x *.sh scripts/*-build
+          chmod +x scripts/*.sh scripts/components/*.sh
+
+      - name: Download sources
+        run: |
+          ./scripts/download.sh
 
       - name: Build dependencies
         run: |
           echo "=== Building dependencies for simulator (arm64) ==="
-          ./build.sh -e simulator -s 1
-          ./build.sh -e simulator -s 2
+          ./scripts/build.sh -e simulator -s 1
+          ./scripts/build.sh -e simulator -s 2
 
       - name: Build libmpv
         run: |
           echo "=== Building libmpv for simulator (arm64) ==="
-          ./build.sh -e simulator -s 3
+          ./scripts/build.sh -e simulator -s 3
 
       - name: Verify build
         run: |
@@ -336,7 +334,7 @@ jobs:
             Or in Xcode: File > Add Packages > enter repository URL.
             
             ### Included Libraries
-            Versions are defined in [download.sh](blob/main/download.sh).
+            Versions are defined in [download.sh](blob/main/scripts/download.sh).
             
             ### Checksum
             `$CHECKSUM`

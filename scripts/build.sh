@@ -135,25 +135,25 @@ for ARCH in $ARCHS; do
     for LIBRARY in $LIBRARIES; do
         case $LIBRARY in
             "libfribidi" )
-				mkdir -p $SCRATCH/$ARCH_DIR/fribidi && cd $_ && $SCRIPTS/fribidi-build
+				mkdir -p $SCRATCH/$ARCH_DIR/fribidi && cd $_ && $SCRIPTS/components/fribidi-build.sh
 				;;
             "libfreetype" )
-				mkdir -p $SCRATCH/$ARCH_DIR/freetype && cd $_ && $SCRIPTS/freetype-build
+				mkdir -p $SCRATCH/$ARCH_DIR/freetype && cd $_ && $SCRIPTS/components/freetype-build.sh
 			;;
             "libharfbuzz" )
-				mkdir -p $SCRATCH/$ARCH_DIR/harfbuzz && cd $_ && $SCRIPTS/harfbuzz-build
+				mkdir -p $SCRATCH/$ARCH_DIR/harfbuzz && cd $_ && $SCRIPTS/components/harfbuzz-build.sh
 				;;
             "libass" )
-				mkdir -p $SCRATCH/$ARCH_DIR/libass && cd $_ && $SCRIPTS/libass-build
+				mkdir -p $SCRATCH/$ARCH_DIR/libass && cd $_ && $SCRIPTS/components/libass-build.sh
 				;;
             "libuchardet" )
-				mkdir -p $SCRATCH/$ARCH_DIR/uchardet && cd $_ && $SCRIPTS/uchardet-build
+				mkdir -p $SCRATCH/$ARCH_DIR/uchardet && cd $_ && $SCRIPTS/components/uchardet-build.sh
 				;;
             "ffmpeg" )
-				mkdir -p $SCRATCH/$ARCH_DIR/ffmpeg && cd $_ && $SCRIPTS/ffmpeg-build
+				mkdir -p $SCRATCH/$ARCH_DIR/ffmpeg && cd $_ && $SCRIPTS/components/ffmpeg-build.sh
 				;;
             "libmpv" )
-								$SCRIPTS/mpv-build
+								$SCRIPTS/components/mpv-build.sh
 				# ninja install already places libmpv.a in $SCRATCH/$ARCH_DIR/lib/
 				# Verify the output file exists
 				if [ ! -f "$SCRATCH/$ARCH_DIR/lib/libmpv.a" ]; then
