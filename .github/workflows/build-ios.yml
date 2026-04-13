@@ -171,47 +171,62 @@ jobs:
           # files with the same filename (e.g. utils.o, config.o appear in FFmpeg,
           # libass, and mpv), 'ar -x' silently overwrites the earlier file, causing
           # "Undefined symbol" linker errors. libtool handles this correctly.
+          #
+          # NOTE: Xcode 26+ removed -force_load support from libtool -static.
+          # To ensure all symbols from certain libs (e.g. libplacebo's ra_* symbols
+          # that are referenced indirectly via function pointers) are included,
+          # we use a two-step approach:
+          #   1. Merge "force-load" libs separately into a combined archive.
+          #   2. Merge that combined archive with all other libs into the final output.
+          # This works because libtool -static includes ALL object files when merging
+          # static archives (unlike the linker which does dead-code stripping).
 
-          # 设备版本 - 合并所有静态库
-          # -force_load for libplacebo libs: ra_* symbols (ra_gl, ra_create_wrapped_tex, etc.)
-          # are referenced indirectly through function pointers at runtime. Without
-          # -force_load, the linker prunes these .o files as "unused", causing
-          # "Undefined symbol: _ra_gl_get" errors at link time.
-          echo "=== Creating device fat library ==="
-          mkdir -p lib_device
-          DEVICE_LIBS=$(ls scratch/arm64/lib/*.a)
-          echo "Merging: $DEVICE_LIBS"
-          # Build libtool args: force_load libplacebo libs, regular for others
-          LIBTOOL_ARGS=""
-          for lib in $DEVICE_LIBS; do
-              case $(basename "$lib") in
-                  libplacebo*|libglslang*|liblcms2*|libdovi*)
-                      LIBTOOL_ARGS="$LIBTOOL_ARGS -force_load $lib" ;;
-                  *)
-                      LIBTOOL_ARGS="$LIBTOOL_ARGS $lib" ;;
-              esac
-          done
-          libtool -static -o lib_device/libmpv_full.a $LIBTOOL_ARGS
-          echo "Device fat library size:"
-          ls -lh lib_device/libmpv_full.a
+          # Helper function to create fat library for a given architecture
+          create_fat_lib() {
+              local arch_dir="$1"
+              local output_dir="$2"
+              local label="$3"
 
-          # 模拟器版本 - 合并所有静态库（同设备版，使用 -force_load）
-          echo "=== Creating simulator fat library ==="
-          mkdir -p lib_simulator
-          SIM_LIBS=$(ls scratch/arm64-simulator/lib/*.a)
-          echo "Merging: $SIM_LIBS"
-          LIBTOOL_ARGS=""
-          for lib in $SIM_LIBS; do
-              case $(basename "$lib") in
-                  libplacebo*|libglslang*|liblcms2*|libdovi*)
-                      LIBTOOL_ARGS="$LIBTOOL_ARGS -force_load $lib" ;;
-                  *)
-                      LIBTOOL_ARGS="$LIBTOOL_ARGS $lib" ;;
-              esac
-          done
-          libtool -static -o lib_simulator/libmpv_full.a $LIBTOOL_ARGS
-          echo "Simulator fat library size:"
-          ls -lh lib_simulator/libmpv_full.a
+              echo "=== Creating ${label} fat library ==="
+              mkdir -p "$output_dir"
+
+              # Separate libs into force-load and regular groups
+              FORCE_LIBS=""
+              REGULAR_LIBS=""
+              for lib in $(ls "${arch_dir}"lib/*.a); do
+                  case $(basename "$lib") in
+                      libplacebo*|libglslang*|liblcms2*|libdovi*)
+                          FORCE_LIBS="$FORCE_LIBS $lib" ;;
+                      *)
+                          REGULAR_LIBS="$REGULAR_LIBS $lib" ;;
+                  esac
+              done
+
+              echo "Force-load libs:$FORCE_LIBS"
+              echo "Regular libs:$REGULAR_LIBS"
+
+              # Step 1: If there are force-load libs, pre-merge them
+              if [ -n "$FORCE_LIBS" ]; then
+                  libtool -static -o "${output_dir}/_force_merged.a" $FORCE_LIBS
+                  # Use the merged archive as a regular lib in final merge
+                  REGULAR_LIBS="${output_dir}/_force_merged.a $REGULAR_LIBS"
+              fi
+
+              # Step 2: Merge everything into the final fat library
+              libtool -static -o "${output_dir}/libmpv_full.a" $REGULAR_LIBS
+
+              # Clean up intermediate file
+              rm -f "${output_dir}/_force_merged.a"
+
+              echo "${label} fat library size:"
+              ls -lh "${output_dir}/libmpv_full.a"
+          }
+
+          # 设备版本 (arm64)
+          create_fat_lib "scratch/arm64/" "lib_device" "Device"
+
+          # 模拟器版本 (arm64-simulator)
+          create_fat_lib "scratch/arm64-simulator/" "lib_simulator" "Simulator"
 
       - name: Create XCFramework
         run: |
