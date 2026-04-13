@@ -85,11 +85,14 @@ jobs:
           path: scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/lib/
           retention-days: 1
 
-  # Job 1: 编译设备版 (arm64 iOS Device) — FFmpeg 从缓存恢复
-  build-device:
-    name: Build for Device (arm64)
+  # Job 1: 编译 libmpv (device + simulator) — FFmpeg 从缓存恢复，matrix 并行
+  build-libmpv:
+    name: Build libmpv (${{ matrix.environment }})
     runs-on: macos-latest
     needs: build-ffmpeg
+    strategy:
+      matrix:
+        environment: [distribution, simulator]
 
     steps:
       - name: Checkout repository
@@ -125,127 +128,52 @@ jobs:
         id: restore-ffmpeg
         uses: actions/cache@v4
         with:
-          path: scratch/arm64/
-          key: ${{ env.FFMPEG_CACHE_KEY }}-distribution-${{ runner.os }}
+          path: scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/
+          key: ${{ env.FFMPEG_CACHE_KEY }}-${{ matrix.environment }}-${{ runner.os }}
           restore-keys: |
-            ${{ env.FFMPEG_CACHE_KEY }}-distribution-
+            ${{ env.FFMPEG_CACHE_KEY }}-${{ matrix.environment }}-
 
       - name: Download FFmpeg artifact (fallback)
         if: steps.restore-ffmpeg.outputs.cache-hit != 'true'
         uses: actions/download-artifact@v4
         with:
-          name: ffmpeg-distribution
-          path: scratch/arm64/lib/
+          name: ffmpeg-${{ matrix.environment }}
+          path: scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/lib/
 
       - name: Verify FFmpeg libraries
         run: |
+          ARCH_DIR="${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}"
           echo "=== FFmpeg libraries (restored from cache/artifact) ==="
-          ls -la scratch/arm64/lib/libav*.a scratch/arm64/lib/libsw*.a 2>/dev/null || echo "No FFmpeg libs found"
+          ls -la scratch/$ARCH_DIR/lib/libav*.a scratch/$ARCH_DIR/lib/libsw*.a 2>/dev/null || echo "No FFmpeg libs found"
 
       - name: Build libmpv (+ subprojects)
         run: |
-          echo "=== Building libmpv for device (arm64) ==="
+          echo "=== Building libmpv for ${{ matrix.environment }} (arm64) ==="
           echo "    Subprojects: libass, freetype2, harfbuzz, fribidi, uchardet, libplacebo, lcms2"
           echo "    FFmpeg: restored from cache (skipped rebuild)"
-          ./scripts/build.sh -e distribution -s 2
+          ./scripts/build.sh -e ${{ matrix.environment }} -s 2
 
       - name: Verify build
         run: |
-          echo "=== Device build results ==="
-          ls -la scratch/arm64/lib/
-          ls -la scratch/arm64/lib/libmpv.a
+          ARCH_DIR="${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}"
+          echo "=== ${{ matrix.environment }} build results ==="
+          ls -la scratch/$ARCH_DIR/lib/
+          ls -la scratch/$ARCH_DIR/lib/libmpv.a
 
-      - name: Upload device artifacts
+      - name: Upload libmpv artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: libmpv-device
+          name: libmpv-${{ matrix.environment }}
           path: |
-            scratch/arm64/lib/
-            scratch/arm64/include/
-          retention-days: 1
-
-  # Job 2: 编译模拟器版 (arm64 iOS Simulator) — FFmpeg 从缓存恢复
-  build-simulator:
-    name: Build for Simulator (arm64)
-    runs-on: macos-latest
-    needs: build-ffmpeg
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
-
-      - name: Install dependencies
-        run: |
-          brew install pkg-config
-          brew install nasm
-          brew install meson
-          brew install python@3.13
-
-      - name: Install gas-preprocessor
-        run: |
-          sudo curl -L https://github.com/libav/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl
-          sudo chmod +x /usr/local/bin/gas-preprocessor.pl
-
-      - name: Make build scripts executable
-        run: |
-          chmod +x scripts/*.sh scripts/components/*.sh
-
-      - name: Download sources
-        run: |
-          ./scripts/download.sh
-
-      # ── 从缓存或 artifact 恢复 FFmpeg（不再重新编译）──
-      - name: Restore FFmpeg from cache
-        id: restore-ffmpeg
-        uses: actions/cache@v4
-        with:
-          path: scratch/arm64-simulator/
-          key: ${{ env.FFMPEG_CACHE_KEY }}-simulator-${{ runner.os }}
-          restore-keys: |
-            ${{ env.FFMPEG_CACHE_KEY }}-simulator-
-
-      - name: Download FFmpeg artifact (fallback)
-        if: steps.restore-ffmpeg.outputs.cache-hit != 'true'
-        uses: actions/download-artifact@v4
-        with:
-          name: ffmpeg-simulator
-          path: scratch/arm64-simulator/lib/
-
-      - name: Verify FFmpeg libraries
-        run: |
-          echo "=== FFmpeg libraries (restored from cache/artifact) ==="
-          ls -la scratch/arm64-simulator/lib/libav*.a scratch/arm64-simulator/lib/libsw*.a 2>/dev/null || echo "No FFmpeg libs found"
-
-      - name: Build libmpv (+ subprojects)
-        run: |
-          echo "=== Building libmpv for simulator (arm64) ==="
-          echo "    Subprojects: libass, freetype2, harfbuzz, fribidi, uchardet, libplacebo, lcms2"
-          echo "    FFmpeg: restored from cache (skipped rebuild)"
-          ./scripts/build.sh -e simulator -s 2
-
-      - name: Verify build
-        run: |
-          echo "=== Simulator build results ==="
-          ls -la scratch/arm64-simulator/lib/
-          ls -la scratch/arm64-simulator/lib/libmpv.a
-
-      - name: Upload simulator artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: libmpv-simulator
-          path: scratch/arm64-simulator/lib/
+            scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/lib/
+            ${{ matrix.environment == 'distribution' && 'scratch/arm64/include/' || '' }}
           retention-days: 1
 
   # Job 3: 创建 XCFramework 并验证
   create-xcframework:
     name: Create XCFramework
     runs-on: macos-latest
-    needs: [build-device, build-simulator]
+    needs: build-libmpv
 
     steps:
       - name: Checkout repository
@@ -259,7 +187,7 @@ jobs:
       - name: Download device artifacts
         uses: actions/download-artifact@v4
         with:
-          name: libmpv-device
+          name: libmpv-distribution
           path: scratch/arm64/
 
       - name: Download simulator artifacts
