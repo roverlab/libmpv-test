@@ -144,31 +144,27 @@ fi
 
 # Unset environment variables exported by build.sh (CFLAGS, LDFLAGS, etc.)
 # because Meson applies them to the *native* (build machine) compiler when
-# cross-compiling. Passing iOS sysroot flags to the macOS native compiler
-# causes the compiler sanity check to fail, leading to:
-# "ERROR: No build machine compiler for ..."
-#
-# Also unset CC/CXX because in cross-compilation mode, Meson gives environment
-# variables higher priority than the cross-file [binaries] section.  If we set
-# CC=macos-clang here, it would override the iOS cross-compiler defined in
-# the cross-file and target code would be built for macOS instead of iOS.
-unset CFLAGS CXXFLAGS LDFLAGS CC CXX AR STRIP
+# cross-compiling.  We replace them with explicit per-role compilers below.
+unset CFLAGS CXXFLAGS LDFLAGS AR STRIP
 
-# Create a native-file so Meson can find a build-machine C compiler for
-# generator programs (e.g. fribidi's gen-unicode-version.c).
-# Without this, cross-compiling on an ARM64 Mac runner causes:
-#   ERROR: No build machine compiler for '...gen-unicode-version.c'
-NATIVE_FILE="$SCRATCH/$ARCH_DIR/mpv-native-file.txt"
-cat > "$NATIVE_FILE" << EOF
-[binaries]
-c = ['$(xcrun -sdk macosx --find clang)']
-cpp = ['$(xcrun -sdk macosx --find clang++)']
-EOF
-echo "Native-file created at: $NATIVE_FILE"
+# When cross-compiling, Meson needs TWO compilers:
+#   CC / CXX        -> target (iOS) compiler   -- builds code that runs on the device
+#   CC_FOR_BUILD / CXX_FOR_BUILD -> build (macOS) compiler -- builds generator executables
+#     that run on the CI machine during compilation (e.g. fribidi's gen-unicode-version)
+#
+# We set both explicitly so Meson never has to auto-detect anything.
+export CC="$CC_PATH"
+export CXX="$CXX_PATH"
+export CC_FOR_BUILD="$(xcrun -sdk macosx --find clang)"
+export CXX_FOR_BUILD="$(xcrun -sdk macosx --find clang++)"
+
+echo "Target compiler:    CC=$CC"
+echo "Target compiler:    CXX=$CXX"
+echo "Build compiler:     CC_FOR_BUILD=$CC_FOR_BUILD"
+echo "Build compiler:     CXX_FOR_BUILD=$CXX_FOR_BUILD"
 
 meson setup build \
 	--cross-file "$CROSS_FILE" \
-	--native-file "$NATIVE_FILE" \
 	--buildtype=$BUILDTYPE \
 	--wrap-mode=forcefallback \
 	-Ddefault_library=static \
