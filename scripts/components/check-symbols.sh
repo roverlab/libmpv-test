@@ -2,20 +2,11 @@
 # =========================================================================
 # 符号完整性检查 - 纯链接器测试
 # =========================================================================
-#
-# 原则：
-#   1. 只做一次真实链接 (-force_load + -undefined,error)
-#   2. 不猜测、不分类、不修复
-#   3. 输出原始链接器错误
-#   4. CI: PASS=exit0, FAIL=exit1+full log
-#
-# 链接参数来源：ninja -v 抓完整 link line（含 @link.rsp），零解析
-# =========================================================================
 
 set -e
 
-if [ -z "$ARCH" ] || [ -z "$SDKPATH" ] || [ -z "$SCRATCH" ]; then
-    echo "ERROR: Required env vars not set (ARCH, SDKPATH, SCRATCH)"
+if [ -z "$ARCH" ] || [ -z "$SDKPATH" ] || [ -z "$SCRATCH" ] || [ -z "$SRC" ]; then
+    echo "ERROR: Required env vars not set (ARCH, SDKPATH, SCRATCH, SRC)"
     exit 1
 fi
 
@@ -35,7 +26,7 @@ echo "=== Symbol check (real linker) ==="
 echo "  ARCH=$ARCH ENV=$ENVIRONMENT"
 
 TEMP_DIR=$(mktemp -d)
-trap "rm -rf $TEMP_DIR" EXIT
+trap 'rm -rf "$TEMP_DIR"' EXIT
 
 cat > "$TEMP_DIR/dummy.c" << 'EOF'
 int main(void) { return 0; }
@@ -54,17 +45,20 @@ for lib in \
     fi
 done
 
-# 从 ninja 构建目录抓取完整的链接命令（含 @link.rsp）
-MPV_BUILD_DIR="$SRC/mpv*/build"
+# 修复2：正确展开通配符获取构建目录
+MPV_BUILD_DIR=$(ls -d "$SRC"/mpv*/build 2>/dev/null | head -n 1 || true)
 
-if [ -d "$MPV_BUILD_DIR" ]; then
-    # ninja -C build -v 输出完整命令行，包含 @link.rsp response file
-    # 找到第一个包含 .a 的链接行，直接复用其 @rsp 文件
-    LINK_LINE=$(ninja -C "$MPV_BUILD_DIR" -v 2>/dev/null | grep "\.a" | grep -oE '@[^ ]+' | head -1)
+if [ -n "$MPV_BUILD_DIR" ] && [ -d "$MPV_BUILD_DIR" ]; then
+    # 修复4：使用 -t commands 获取历史命令，防止 ninja 因为 up-to-date 不输出
+    LINK_LINE=$(ninja -C "$MPV_BUILD_DIR" -t commands 2>/dev/null | grep "\.a" | grep -oE '@[^ ]+' | head -1)
     
     if [ -n "$LINK_LINE" ]; then
-        # 直接复用 rsp 文件 — 零解析，构建系统给什么就用什么
         RSP_FILE="${LINK_LINE#@}"
+        
+        # 修复3：处理 rsp 文件的相对路径问题
+        if [[ "$RSP_FILE" != /* ]]; then
+            RSP_FILE="$MPV_BUILD_DIR/$RSP_FILE"
+        fi
         
         if [ -f "$RSP_FILE" ]; then
             EXTRA_LINK_ARGS="@$RSP_FILE"
@@ -74,16 +68,18 @@ if [ -d "$MPV_BUILD_DIR" ]; then
             EXTRA_LINK_ARGS="-framework Foundation -framework CoreFoundation"
         fi
     else
-        echo "  ⚠️  No link line in ninja, using minimal"
+        echo "  ⚠️  No link line in ninja commands, using minimal"
         EXTRA_LINK_ARGS="-framework Foundation -framework CoreFoundation"
     fi
 else
-    echo "  ⚠️  No build dir ($MPV_BUILD_DIR), using minimal"
+    echo "  ⚠️  No build dir found, using minimal"
     EXTRA_LINK_ARGS="-framework Foundation -framework CoreFoundation"
 fi
 
 echo "Linking..."
 LOG="$TEMP_DIR/link.log"
+
+set +e # 修复1：暂时关闭 set -e，防止由于发生缺失符号导致脚本直接静默崩溃
 
 # shellcheck disable=SC2086
 clang -target "$TARGET_TRIPLE" \
@@ -93,7 +89,10 @@ clang -target "$TARGET_TRIPLE" \
      -Wl,-undefined,error \
      > "$LOG" 2>&1
 
-if [ $? -eq 0 ]; then
+LINK_STATUS=$?
+set -e # 恢复 set -e
+
+if [ $LINK_STATUS -eq 0 ]; then
     echo "✅ PASS"
     rm -f "$LOG"
     exit 0
