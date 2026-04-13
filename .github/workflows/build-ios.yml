@@ -5,52 +5,9 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
-    inputs:
-      mpv_version:
-        description: 'mpv version'
-        required: false
-        default: '0.39.0'
-      libplacebo_version:
-        description: 'libplacebo version (required for mpv 0.39+)'
-        required: false
-        default: '6.338.0'
-      ffmpeg_version:
-        description: 'FFmpeg version (>= 6.1 required for mpv 0.39)'
-        required: false
-        default: '7.0'
-      libass_version:
-        description: 'libass version (>= 0.12.2 required)'
-        required: false
-        default: '0.17.3'
-      freetype_version:
-        description: 'freetype version'
-        required: false
-        default: '2.13.2'
-      harfbuzz_version:
-        description: 'harfbuzz version'
-        required: false
-        default: '8.4.0'
-      fribidi_version:
-        description: 'fribidi version'
-        required: false
-        default: '1.0.13'
-      uchardet_version:
-        description: 'uchardet version'
-        required: false
-        default: '0.0.5'
 
 permissions:
   contents: write
-
-env:
-  MPV_VERSION: ${{ github.event.inputs.mpv_version || '0.39.0' }}
-  LIBPLACEBO_VERSION: ${{ github.event.inputs.libplacebo_version || '6.338.2' }}
-  FFMPEG_VERSION: ${{ github.event.inputs.ffmpeg_version || '7.0' }}
-  LIBASS_VERSION: ${{ github.event.inputs.libass_version || '0.17.3' }}
-  FREETYPE_VERSION: ${{ github.event.inputs.freetype_version || '2.13.2' }}
-  HARFBUZZ_VERSION: ${{ github.event.inputs.harfbuzz_version || '8.4.0' }}
-  FRIBIDI_VERSION: ${{ github.event.inputs.fribidi_version || '1.0.13' }}
-  UCHARDET_VERSION: ${{ github.event.inputs.uchardet_version || '0.0.5' }}
 
 jobs:
   # Job 1: 编译设备版 (arm64 iOS Device)
@@ -86,12 +43,7 @@ jobs:
 
       - name: Make build scripts executable
         run: |
-          # Strip Windows CRLF (\r) — files edited on Windows get \r\n endings
-          # that break the shebang on macOS: /bin/sh^M: bad interpreter
-          find . -maxdepth 2 \( -name '*.sh' -o -name '*-build' \) \
-            -exec sed -i '' 's/\r//' {} +
-          chmod +x build.sh clean.sh download.sh
-          chmod +x scripts/*-build
+          chmod +x *.sh scripts/*-build
 
       - name: Build dependencies
         run: |
@@ -152,12 +104,7 @@ jobs:
 
       - name: Make build scripts executable
         run: |
-          # Strip Windows CRLF (\r) — files edited on Windows get \r\n endings
-          # that break the shebang on macOS: /bin/sh^M: bad interpreter
-          find . -maxdepth 2 \( -name '*.sh' -o -name '*-build' \) \
-            -exec sed -i '' 's/\r//' {} +
-          chmod +x build.sh clean.sh download.sh
-          chmod +x scripts/*-build
+          chmod +x *.sh scripts/*-build
 
       - name: Build dependencies
         run: |
@@ -389,13 +336,7 @@ jobs:
             Or in Xcode: File > Add Packages > enter repository URL.
             
             ### Included Libraries
-            - mpv ${{ env.MPV_VERSION }}
-            - FFmpeg ${{ env.FFMPEG_VERSION }}
-            - libass ${{ env.LIBASS_VERSION }}
-            - freetype ${{ env.FREETYPE_VERSION }}
-            - harfbuzz ${{ env.HARFBUZZ_VERSION }}
-            - fribidi ${{ env.FRIBIDI_VERSION }}
-            - uchardet ${{ env.UCHARDET_VERSION }}
+            Versions are defined in [download.sh](blob/main/download.sh).
             
             ### Checksum
             `$CHECKSUM`
