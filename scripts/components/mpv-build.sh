@@ -175,14 +175,14 @@ meson setup build \
 	-Dlibplacebo:vulkan=disabled \
 	-Dlibplacebo:glslang=disabled \
 	-Dlibplacebo:shaderc=disabled \
-	-Dlibplacebo:lcms=disabled \
+	-Dlibplacebo:lcms=enabled \
 	-Dlibplacebo:dovi=disabled \
 	-Dlibplacebo:libdovi=disabled \
 	-Dlibplacebo:xxhash=disabled \
 	-Diconv=disabled \
 	-Dlibarchive=disabled \
 	-Duchardet=disabled \
-	-Dlcms2=disabled \
+	-Dlcms2=enabled \
 	-Dmacos-media-player=disabled \
 	-Djpeg=disabled 
 
