@@ -66,16 +66,18 @@ if [ -f "modules.cfg" ] && ! grep -q "hvf" modules.cfg; then
     echo "FONT_MODULES += hvf" >> modules.cfg
     echo "Added HVF module to FreeType2 modules.cfg"
 fi
-cd ..
+cd .. # 退回到 subprojects 目录
 
-# LCMS2 依然可以通过 wrap 获取，或者你也可以像上面一样 git clone
-if [ ! -f "lcms2.wrap" ] && [ ! -d "lcms2" ]; then
+# 【核心修复点】: 必须再次 cd .. 退回 mpv 源码根目录，meson wrap 才能正常工作
+cd .. 
+
+# LCMS2 依然可以通过 wrap 获取 (此时在项目根目录，要检查 subprojects 里的状态)
+if [ ! -f "subprojects/lcms2.wrap" ] && [ ! -d "subprojects/lcms2" ]; then
     meson wrap install lcms2
 fi
-cd ..
 
 # =========================================================================
-# 4. 生成 Cross-file (关键点：不要写 c_for_build，让 Meson 自己找 macOS 原生编译器)
+# 4. 生成 Cross-file
 # =========================================================================
 CROSS_FILE="$SCRATCH/$ARCH_DIR/mpv-cross-file.txt"
 
@@ -123,7 +125,6 @@ fi
 # =========================================================================
 # 5. Meson 构建
 # =========================================================================
-# 注意：我们这里使用 --wrap-mode=nodownload，因为子项目我们已经手动准备好了
 meson setup build \
     --cross-file "$CROSS_FILE" \
     --buildtype=release \
