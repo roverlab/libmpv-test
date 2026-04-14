@@ -16,8 +16,8 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "LibmpvBinary",
-            url: "https://github.com/roverlab/libmpv-test/releases/download/v0.1.59/Libmpv.xcframework.zip",
-            checksum: "4cce615e92028c33f3ed873da70afee8c5a9d2a729915a5810f0d9af629c8328"
+            url: "https://github.com/roverlab/libmpv-test/releases/download/v0.1.60/Libmpv.xcframework.zip",
+            checksum: "647ad2b3fd0266b7993e3ad01cf8055b7846cee6eef0f0be5810ad6283a63806"
         ),
         .target(
             name: "LibmpvWrapper",
