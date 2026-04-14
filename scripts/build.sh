@@ -97,6 +97,8 @@ fi
 ROOT="$(pwd)"
 SCRIPTS="$ROOT/scripts"
 SCRATCH="$ROOT/scratch"
+export ROOT
+export SCRIPTS
 LIB="$ROOT/lib"
 export SRC="$ROOT/src"
 mkdir -p $LIB

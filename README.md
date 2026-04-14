@@ -36,6 +36,7 @@ import Libmpv
 // 创建实例
 let mpv = mpv_create()
 mpv_set_option_string(mpv, "vo", "gpu")
+mpv_set_option_string(mpv, "gpu-context", "moltenvk")
 mpv_initialize(mpv)
 
 // 播放视频
@@ -115,3 +116,16 @@ xcodebuild -create-xcframework \
 - 其他子项目：ISC / FTL / MIT / LGPL 等
 
 完整 API 文档参考 [mpv manual](https://mpv.io/manual/master/)。
+
+## Vulkan (MoltenVK)
+
+This repository builds Vulkan on Apple platforms via MoltenVK. The build script
+compiles MoltenVK from source (no prebuilt binaries) and generates a local
+`vulkan.pc` so `mpv` can link against `MoltenVK.framework`.
+
+When using libmpv, set:
+
+```swift
+mpv_set_option_string(mpv, "vo", "gpu")
+mpv_set_option_string(mpv, "gpu-context", "moltenvk")
+```
