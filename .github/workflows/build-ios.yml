@@ -137,11 +137,13 @@ jobs:
           echo "=== MoltenVK directory structure ==="
           find /tmp/moltenvk -type d | head -20
           
-          # 复制对应平台的库文件
+          # 复制对应平台的库文件到 lib/ 目录
+          # MoltenVK xcframework 每个 slice 目录下直接是 libMoltenVK.a
+          mkdir -p "scratch/$ARCH_DIR/lib"
           if [ "${{ matrix.environment }}" = "simulator" ]; then
-            cp -R /tmp/moltenvk/lib/MoltenVK.xcframework/ios-arm64_x86_64-simulator/* "scratch/$ARCH_DIR/"
+            cp /tmp/moltenvk/lib/MoltenVK.xcframework/ios-arm64_x86_64-simulator/libMoltenVK.a "scratch/$ARCH_DIR/lib/"
           else
-            cp -R /tmp/moltenvk/lib/MoltenVK.xcframework/ios-arm64/* "scratch/$ARCH_DIR/"
+            cp /tmp/moltenvk/lib/MoltenVK.xcframework/ios-arm64/libMoltenVK.a "scratch/$ARCH_DIR/lib/"
           fi
           
           # 复制头文件 (关键！meson 需要 vulkan/vulkan_core.h)
@@ -257,23 +259,44 @@ jobs:
               local arch_dir="$1"
               local output_dir="$2"
               local label="$3"
-
+          
               echo "=== Creating ${label} fat library ==="
               mkdir -p "$output_dir"
-
+          
+              # Collect all .a files from lib/ directory
+              echo "=== Libraries in ${arch_dir}lib/ ==="
+              ls -la "${arch_dir}lib/"*.a 2>/dev/null || echo "No .a files in lib/"
+          
+              # Also check for MoltenVK.a in root or lib (different locations in different builds)
+              echo "=== Looking for MoltenVK ==="
+              find "${arch_dir}" -name "*.a" -type f 2>/dev/null | head -20
+          
               # Collect all .a files
-              ALL_LIBS=$(ls "${arch_dir}"lib/*.a)
-              echo "All libs to merge:$ALL_LIBS"
-
+              ALL_LIBS=$(ls "${arch_dir}lib/"*.a 2>/dev/null)
+              
+              # Check if MoltenVK is in a different location
+              MOLTENVK_LIB=$(find "${arch_dir}" -name "libMoltenVK.a" -o -name "MoltenVK.a" 2>/dev/null | head -1)
+              if [ -n "$MOLTENVK_LIB" ] && [ ! -f "${arch_dir}lib/libMoltenVK.a" ] && [ ! -f "${arch_dir}lib/MoltenVK.a" ]; then
+                  echo "Adding MoltenVK from: $MOLTENVK_LIB"
+                  ALL_LIBS="$ALL_LIBS $MOLTENVK_LIB"
+              fi
+          
+              echo "All libs to merge: $ALL_LIBS"
+              
+              if [ -z "$ALL_LIBS" ]; then
+                  echo "ERROR: No libraries found!"
+                  exit 1
+              fi
+          
               libtool -static -o "${output_dir}/libmpv_full.a" $ALL_LIBS
-
+          
               echo "${label} fat library size:"
               ls -lh "${output_dir}/libmpv_full.a"
           }
-
+          
           # 设备版本 (arm64)
           create_fat_lib "scratch/arm64/" "lib_device" "Device"
-
+          
           # 模拟器版本 (arm64-simulator)
           create_fat_lib "scratch/arm64-simulator/" "lib_simulator" "Simulator"
 
