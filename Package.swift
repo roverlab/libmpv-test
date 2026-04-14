@@ -29,9 +29,15 @@ let package = Package(
                 .linkedFramework("CoreMedia"),
                 .linkedFramework("CoreVideo"),
                 .linkedFramework("VideoToolbox"),
+                // Metal 是 MoltenVK/Vulkan/gpu-next 工作的必需依赖
+                .linkedFramework("Metal"),
+                .linkedFramework("QuartzCore"),      // CoreAnimation，MoltenVK 需要
+                .linkedFramework("CoreFoundation"),
+                .linkedFramework("IOSurface"),       // MoltenVK 需要
                 .linkedLibrary("bz2"),
                 .linkedLibrary("z"),
                 .linkedLibrary("iconv"),
+                .linkedLibrary("c++"),              // libc++ 是必需的
             ]
         )
     ]
