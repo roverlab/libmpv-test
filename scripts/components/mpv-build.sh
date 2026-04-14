@@ -97,24 +97,24 @@ clone_subproject() {
     fi
 }
 
-# Helper function to download and extract tarball into current directory (subprojects/)
+# Helper function to download and extract tarball to $SRC/
 download_tarball() {
     local name="$1"
     local url="$2"
     local target_dir="$3"
 
-    if [ ! -d "$target_dir" ]; then
+    if [ ! -d "$SRC/$target_dir" ]; then
         echo "Downloading $name..."
         local tarname="${url##*/}"
         if [ ! -f "$ROOT/downloads/$tarname" ]; then
             curl -f -L -- "$url" > "$ROOT/downloads/$tarname"
         fi
         echo "Extracting $name..."
-        tar xvf "$ROOT/downloads/$tarname" -C .
+        tar xvf "$ROOT/downloads/$tarname" -C "$SRC"
         # Find extracted directory and rename to target_dir
-        local extracted_dir=$(ls -d ${name}* 2>/dev/null | grep -v "^${target_dir}$" | head -1)
-        if [ -n "$extracted_dir" ]; then
-            mv "$extracted_dir" "$target_dir"
+        local extracted_dir=$(ls -d "$SRC"/${name}* 2>/dev/null | head -1)
+        if [ -n "$extracted_dir" ] && [ "$extracted_dir" != "$SRC/$target_dir" ]; then
+            mv "$extracted_dir" "$SRC/$target_dir"
         fi
     fi
 }
@@ -126,9 +126,32 @@ clone_subproject "libass"     "$LIBASS_GIT_URL"     "$LIBASS_VERSION"     "libas
 clone_subproject "freetype"  "$FREETYPE_GIT_URL"    "VER-${FREETYPE_VERSION//./-}" "freetype2"
 clone_subproject "harfbuzz"  "$HARFBUZZ_GIT_URL"    "$HARFBUZZ_VERSION"   "harfbuzz"
 
-# fribidi 使用 tarball（已预生成 gen.tab 输出，避免交叉编译时需要构建机器编译器）
+# fribidi 使用 autotools 单独编译（不用 meson subproject，避免 gen.tab 需要构建机器编译器）
 FRIBIDI_URL="https://github.com/fribidi/fribidi/releases/download/v$FRIBIDI_VERSION/fribidi-$FRIBIDI_VERSION.tar.xz"
 download_tarball "fribidi" "$FRIBIDI_URL" "fribidi"
+
+echo "=== Building fribidi with autotools ==="
+cd "$SRC/fribidi"
+# gen.tab 中的工具需要在宿主机上运行，先用原生编译器生成头文件
+make clean 2>/dev/null || true
+distclean_cmd=""
+if [ -f Makefile ]; then
+    distclean_cmd="make distclean"
+fi
+$distclean_cmd
+./configure \
+    --host="$TARGET_TRIPLE" \
+    --prefix="$SCRATCH/$ARCH_DIR" \
+    --disable-shared \
+    --enable-static \
+    --disable-bin \
+    --disable-docs \
+    --disable-tests \
+    CFLAGS="$MIN_VERSION_FLAG -isysroot $SDKPATH" \
+    LDFLAGS="$MIN_VERSION_FLAG -isysroot $SDKPATH"
+make -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
+make install
+cd "$MPV_SRC"
 
 # 返回 mpv 源码根目录（meson.build 在这里）
 cd ..
@@ -294,10 +317,6 @@ ARGS=(
     -Dharfbuzz:cairo=disabled
     -Dharfbuzz:freetype=enabled
 
-    # fribidi（禁用 bin/tests/docs，避免交叉编译时需要构建机器编译器）
-    -Dfribidi:bin=false
-    -Dfribidi:tests=false
-    -Dfribidi:docs=false
 )
 
 # 运行命令
