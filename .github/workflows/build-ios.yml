@@ -59,11 +59,6 @@ jobs:
         run: |
           chmod +x scripts/*.sh scripts/components/*.sh
 
-      - name: Download sources
-        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
-        run: |
-          ./scripts/download.sh
-
       - name: Build dav1d (AV1 decoder)
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
         run: |
@@ -121,11 +116,6 @@ jobs:
         run: |
           chmod +x scripts/*.sh scripts/components/*.sh
 
-      # ── 下载源码 ──
-      - name: Download sources
-        run: |
-          ./scripts/download.sh
-
       # ── 从 FFmpeg job 的 artifact 获取已编译好的 FFmpeg ──
       - name: Download FFmpeg artifact
         uses: actions/download-artifact@v4
@@ -141,17 +131,12 @@ jobs:
           echo "=== FFmpeg headers ==="
           ls -la scratch/$ARCH_DIR/include/libavutil/frame.h 2>/dev/null || echo "FFmpeg headers not found"
 
-      - name: Build fribidi
-        run: |
-          echo "=== Building fribidi for ${{ matrix.environment }} (arm64) ==="
-          ./scripts/build.sh -e ${{ matrix.environment }} -s 2
-
       - name: Build libmpv (+ subprojects)
         run: |
           echo "=== Building libmpv for ${{ matrix.environment }} (arm64) ==="
-          echo "    Subprojects: libass, freetype2, harfbuzz, uchardet, libplacebo, lcms2"
+          echo "    Subprojects: libass, freetype2, harfbuzz, fribidi, libplacebo"
           echo "    FFmpeg: restored from cache (skipped rebuild)"
-          ./scripts/build.sh -e ${{ matrix.environment }} -s 3
+          ./scripts/build.sh -e ${{ matrix.environment }} -s 2
 
       - name: Verify build
         run: |
