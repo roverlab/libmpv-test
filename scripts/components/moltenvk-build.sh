@@ -55,13 +55,23 @@ fi
 #       dynamic xcframework 内是 MoltenVK.framework/
 
 if [ "$ENVIRONMENT" = "simulator" ]; then
-    XCFRAMEWORK_SLICE="Package/Release/MoltenVK/static/MoltenVK.xcframework/ios-arm64-simulator"
+    # MoltenVK 不同版本生成的 simulator 切片名称可能不同:
+    #   - 旧版: ios-arm64-simulator
+    #   - 新版: ios-arm64_x86_64-simulator (同时包含 x86_64)
+    XCFRAMEWORK_BASE="Package/Release/MoltenVK/static/MoltenVK.xcframework"
+    XCFRAMEWORK_SLICE=""
+    for candidate in "ios-arm64-simulator" "ios-arm64_x86_64-simulator"; do
+        if [ -d "$XCFRAMEWORK_BASE/$candidate" ]; then
+            XCFRAMEWORK_SLICE="$XCFRAMEWORK_BASE/$candidate"
+            break
+        fi
+    done
 else
     XCFRAMEWORK_SLICE="Package/Release/MoltenVK/static/MoltenVK.xcframework/ios-arm64"
 fi
 
 if [ ! -d "$XCFRAMEWORK_SLICE" ]; then
-    echo "ERROR: Static xcframework slice not found at $XCFRAMEWORK_SLICE"
+    echo "ERROR: Static xcframework slice not found (expected simulator slice under Package/Release/MoltenVK/static/MoltenVK.xcframework/)"
     echo "  Package/ contents:"
     find Package -type d -maxdepth 6 2>/dev/null | head -40
     exit 1
