@@ -68,38 +68,16 @@ cd ..
 
 
 # =========================================================================
-# 4. Patch mpv 源码（修复 iOS 交叉编译的 CoreAudio 类型缺失问题）
-# =========================================================================
-# mpv 的 ao_coreaudio_utils.h / ao_coreaudio_chmap.h 使用了 AudioDeviceID、
-# AudioStreamID 等 CoreAudio 类型，但这些头文件没有 #import <CoreAudio/CoreAudio.h>。
-# 在 macOS 原生编译时这些类型通过其他框架（如 AudioToolbox）间接可用，
-# 但在 iOS 交叉编译中必须显式导入。直接 patch 头文件是最可靠的方案。
-echo "=== Patching mpv headers for iOS cross-compilation ==="
-
-COREAUDIO_UTILS="audio/out/ao_coreaudio_utils.h"
-if [ -f "$COREAUDIO_UTILS" ]; then
-    if ! grep -q '#import <CoreAudio/CoreAudio.h>' "$COREAUDIO_UTILS"; then
-        sed -i '' '1i\
-#import <CoreAudio/CoreAudio.h>\n' "$COREAUDIO_UTILS"
-        echo "Patched: $COREAUDIO_UTILS (added CoreAudio import)"
-    else
-        echo "Already patched: $COREAUDIO_UTILS"
-    fi
-fi
-COREAUDIO_CHMAP="audio/out/ao_coreaudio_chmap.h"
-if [ -f "$COREAUDIO_CHMAP" ]; then
-    if ! grep -q '#import <CoreAudio/CoreAudio.h>' "$COREAUDIO_CHMAP"; then
-        sed -i '' '1i\
-#import <CoreAudio/CoreAudio.h>\n' "$COREAUDIO_CHMAP"
-        echo "Patched: $COREAUDIO_CHMAP (added CoreAudio import)"
-    else
-        echo "Already patched: $COREAUDIO_CHMAP"
-    fi
-fi
-# =========================================================================
-# 5. 生成 Cross-file
+# 4. 生成 Cross-file（对齐 MPVKit 官方方案）
 # =========================================================================
 CROSS_FILE="$SCRATCH/$ARCH_DIR/mpv-cross-file.txt"
+
+# 确定 subsystem（meson cross-file 需要）
+if [ "$ENVIRONMENT" = "simulator" ]; then
+    SUBSYSTEM="ios-simulator"
+else
+    SUBSYSTEM="ios"
+fi
 
 cat > "$CROSS_FILE" << EOF
 [binaries]
@@ -113,19 +91,23 @@ pkg-config = 'pkg-config'
 
 [host_machine]
 system = 'darwin'
+subsystem = '$SUBSYSTEM'
+kernel = 'xnu'
 cpu_family = '$CPU_FAMILY'
 cpu = '$CPU'
 endian = 'little'
 
 [properties]
 needs_exe_wrapper = true
+has_function_printf = true
 
 [built-in options]
+default_library = 'static'
 c_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
 cpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
-objc_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-fobjc-arc']
-objcpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-fobjc-arc']
-c_link_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-framework', 'Foundation', '-framework', 'CoreFoundation', '-framework', 'CoreAudio', '-framework', 'AudioToolbox', '-framework', 'AVFoundation', '-framework', 'CoreMedia', '-framework', 'CoreVideo', '-framework', 'OpenGLES', '-framework', 'QuartzCore', '-framework', 'IOSurface']
+objc_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
+objcpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
+c_link_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-lc++']
 cpp_link_args = c_link_args
 objc_link_args = c_link_args
 objcpp_link_args = c_link_args
@@ -163,8 +145,8 @@ ARGS=(
     -Dlua=disabled
     -Djavascript=disabled
 
-    # Apple 平台核心
-    -Davfoundation=enabled
+    # Apple 平台核心（对齐 MPVKit：iOS 上禁用 avfoundation，启用 videotoolbox-pl）
+    -Davfoundation=disabled
     -Dvideotoolbox-pl=disabled
     -Dvideotoolbox-gl=enabled
 
