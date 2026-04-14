@@ -172,6 +172,12 @@ fi
 if [ -d "$VULKAN_HEADERS_SRC/include/vulkan" ]; then
     echo "Using Vulkan-Headers v${VULKAN_HEADERS_VERSION} for vulkan/ headers"
     cp -R "$VULKAN_HEADERS_SRC/include/vulkan/"* "$DEST_INCLUDE/vulkan/"
+    # 同时复制 vk_video/ 目录（包含视频编解码头文件，如 vulkan_video_codec_h264std.h）
+    if [ -d "$VULKAN_HEADERS_SRC/include/vk_video" ]; then
+        echo "Copying vk_video/ headers..."
+        mkdir -p "$DEST_INCLUDE/vk_video"
+        cp -R "$VULKAN_HEADERS_SRC/include/vk_video/"* "$DEST_INCLUDE/vk_video/"
+    fi
 elif [ -d "Package/Release/MoltenVK/include/vulkan" ]; then
     echo "WARNING: Falling back to MoltenVK's bundled vulkan headers (may lack VK_VERSION_1_3)"
     cp -R Package/Release/MoltenVK/include/vulkan/* "$DEST_INCLUDE/vulkan/"
