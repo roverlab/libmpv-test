@@ -5,20 +5,23 @@
 # Architecture:
 #   Step 0 (dav1d):   Build dav1d AV1 decoder separately (must be before ffmpeg)
 #   Step 1 (ffmpeg):  Build FFmpeg separately (not a meson subproject)
+#   Step shaderc:     Build libshaderc (SPIR-V compiler, used by libplacebo)
 #   Step 2 (mpv):     Build mpv + subprojects (libass, freetype, harfbuzz, fribidi,
 #                     libplacebo) via meson
 #
-# dav1d and FFmpeg are built separately before mpv.
+# dav1d, FFmpeg, and shaderc are built separately before mpv.
 # Each component downloads its own source if needed.
 
 # dav1d（单独编译，必须在 ffmpeg 之前）
 DAV1D_LIBRARIES="dav1d"
 # FFmpeg（单独编译）
 FFMPEG_LIBRARIES="ffmpeg"
+# libshaderc（单独编译）
+SHADERC_LIBRARIES="shaderc"
 # libmpv（最后编译，包含其他 subprojects）
 MPV_LIBRARIES="libmpv"
 # 所有库
-ALL_LIBRARIES="$DAV1D_LIBRARIES $FFMPEG_LIBRARIES $MPV_LIBRARIES"
+ALL_LIBRARIES="$DAV1D_LIBRARIES $FFMPEG_LIBRARIES $SHADERC_LIBRARIES $MPV_LIBRARIES"
 
 export PKG_CONFIG_PATH
 export LDFLAGS
@@ -57,6 +60,10 @@ case $STEP in
 		LIBRARIES="$FFMPEG_LIBRARIES"
 		echo "=== Step 1: Building FFmpeg ==="
 		;;
+	shaderc)
+		LIBRARIES="$SHADERC_LIBRARIES"
+		echo "=== Step shaderc: Building libshaderc ==="
+		;;
 	2|mpv)
 		LIBRARIES="$MPV_LIBRARIES"
 			echo "=== Step 2: Building libmpv (+ subprojects) ==="
@@ -66,7 +73,7 @@ case $STEP in
 		echo "=== Building all libraries ==="
 		;;
 		*)
-			echo "Invalid step: $STEP (use 0-2 or omit for all)"
+			echo "Invalid step: $STEP (use 0-2, shaderc, or omit for all)"
 	exit 1
 		;;
 esac
@@ -145,6 +152,9 @@ for ARCH in $ARCHS; do
 				;;
             "ffmpeg" )
 				mkdir -p $SCRATCH/$ARCH_DIR/ffmpeg && cd $_ && $SCRIPTS/components/ffmpeg-build.sh
+				;;
+            "shaderc" )
+				$SCRIPTS/components/shaderc-build.sh
 				;;
             "libmpv" )
 				$SCRIPTS/components/mpv-build.sh
