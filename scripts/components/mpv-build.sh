@@ -130,6 +130,12 @@ clone_subproject "harfbuzz"  "$HARFBUZZ_GIT_URL"    "$HARFBUZZ_VERSION"   "harfb
 FRIBIDI_URL="https://github.com/fribidi/fribidi/releases/download/v$FRIBIDI_VERSION/fribidi-$FRIBIDI_VERSION.tar.xz"
 download_tarball "fribidi" "$FRIBIDI_URL" "fribidi"
 
+# 将 fribidi 作为 subproject 注册到 meson（创建符号链接或复制到 subprojects/）
+if [ -d "$SRC/fribidi" ] && [ ! -e "subprojects/fribidi" ]; then
+    echo "Registering fribidi as meson subproject..."
+    ln -s "$SRC/fribidi" "subprojects/fribidi"
+fi
+
 # 返回 mpv 源码根目录（meson.build 在这里）
 cd ..
 
