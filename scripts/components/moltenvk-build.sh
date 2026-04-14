@@ -47,43 +47,66 @@ fi
 # 通过 "Package MoltenVK" Build Phase 脚本输出到 Package/Release/MoltenVK/
 #
 # 已确认的目录结构:
-#   Package/Release/MoltenVK/static/MoltenVK.xcframework/ios-arm64/MoltenVK.framework/MoltenVK
-#   Package/Release/MoltenVK/dynamic/MoltenVK.xcframework/ios-arm64/MoltenVK.framework/MoltenVK
-#   Package/Release/MoltenVK/include/MoltenVK/
-#   Package/Release/MoltenVK/include/vulkan/
+#   Package/Release/MoltenVK/static/MoltenVK.xcframework/ios-arm64/          ← 静态库
+#   Package/Release/MoltenVK/dynamic/MoltenVK.xcframework/ios-arm64/MoltenVK.framework/  ← 动态库
+#   Package/Release/MoltenVK/include/{MoltenVK,vulkan}/                      ← 头文件
+#
+# 注意: static xcframework 内可能是 .a 文件（不是 .framework bundle）
+#       dynamic xcframework 内是 MoltenVK.framework/
 
 if [ "$ENVIRONMENT" = "simulator" ]; then
-    # iOS Simulator: static xcframework → ios-arm64-simulator slice
-    FRAMEWORK_PATH="Package/Release/MoltenVK/static/MoltenVK.xcframework/ios-arm64-simulator/MoltenVK.framework"
+    XCFRAMEWORK_SLICE="Package/Release/MoltenVK/static/MoltenVK.xcframework/ios-arm64-simulator"
 else
-    # iOS Device: static xcframework → ios-arm64 slice
-    FRAMEWORK_PATH="Package/Release/MoltenVK/static/MoltenVK.xcframework/ios-arm64/MoltenVK.framework"
+    XCFRAMEWORK_SLICE="Package/Release/MoltenVK/static/MoltenVK.xcframework/ios-arm64"
 fi
 
-if [ ! -d "$FRAMEWORK_PATH" ]; then
-    echo "ERROR: MoltenVK.framework not found at $FRAMEWORK_PATH"
+if [ ! -d "$XCFRAMEWORK_SLICE" ]; then
+    echo "ERROR: Static xcframework slice not found at $XCFRAMEWORK_SLICE"
     echo "  Package/ contents:"
     find Package -type d -maxdepth 6 2>/dev/null | head -40
     exit 1
 fi
 
-echo "Found MoltenVK.framework at: $FRAMEWORK_PATH"
+echo "Static xcframework slice: $XCFRAMEWORK_SLICE"
+echo "  Contents:"
+ls -la "$XCFRAMEWORK_SLICE/"
 
-# 提取静态库文件（framework 内部名为 "MoltenVK"，无扩展名）
-STATIC_LIB="$FRAMEWORK_PATH/MoltenVK"
-if [ ! -f "$STATIC_LIB" ]; then
-    # 备选：有些版本可能叫 libMoltenVK.a
-    STATIC_LIB="$FRAMEWORK_PATH/libMoltenVK.a"
+# static xcframework 中查找静态库 (.a 文件)
+# 可能直接在 slice 根目录，也可能在 MoltenVK.framework 内部
+STATIC_LIB=""
+if [ -f "$XCFRAMEWORK_SLICE/libMoltenVK.a" ]; then
+    STATIC_LIB="$XCFRAMEWORK_SLICE/libMoltenVK.a"
+elif [ -f "$XCFRAMEWORK_SLICE/MoltenVK.framework/MoltenVK" ]; then
+    STATIC_LIB="$XCFRAMEWORK_SLICE/MoltenVK.framework/MoltenVK"
+elif [ -f "$XCFRAMEWORK_SLICE/MoltenVK.framework/libMoltenVK.a" ]; then
+    STATIC_LIB="$XCFRAMEWORK_SLICE/MoltenVK.framework/libMoltenVK.a"
+elif [ -f "$XCFRAMEWORK_SLICE/MoltenVK.framework/MoltenVK" ]; then
+    STATIC_LIB="$XCFRAMEWORK_SLICE/MoltenVK.framework/MoltenVK"
+else
+    # 兜底：搜索任意 .a 文件
+    FOUND_A=$(find "$XCFRAMEWORK_SLICE" -name "*.a" -type f 2>/dev/null | head -1)
+    if [ -n "$FOUND_A" ]; then
+        STATIC_LIB="$FOUND_A"
+    fi
 fi
 
-if [ ! -f "$STATIC_LIB" ]; then
-    echo "ERROR: Static library not found inside framework"
-    ls -la "$FRAMEWORK_PATH/"
+if [ -z "$STATIC_LIB" ]; then
+    echo "ERROR: Static library not found in $XCFRAMEWORK_SLICE"
+    echo "  Full contents:"
+    find "$XCFRAMEWORK_SLICE" -type f 2>/dev/null
     exit 1
 fi
 
 echo "Static library: $STATIC_LIB"
 file "$STATIC_LIB"
+
+# 同时定位头文件的 framework 路径（用于取 Headers）
+FRAMEWORK_PATH=""
+if [ -d "$XCFRAMEWORK_SLICE/MoltenVK.framework" ]; then
+    FRAMEWORK_PATH="$XCFRAMEWORK_SLICE/MoltenVK.framework"
+elif [ -d "Package/Release/MoltenVK/dynamic/MoltenVK.xcframework/ios-arm64/MoltenVK.framework" ]; then
+    FRAMEWORK_PATH="Package/Release/MoltenVK/dynamic/MoltenVK.xcframework/ios-arm64/MoltenVK.framework"
+fi
 
 DEST_LIB="$SCRATCH/$ARCH_DIR/lib"
 DEST_INCLUDE="$SCRATCH/$ARCH_DIR/include"
