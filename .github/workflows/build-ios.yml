@@ -57,7 +57,8 @@ jobs:
       - name: Install gas-preprocessor
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
         run: |
-          sudo curl -L https://github.com/libav/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl
+          # Use montoyo's fork which supports FFmpeg 8+ aarch64 assembly (e.g. VVC ALF neon code with expression indices)
+          sudo curl -L https://github.com/montoyo/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl
           sudo chmod +x /usr/local/bin/gas-preprocessor.pl
 
       - name: Make build scripts executable
@@ -125,7 +126,8 @@ jobs:
 
       - name: Install gas-preprocessor
         run: |
-          sudo curl -L https://github.com/libav/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl
+          # Use montoyo's fork which supports FFmpeg 8+ aarch64 assembly (e.g. VVC ALF neon code with expression indices)
+          sudo curl -L https://github.com/montoyo/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl
           sudo chmod +x /usr/local/bin/gas-preprocessor.pl
 
       - name: Make build scripts executable

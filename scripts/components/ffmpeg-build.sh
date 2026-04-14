@@ -15,7 +15,7 @@ FFMPEG_OPTIONS="${COMMON_OPTIONS%% *} \
 		--enable-pic \
 		--enable-static \
 		--disable-shared \
-		--disable-audiotoolbox \
+		--enable-audiotoolbox \
 		--enable-videotoolbox \
 		--enable-libdav1d \
 		--disable-coreimage \
@@ -28,7 +28,9 @@ FFMPEG_OPTIONS="${COMMON_OPTIONS%% *} \
 		# external libjpeg, so disabling it is safe.
 
 if [[ ! `which gas-preprocessor.pl` ]]; then
-	curl -L https://github.com/libav/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl \
+	# Use montoyo's fork which supports FFmpeg 8+ aarch64 assembly
+	# (e.g. VVC ALF neon code with expression indices like v0.h[8 - 8])
+	curl -L https://github.com/montoyo/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl \
 		&& chmod +x /usr/local/bin/gas-preprocessor.pl
 fi
 
