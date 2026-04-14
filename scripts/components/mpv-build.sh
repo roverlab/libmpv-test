@@ -110,14 +110,6 @@ if [ -d "build" ]; then
 fi
 
 
-NATIVE_FILE="$SCRATCH/$ARCH_DIR/native.txt"
-
-cat > "$NATIVE_FILE" << EOF
-[binaries]
-c = 'cc'
-cpp = 'c++'
-EOF
-
 
 unset SDKROOT CFLAGS CXXFLAGS LDFLAGS CPPFLAGS
 export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
@@ -125,61 +117,95 @@ export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
 # =========================================================================
 # 5. Meson 构建
 # =========================================================================
-meson setup build \
-    --cross-file "$CROSS_FILE" \
-    --native-file "$NATIVE_FILE" \
-    --buildtype=release \
-    --wrap-mode=nodownload \
-    -Ddefault_library=static \
-    -Dcplayer=false \
-    -Dgpl=false \
-    -Dlibmpv=true \
-    -Dlua=disabled \
-    -Djavascript=disabled \
-    -Dcocoa=disabled \
-    -Dswift-build=disabled \
-    -Dmacos-cocoa-cb=disabled \
-    -Dcoreaudio=disabled \
-    -Daudiounit=enabled \
-    -Davfoundation=disabled \
-    -Dvideotoolbox-pl=disabled \
-    -Dvideotoolbox-gl=disabled \
-    -Dgl=enabled \
-    -Degl=disabled \
-    -Dvulkan=disabled \
-    -Dplain-gl=enabled \
-    -Dx11=disabled \
-    -Dwayland=disabled \
-    -Dalsa=disabled \
-    -Dios-gl=enabled \
-    -Dmanpage-build=disabled \
-    -Dhtml-build=disabled \
-    -Dpdf-build=disabled \
-    -Dlibplacebo:opengl=enabled \
-    -Dlibplacebo:vulkan=disabled \
-    -Dlibplacebo:glslang=disabled \
-    -Dlibplacebo:shaderc=disabled \
-    -Dlibplacebo:lcms=disabled \
-    -Dlibplacebo:dovi=disabled \
-    -Dlibplacebo:libdovi=disabled \
-    -Dlibplacebo:xxhash=disabled \
-    -Diconv=enabled \
-    -Dlibarchive=disabled \
-    -Duchardet=disabled \
-    -Dlcms2=disabled \
-    -Dmacos-media-player=disabled \
-    -Djpeg=disabled \
-    -Dlibass:coretext=enabled \
-    -Dlibass:fontconfig=disabled \
-    -Dlibass:asm=disabled \
-    -Dlibass:directwrite=disabled \
-    -Dfreetype2:png=disabled \
-    -Dfreetype2:bzip2=disabled \
-    -Dfreetype2:brotli=disabled \
-    -Dharfbuzz:glib=disabled \
-    -Dharfbuzz:icu=disabled \
-    -Dharfbuzz:cairo=disabled \
-    -Dharfbuzz:freetype=enabled 
+
+
+# 定义编译参数数组
+ARGS=(
+    --cross-file "$CROSS_FILE"
+    --buildtype=release
+    --wrap-mode=nodownload
+    -Ddefault_library=static
+    -Dcplayer=false
+    -Dgpl=false
+    -Dlibmpv=true
+
+    # scripting
+    -Dlua=disabled
+    -Djavascript=disabled
+
+    # Apple 平台核心
+    -Davfoundation=enabled
+    -Dvideotoolbox-pl=enabled
+    -Dvideotoolbox-gl=disabled
+
+    # 音频（iOS 必备）
+    -Daudiounit=enabled
+    -Dcoreaudio=disabled
+
+    # 图形
+    -Dgl=enabled
+    -Dplain-gl=enabled
+    -Dios-gl=enabled
+    -Degl=disabled
+    -Dvulkan=disabled
+
+    # 窗口系统
+    -Dcocoa=disabled
+    -Dswift-build=disabled
+    -Dmacos-cocoa-cb=disabled
+
+    # 平台无关关闭
+    -Dx11=disabled
+    -Dwayland=disabled
+    -Dalsa=disabled
+
+    # 文档
+    -Dmanpage-build=disabled
+    -Dhtml-build=disabled
+    -Dpdf-build=disabled
+
+    # libplacebo（建议保留最小功能）
+    -Dlibplacebo:opengl=enabled
+    -Dlibplacebo:vulkan=disabled
+    -Dlibplacebo:glslang=disabled
+    -Dlibplacebo:shaderc=disabled
+    -Dlibplacebo:lcms=disabled
+    -Dlibplacebo:dovi=disabled
+    -Dlibplacebo:libdovi=disabled
+    -Dlibplacebo:xxhash=disabled
+
+    # 字符/容器
+    -Diconv=enabled
+    -Dlibarchive=disabled
+    -Duchardet=disabled
+
+    # 颜色管理
+    -Dlcms2=disabled
+
+    # 图片
+    -Djpeg=disabled
+
+    # 字幕（最小）
+    -Dlibass:coretext=enabled
+    -Dlibass:fontconfig=disabled
+    -Dlibass:asm=disabled
+    -Dlibass:directwrite=disabled
+
+    # freetype 精简
+    -Dfreetype2:png=disabled
+    -Dfreetype2:bzip2=disabled
+    -Dfreetype2:brotli=disabled
+
+    # harfbuzz
+    -Dharfbuzz:glib=disabled
+    -Dharfbuzz:icu=disabled
+    -Dharfbuzz:cairo=disabled
+    -Dharfbuzz:freetype=enabled
+)
+
+# 运行命令
+meson setup build "${ARGS[@]}"
+
 
 ninja -C build -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
 ninja -C build install
