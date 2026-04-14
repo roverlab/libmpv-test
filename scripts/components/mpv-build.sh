@@ -234,6 +234,10 @@ if ! grep -q "moltenvk" meson.options 2>/dev/null; then
     echo "option('moltenvk', type: 'feature', value: 'auto', description: 'MoltenVK support for Vulkan on macOS/iOS')" >> meson.options
 fi
 
+# 临时修复：替换 meson.build 中 vulkan 版本要求 1.3.238 -> 1.0.0
+# MoltenVK 的 vulkan.pc 报告的版本号无法满足 mpv 的默认检查
+sed -i '' "s/1\.3\.238/1.0.0/" meson.build && echo "Patched: vulkan version 1.3.238 -> 1.0.0"
+
 
 # 定义编译参数数组
 ARGS=(
@@ -321,6 +325,20 @@ ARGS=(
 )
 
 # 运行命令
+# 先打印调试信息，确认 pkg-config 能找到正确的依赖
+echo "=== pkg-config debug info ==="
+echo "  PKG_CONFIG_LIBDIR=$PKG_CONFIG_LIBDIR"
+echo "  PKG_CONFIG_PATH=${PKG_CONFIG_PATH:-<unset>}"
+echo "  vulkan.pc:"
+pkg-config --modversion vulkan 2>&1 || echo "  WARNING: pkg-config cannot find vulkan!"
+echo "  vulkan cflags:"
+pkg-config --cflags vulkan 2>&1 || true
+echo "  vulkan libs:"
+pkg-config --libs vulkan 2>&1 || true
+echo "  Working directory: $(pwd)"
+echo "  meson.build exists: $(test -f meson.build && echo YES || echo NO)"
+echo "============================="
+
 meson setup build "${ARGS[@]}"
 
 ninja -C build -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)

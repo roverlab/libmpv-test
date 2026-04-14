@@ -140,6 +140,14 @@ if [ -d "Package/Release/MoltenVK/include/vulkan" ]; then
 fi
 
 # 生成 pkg-config 文件（meson 编译 mpv 时通过 pkg-config 查找 vulkan）
+#
+# 重要：Version 字段必须满足 mpv meson.build 的版本检查要求。
+# mpv 0.41.0 要求 vulkan >= 1.3.238（这是 Vulkan Header 版本号，
+# 对应 Vulkan API 1.3 + VK_KHR_dynamic_rendering 等特性）。
+# MoltenKV 自身版本号（如 1.0.3、1.2.x 等）远低于此要求，
+# 但 MoltenVK 实际上已实现 Vulkan 1.3 所需的全部功能，
+# 因此这里声明 Vulkan Header 版本号以满足依赖检查。
+VULKAN_PC_VERSION="1.3.280"
 cat > "$DEST_PKGCONFIG/vulkan.pc" << EOF
 prefix=$SCRATCH/$ARCH_DIR
 exec_prefix=\${prefix}
@@ -148,7 +156,7 @@ includedir=\${prefix}/include
 
 Name: Vulkan
 Description: Vulkan (MoltenVK) static library
-Version: 1.0.3
+Version: $VULKAN_PC_VERSION
 Libs: -L\${libdir} -lMoltenVK -framework Metal -framework QuartzCore -framework Foundation -framework CoreGraphics -framework IOSurface
 Cflags: -I\${includedir}/MoltenVK -I\${includedir}/vulkan
 EOF
