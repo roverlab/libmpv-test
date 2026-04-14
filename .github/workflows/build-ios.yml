@@ -137,12 +137,23 @@ jobs:
           echo "=== MoltenVK directory structure ==="
           find /tmp/moltenvk -type d | head -20
           
-          # 复制对应平台的文件
+          # 复制对应平台的库文件
           if [ "${{ matrix.environment }}" = "simulator" ]; then
             cp -R /tmp/moltenvk/lib/MoltenVK.xcframework/ios-arm64_x86_64-simulator/* "scratch/$ARCH_DIR/"
           else
             cp -R /tmp/moltenvk/lib/MoltenVK.xcframework/ios-arm64/* "scratch/$ARCH_DIR/"
           fi
+          
+          # 复制头文件 (关键！meson 需要 vulkan/vulkan_core.h)
+          echo "=== Copying MoltenVK headers ==="
+          mkdir -p "scratch/$ARCH_DIR/include"
+          cp -R /tmp/moltenvk/include/MoltenVK "scratch/$ARCH_DIR/include/"
+          cp -R /tmp/moltenvk/include/vulkan "scratch/$ARCH_DIR/include/"
+          cp -R /tmp/moltenvk/include/vk_video "scratch/$ARCH_DIR/include/"
+          
+          echo "=== Headers installed ==="
+          ls -la "scratch/$ARCH_DIR/include/"
+          ls -la "scratch/$ARCH_DIR/include/vulkan/" | head -10
           
           # 创建 pkgconfig 文件
           mkdir -p "scratch/$ARCH_DIR/lib/pkgconfig"
