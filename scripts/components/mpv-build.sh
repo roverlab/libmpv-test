@@ -165,8 +165,7 @@ ARGS=(
     -Dhtml-build=disabled
     -Dpdf-build=disabled
 
-    # libplacebo（建议保留最小功能）
-    -Dlibplacebo:metal=enabled
+    # libplacebo（metal 后端已在 v6.x 中移除，不再需要）
     -Dlibplacebo:opengl=enabled
     -Dlibplacebo:vulkan=disabled
     -Dlibplacebo:glslang=disabled
