@@ -11,7 +11,7 @@ permissions:
 
 env:
   # FFmpeg 缓存 key — 版本号变更时自动失效
-  FFMPEG_CACHE_KEY: "ffmpeg-v7.0-ios-static"
+  FFMPEG_CACHE_KEY: "ffmpeg-v8.0-ios-static"
 
 jobs:
   # =========================================================================
