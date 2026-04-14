@@ -240,17 +240,23 @@ fi
 sed -i '' "s/1\.3\.238/1.0.0/" meson.build && echo "Patched: vulkan version 1.3.238 -> 1.0.0"
 
 # 临时修复：绕过 VK_VERSION_1_3 检测
-# meson 的 has_header_symbol() 在交叉编译时可能无法正确检测到宏定义
-# 即使头文件中已定义了 VK_VERSION_1_3
-# 这个 patch 直接将 vulkan feature 设为已找到（当 vulkan 依赖存在时）
-# 原始代码：features += {'vulkan': vulkan.found() and (vulkan.type_name() == 'internal' or cc.has_header_symbol(...))}
-# 修改为：features += {'vulkan': vulkan.found()}
+# 使用 Python 进行多行替换（更可靠）
 if grep -q "VK_VERSION_1_3" meson.build; then
     echo "Patching meson.build to bypass VK_VERSION_1_3 check..."
-    # 使用 sed 替换，将复杂的 VK_VERSION_1_3 检测简化
-    # 匹配: features += {'vulkan': vulkan.found() and (vulkan.type_name() == 'internal' or cc.has_header_symbol('vulkan/vulkan_core.h', 'VK_VERSION_1_3', dependencies: vulkan))}
-    # 替换为: features += {'vulkan': vulkan.found()}
-    sed -i '' "s/features += {'vulkan': vulkan.found() and (vulkan.type_name() == 'internal' or cc.has_header_symbol('vulkan\/vulkan_core.h', 'VK_VERSION_1_3', dependencies: vulkan))}/features += {'vulkan': vulkan.found()}/" meson.build
+    python3 << 'PYTHON_EOF'
+import re
+with open('meson.build', 'r') as f:
+    content = f.read()
+
+# 替换多行的 VK_VERSION_1_3 检测
+pattern = r"features \+= \{'vulkan': vulkan\.found\(\) and \(vulkan\.type_name\(\) == 'internal' or\s+cc\.has_header_symbol\('vulkan/vulkan_core\.h',\s+'VK_VERSION_1_3',\s+dependencies: vulkan\)\)\}"
+replacement = "features += {'vulkan': vulkan.found()}"
+content = re.sub(pattern, replacement, content)
+
+with open('meson.build', 'w') as f:
+    f.write(content)
+print("Python patch applied")
+PYTHON_EOF
     echo "Patch applied."
 fi
 
