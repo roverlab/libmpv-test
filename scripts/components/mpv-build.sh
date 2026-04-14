@@ -68,7 +68,31 @@ cd ..
 
 
 # =========================================================================
-# 4. 生成 Cross-file
+# 4. 创建 ObjC 编译器 Wrapper（解决 CoreAudio 类型注入问题）
+# =========================================================================
+# mpv 的 ao_coreaudio_utils.h / ao_coreaudio_chmap.h 使用了 AudioDeviceID 等
+# CoreAudio 类型，但这些头文件自身没有 #import <CoreAudio/CoreAudio.h>。
+# 在交叉编译中需要通过 -include 注入，但不能直接放在 cross-file 的 objc_args
+# 中（会破坏 meson 编译器功能性测试）。解决方案：创建 wrapper 脚本。
+OBJC_WRAPPER="$SCRATCH/$ARCH_DIR/objc-wrapper.sh"
+cat > "$OBJC_WRAPPER" << 'WRAPPER_EOF'
+#!/bin/sh
+# ObjC 编译器 wrapper：自动注入 CoreAudio 头文件和 ARC 标志
+# 对 meson 的编译器检测程序透明（简单 C 程序不受影响）
+exec clang -fobjc-arc -include CoreAudio/CoreAudio.h "$@"
+WRAPPER_EOF
+chmod +x "$OBJC_WRAPPER"
+
+OBJCPP_WRAPPER="$SCRATCH/$ARCH_DIR/objcpp-wrapper.sh"
+cat > "$OBJCPP_WRAPPER" << 'WRAPPER_EOF'
+#!/bin/sh
+# ObjC++ 编译器 wrapper：自动注入 CoreAudio 头文件和 ARC 标志
+exec clang++ -fobjc-arc -include CoreAudio/CoreAudio.h "$@"
+WRAPPER_EOF
+chmod +x "$OBJCPP_WRAPPER"
+
+# =========================================================================
+# 5. 生成 Cross-file
 # =========================================================================
 CROSS_FILE="$SCRATCH/$ARCH_DIR/mpv-cross-file.txt"
 
@@ -76,8 +100,8 @@ cat > "$CROSS_FILE" << EOF
 [binaries]
 c = 'clang'
 cpp = 'clang++'
-objc = 'clang'
-objcpp = 'clang++'
+objc = '$OBJC_WRAPPER'
+objcpp = '$OBJCPP_WRAPPER'
 ar = 'ar'
 strip = 'strip'
 pkg-config = 'pkg-config'
@@ -94,8 +118,8 @@ needs_exe_wrapper = true
 [built-in options]
 c_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
 cpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
-objc_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-fobjc-arc', '-include', 'CoreAudio/CoreAudio.h']
-objcpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-fobjc-arc', '-include', 'CoreAudio/CoreAudio.h']
+objc_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
+objcpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
 c_link_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-framework', 'Foundation', '-framework', 'CoreFoundation', '-framework', 'CoreAudio', '-framework', 'AudioToolbox', '-framework', 'AVFoundation', '-framework', 'CoreMedia', '-framework', 'CoreVideo', '-framework', 'OpenGLES', '-framework', 'QuartzCore', '-framework', 'IOSurface']
 cpp_link_args = c_link_args
 objc_link_args = c_link_args
@@ -111,6 +135,7 @@ fi
 
 
 
+# 清除可能影响交叉编译的环境变量
 unset SDKROOT CFLAGS CXXFLAGS LDFLAGS CPPFLAGS
 export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
 
