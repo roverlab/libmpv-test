@@ -12,92 +12,8 @@ permissions:
 env:
   # 缓存 key — 版本号变更时自动失效
   FFMPEG_CACHE_KEY: "ffmpeg-v8.1-ios-static"
-  MOLTENVK_CACHE_KEY: "moltenvk-v1-ios-static"
 
 jobs:
-  # =========================================================================
-  # Job 0: 编译 MoltenVK (device + simulator) 并缓存
-  # =========================================================================
-  build-moltenvk:
-    name: Build MoltenVK (${{ matrix.environment }})
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        environment: [distribution, simulator]
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      # 检查 MoltenVK 编译产物缓存
-      - id: cache-moltenvk
-        uses: actions/cache@v4
-        with:
-          path: |
-            scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/lib/libMoltenVK.a
-            scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/lib/pkgconfig/vulkan.pc
-            scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/include/MoltenVK/
-            scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/include/vulkan/
-          key: ${{ env.MOLTENVK_CACHE_KEY }}-${{ matrix.environment }}-${{ runner.os }}
-
-      - name: Setup Xcode
-        if: steps.cache-moltenvk.outputs.cache-hit != 'true'
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
-
-      - name: Install dependencies
-        if: steps.cache-moltenvk.outputs.cache-hit != 'true'
-        run: |
-          brew install pkg-config
-          brew install meson
-          brew install python@3.13
-
-      - name: Make build scripts executable
-        if: steps.cache-moltenvk.outputs.cache-hit != 'true'
-        run: |
-          chmod +x scripts/*.sh scripts/components/*.sh
-
-      - name: Build MoltenVK
-        if: steps.cache-moltenvk.outputs.cache-hit != 'true'
-        env:
-          ENVIRONMENT: ${{ matrix.environment }}
-          ARCH: arm64
-          SCRATCH: ${{ github.workspace }}/scratch
-          SRC: ${{ github.workspace }}/src
-          ROOT: ${{ github.workspace }}
-        run: |
-          ARCH_DIR="${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}"
-          mkdir -p "scratch/$ARCH_DIR"
-          
-          # 设置 SDK 路径
-          if [ "${{ matrix.environment }}" = "simulator" ]; then
-            export SDKPATH="$(xcodebuild -sdk iphonesimulator -version Path)"
-          else
-            export SDKPATH="$(xcodebuild -sdk iphoneos -version Path)"
-          fi
-          
-          echo "=== Building MoltenVK for ${{ matrix.environment }} ==="
-          ./scripts/components/moltenvk-build.sh
-
-      - name: Verify MoltenVK build
-        run: |
-          ARCH_DIR="${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}"
-          echo "=== MoltenVK for ${{ matrix.environment }} ==="
-          ls -la scratch/$ARCH_DIR/lib/libMoltenVK.a
-          ls -la scratch/$ARCH_DIR/lib/pkgconfig/vulkan.pc
-
-      - name: Upload MoltenVK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: moltenvk-${{ matrix.environment }}
-          path: |
-            scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/lib/libMoltenVK.a
-            scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/lib/pkgconfig/vulkan.pc
-            scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/include/MoltenVK/
-            scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/include/vulkan/
-          retention-days: 1
-
   # =========================================================================
   # Job 1: 编译 FFmpeg (device + simulator) 并缓存
   # =========================================================================
@@ -171,7 +87,7 @@ jobs:
   build-libmpv:
     name: Build libmpv (${{ matrix.environment }})
     runs-on: macos-latest
-    needs: [build-ffmpeg, build-moltenvk]
+    needs: [build-ffmpeg]
     strategy:
       matrix:
         environment: [distribution, simulator]
@@ -203,12 +119,44 @@ jobs:
           name: ffmpeg-${{ matrix.environment }}
           path: scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/
 
-      # 下载 MoltenVK artifacts
-      - name: Download MoltenVK artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: moltenvk-${{ matrix.environment }}
-          path: scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/
+      # 下载预编译的 MoltenVK
+      - name: Download MoltenVK
+        run: |
+          ARCH_DIR="${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}"
+          mkdir -p "scratch/$ARCH_DIR"
+          
+          # 下载 MPVKit 预编译的 MoltenVK
+          MOLTENVK_URL="https://github.com/mpvkit/moltenvk-build/releases/download/1.4.1/MoltenVK-all.zip"
+          echo "Downloading MoltenVK from $MOLTENVK_URL"
+          curl -L -o /tmp/moltenvk.zip "$MOLTENVK_URL"
+          
+          # 解压到临时目录
+          unzip -q /tmp/moltenvk.zip -d /tmp/moltenvk
+          
+          # 复制对应平台的文件
+          if [ "${{ matrix.environment }}" = "simulator" ]; then
+            cp -R /tmp/moltenvk/MoltenVK.xcframework/ios-arm64_x86_64-simulator/* "scratch/$ARCH_DIR/"
+          else
+            cp -R /tmp/moltenvk/MoltenVK.xcframework/ios-arm64/* "scratch/$ARCH_DIR/"
+          fi
+          
+          # 创建 pkgconfig 文件
+          mkdir -p "scratch/$ARCH_DIR/lib/pkgconfig"
+          cat > "scratch/$ARCH_DIR/lib/pkgconfig/vulkan.pc" << 'EOF'
+          prefix=${{ github.workspace }}/scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}
+          exec_prefix=${prefix}
+          libdir=${exec_prefix}/lib
+          includedir=${prefix}/include
+          
+          Name: Vulkan
+          Description: Vulkan (MoltenVK) static library
+          Version: 1.3.280
+          Libs: -L${libdir} -lMoltenVK -framework Metal -framework QuartzCore -framework Foundation -framework CoreGraphics -framework IOSurface
+          Cflags: -I${includedir}/MoltenVK -I${includedir}/vulkan
+          EOF
+          
+          echo "=== MoltenVK installed ==="
+          ls -la "scratch/$ARCH_DIR/"
 
       - name: Verify dependencies
         run: |
