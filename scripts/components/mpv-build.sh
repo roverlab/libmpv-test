@@ -254,6 +254,7 @@ if ! grep -q "moltenvk" meson.options 2>/dev/null; then
 fi
 
 
+
 # =========================================================================
 # 修复 libplacebo utils_gen.py 的 Python 3.14 兼容性问题
 # Python 3.14 中 ElementTree.__init__() 不再接受 ElementTree 对象
@@ -300,6 +301,7 @@ ARGS=(
     -Dios-gl=enabled
     -Degl=disabled
     -Dvulkan=enabled
+    -Dmoltenvk=enabled
 
     # 窗口系统
     -Dcocoa=disabled
@@ -318,7 +320,7 @@ ARGS=(
 
     # libplacebo
     -Dlibplacebo:vulkan=enabled
-    -Dlibplacebo:opengl=enabled
+    -Dlibplacebo:opengl=disabled
     -Dlibplacebo:glslang=disabled
     -Dlibplacebo:shaderc=disabled
     -Dlibplacebo:lcms=disabled
