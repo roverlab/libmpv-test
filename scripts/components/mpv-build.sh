@@ -16,36 +16,25 @@ FREETYPE_VERSION="${FREETYPE_VERSION:-2.13.2}"
 HARFBUZZ_VERSION="${HARFBUZZ_VERSION:-8.4.0}"
 FRIBIDI_VERSION="${FRIBIDI_VERSION:-1.0.16}"
 
-MPV_URL="https://github.com/mpv-player/mpv/archive/v$MPV_VERSION.tar.gz"
-
-# Git URLs for subprojects
+# Git URLs
+MPV_GIT_URL="https://github.com/mpv-player/mpv.git"
 LIBPLACEBO_GIT_URL="https://github.com/haasn/libplacebo.git"
 LIBASS_GIT_URL="https://github.com/libass/libass.git"
 FREETYPE_GIT_URL="https://github.com/freetype/freetype.git"
 HARFBUZZ_GIT_URL="https://github.com/harfbuzz/harfbuzz.git"
 FRIBIDI_GIT_URL="https://github.com/fribidi/fribidi.git"
 
-# 确保 src 和 downloads 目录存在
-mkdir -p "$SRC" "$ROOT/downloads"
+# 确保 src 目录存在
+mkdir -p "$SRC"
 
 # =========================================================================
-# 下载 mpv 源码
+# 克隆 mpv 源码
 # =========================================================================
-MPV_SRC="$SRC/mpv-$MPV_VERSION"
-MPV_TARNAME="mpv-v$MPV_VERSION.tar.gz"
+MPV_SRC="$SRC/mpv"
 
 if [ ! -d "$MPV_SRC" ]; then
-    echo "=== Downloading mpv $MPV_VERSION ==="
-    if [ ! -f "$ROOT/downloads/$MPV_TARNAME" ]; then
-        echo "Downloading from $MPV_URL..."
-        curl -f -L -- "$MPV_URL" > "$ROOT/downloads/$MPV_TARNAME"
-        if [ $? -ne 0 ]; then
-            echo "ERROR: Failed to download mpv"
-            exit 1
-        fi
-    fi
-    echo "Extracting..."
-    tar xvf "$ROOT/downloads/$MPV_TARNAME" -C "$SRC"
+    echo "=== Cloning mpv $MPV_VERSION ==="
+    git clone --depth 1 --branch "v$MPV_VERSION" "$MPV_GIT_URL" "$MPV_SRC"
 fi
 
 # Build MoltenVK (Vulkan on Apple platforms) and install into scratch so mpv can find vulkan.pc
