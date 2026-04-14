@@ -165,6 +165,11 @@ else
     SUBSYSTEM="ios"
 fi
 
+# 将 Vulkan/MoltenVK 头文件路径添加到编译参数中
+# 这对于 meson 的 cc.has_header_symbol() 检测至关重要
+# 因为检测时会编译测试程序，需要能找到 vulkan/vulkan_core.h
+# 注意：meson cross-file 中数组元素必须单独列出
+
 cat > "$CROSS_FILE" << EOF
 [binaries]
 c = 'clang'
@@ -189,10 +194,10 @@ has_function_printf = true
 
 [built-in options]
 default_library = 'static'
-c_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
-cpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
-objc_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
-objcpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG']
+c_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-I$SCRATCH/$ARCH_DIR/include/MoltenVK', '-I$SCRATCH/$ARCH_DIR/include/vulkan']
+cpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-I$SCRATCH/$ARCH_DIR/include/MoltenVK', '-I$SCRATCH/$ARCH_DIR/include/vulkan']
+objc_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-I$SCRATCH/$ARCH_DIR/include/MoltenVK', '-I$SCRATCH/$ARCH_DIR/include/vulkan']
+objcpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-I$SCRATCH/$ARCH_DIR/include/MoltenVK', '-I$SCRATCH/$ARCH_DIR/include/vulkan']
 c_link_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-lc++']
 cpp_link_args = c_link_args
 objc_link_args = c_link_args
