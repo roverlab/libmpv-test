@@ -162,7 +162,8 @@ ARGS=(
     -Dios-gl=enabled
     -Degl=disabled
     -Dvulkan=enabled
-    -Dmoltenvk=enabled
+    # 注意: -Dmoltenvk 是 MPVKit 自定义 patch 的选项，上游 mpv 没有
+    # mpv 自带的 vulkan 在 Darwin 平台会通过 Vulkan ICD 自动加载 MoltenVK
     
 
     # 窗口系统
