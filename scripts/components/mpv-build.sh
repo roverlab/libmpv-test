@@ -288,7 +288,7 @@ ARGS=(
     # Apple 平台核心
     -Davfoundation=disabled
     -Dvideotoolbox-pl=enabled
-    -Dvideotoolbox-gl=enabled
+    -Dvideotoolbox-gl=disabled
 
     # 音频（iOS 必备）
     -Daudiounit=enabled
