@@ -6,12 +6,54 @@ if [ -z "$SCRIPTS" ]; then
     exit 1
 fi
 
+# =========================================================================
+# 版本定义
+# =========================================================================
+MPV_VERSION="${MPV_VERSION:-0.41.0}"
+LIBPLACEBO_VERSION="${LIBPLACEBO_VERSION:-6.338.2}"
+LIBASS_VERSION="${LIBASS_VERSION:-0.17.3}"
+FREETYPE_VERSION="${FREETYPE_VERSION:-2.13.2}"
+HARFBUZZ_VERSION="${HARFBUZZ_VERSION:-8.4.0}"
+FRIBIDI_VERSION="${FRIBIDI_VERSION:-1.0.16}"
+
+MPV_URL="https://github.com/mpv-player/mpv/archive/v$MPV_VERSION.tar.gz"
+
+# Git URLs for subprojects
+LIBPLACEBO_GIT_URL="https://github.com/haasn/libplacebo.git"
+LIBASS_GIT_URL="https://github.com/libass/libass.git"
+FREETYPE_GIT_URL="https://github.com/freetype/freetype.git"
+HARFBUZZ_GIT_URL="https://github.com/harfbuzz/harfbuzz.git"
+FRIBIDI_GIT_URL="https://github.com/fribidi/fribidi.git"
+
+# 确保 src 和 downloads 目录存在
+mkdir -p "$SRC" "$ROOT/downloads"
+
+# =========================================================================
+# 下载 mpv 源码
+# =========================================================================
+MPV_SRC="$SRC/mpv-$MPV_VERSION"
+MPV_TARNAME="mpv-v$MPV_VERSION.tar.gz"
+
+if [ ! -d "$MPV_SRC" ]; then
+    echo "=== Downloading mpv $MPV_VERSION ==="
+    if [ ! -f "$ROOT/downloads/$MPV_TARNAME" ]; then
+        echo "Downloading from $MPV_URL..."
+        curl -f -L -- "$MPV_URL" > "$ROOT/downloads/$MPV_TARNAME"
+        if [ $? -ne 0 ]; then
+            echo "ERROR: Failed to download mpv"
+            exit 1
+        fi
+    fi
+    echo "Extracting..."
+    tar xvf "$ROOT/downloads/$MPV_TARNAME" -C "$SRC"
+fi
+
 # Build MoltenVK (Vulkan on Apple platforms) and install into scratch so mpv can find vulkan.pc
 if [ "${ENABLE_MOLTENVK:-1}" = "1" ]; then
     "$SCRIPTS/components/moltenvk-build.sh"
 fi
 
-cd $SRC/mpv*
+cd "$MPV_SRC"
 
 echo "Building mpv with meson (Optimized clean environment)..."
 echo "  ARCH=$ARCH"
@@ -53,33 +95,41 @@ fi
 mkdir -p "$SCRATCH/$ARCH_DIR"
 
 # =========================================================================
-# 3. 准备子项目（替代极易出错的 wrapdb 自动下载）
+# 3. 准备子项目
 # =========================================================================
 echo "=== Preparing subprojects ==="
 mkdir -p subprojects
 cd subprojects
 
+# Helper function to clone a subproject
+clone_subproject() {
+    local name="$1"
+    local url="$2"
+    local version="$3"
+    local target_dir="$4"
+    local extra_flags="$5"
 
-[ ! -d "libplacebo" ] && git clone --depth 1 https://code.videolan.org/videolan/libplacebo.git && (cd libplacebo && git submodule update --init --depth 1)
-[ ! -d "libass" ] && git clone --depth 1 https://github.com/libass/libass.git
-# fribidi 现在单独编译，不再作为子项目
-[ ! -d "harfbuzz" ] && git clone --depth 1 https://github.com/harfbuzz/harfbuzz.git
-[ ! -d "freetype2" ] && git clone --depth 1 https://gitlab.freedesktop.org/freetype/freetype.git freetype2
+    if [ -z "$target_dir" ]; then
+        target_dir="$name"
+    fi
+
+    if [ ! -d "$target_dir" ]; then
+        echo "Cloning $name $version..."
+        git clone --depth 1 --branch "$version" $extra_flags "$url" "$target_dir"
+    fi
+}
+
+clone_subproject "libplacebo" "$LIBPLACEBO_GIT_URL" "v$LIBPLACEBO_VERSION" "libplacebo" "--recurse-submodules"
+clone_subproject "libass"     "$LIBASS_GIT_URL"     "$LIBASS_VERSION"     "libass"
+clone_subproject "freetype"  "$FREETYPE_GIT_URL"    "VER-${FREETYPE_VERSION//./-}" "freetype2"
+clone_subproject "harfbuzz"  "$HARFBUZZ_GIT_URL"    "$HARFBUZZ_VERSION"   "harfbuzz"
+clone_subproject "fribidi"   "$FRIBIDI_GIT_URL"     "v$FRIBIDI_VERSION"   "fribidi"
 
 # 返回 mpv 源码根目录（meson.build 在这里）
 cd ..
 
-# # 处理 FreeType2 HVF 模块
-# cd freetype2
-# if [ -f "modules.cfg" ] && ! grep -q "hvf" modules.cfg; then
-#     echo "FONT_MODULES += hvf" >> modules.cfg
-#     echo "Added HVF module to FreeType2 modules.cfg"
-# fi
-# cd .. # 退回到 subprojects 目录
-
-
 # =========================================================================
-# 4. 生成 Cross-file（对照 MPVKit 官方方案）
+# 4. 生成 Cross-file
 # =========================================================================
 CROSS_FILE="$SCRATCH/$ARCH_DIR/mpv-cross-file.txt"
 
@@ -131,8 +181,6 @@ if [ -d "build" ]; then
     rm -rf build
 fi
 
-
-
 # 清除可能影响交叉编译的环境变量
 unset SDKROOT CFLAGS CXXFLAGS LDFLAGS CPPFLAGS
 export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
@@ -172,9 +220,7 @@ ARGS=(
     -Dlua=disabled
     -Djavascript=disabled
 
-    # Apple 平台核心（完全对照 MPVKit）
-    # 渲染链路: mpv gpu -> libplacebo -> Vulkan -> MoltenVK -> Metal
-    # 硬解链路: VideoToolbox -> videotoolbox-pl -> Vulkan texture
+    # Apple 平台核心
     -Davfoundation=disabled
     -Dvideotoolbox-pl=enabled
     -Dvideotoolbox-gl=disabled
@@ -183,13 +229,12 @@ ARGS=(
     -Daudiounit=enabled
     -Dcoreaudio=disabled
 
-    # 图形（MPVKit 方案: Vulkan/MoltenVK 为核心后端）
+    # 图形
     -Dgl=enabled
     -Dplain-gl=enabled
     -Dios-gl=enabled
     -Degl=disabled
     -Dvulkan=enabled
-    # moltenvk 选项已在上方动态添加到 meson_options.txt，默认 auto
 
     # 窗口系统
     -Dcocoa=disabled
@@ -206,8 +251,7 @@ ARGS=(
     -Dhtml-build=disabled
     -Dpdf-build=disabled
 
-    # libplacebo（MPVKit 以 Vulkan/MoltenVK 作为 GPU 后端）
-    # libplacebo v7.x 内置 Vulkan 支持，通过 MoltenVK 转到 Metal
+    # libplacebo
     -Dlibplacebo:vulkan=enabled
     -Dlibplacebo:opengl=disabled
     -Dlibplacebo:glslang=disabled
@@ -216,8 +260,6 @@ ARGS=(
     -Dlibplacebo:dovi=disabled
     -Dlibplacebo:libdovi=disabled
     -Dlibplacebo:xxhash=disabled
-
-    # 编译为静态库，禁用测试/示例/层等不需要的组件
 
     # 字符/容器
     -Diconv=enabled
@@ -250,7 +292,6 @@ ARGS=(
 
 # 运行命令
 meson setup build "${ARGS[@]}"
-
 
 ninja -C build -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
 ninja -C build install

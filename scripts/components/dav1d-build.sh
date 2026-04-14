@@ -4,7 +4,31 @@ set -e
 # Build dav1d (AV1 software decoder) for iOS
 # dav1d uses meson as its build system
 
-cd $SRC/dav1d*
+DAV1D_VERSION="${DAV1D_VERSION:-1.5.3}"
+DAV1D_URL="https://code.videolan.org/videolan/dav1d/-/archive/$DAV1D_VERSION/dav1d-$DAV1D_VERSION.tar.bz2"
+
+# 确保 src 和 downloads 目录存在
+mkdir -p "$SRC" "$ROOT/downloads"
+
+DAV1D_SRC="$SRC/dav1d-$DAV1D_VERSION"
+DAV1D_TARNAME="dav1d-$DAV1D_VERSION.tar.bz2"
+
+# 下载源码（如果不存在）
+if [ ! -d "$DAV1D_SRC" ]; then
+    echo "=== Downloading dav1d $DAV1D_VERSION ==="
+    if [ ! -f "$ROOT/downloads/$DAV1D_TARNAME" ]; then
+        echo "Downloading from $DAV1D_URL..."
+        curl -f -L -- "$DAV1D_URL" > "$ROOT/downloads/$DAV1D_TARNAME"
+        if [ $? -ne 0 ]; then
+            echo "ERROR: Failed to download dav1d"
+            exit 1
+        fi
+    fi
+    echo "Extracting..."
+    tar xvf "$ROOT/downloads/$DAV1D_TARNAME" -C "$SRC"
+fi
+
+cd "$DAV1D_SRC"
 
 echo "Building dav1d with meson..."
 echo "  ARCH=$ARCH"

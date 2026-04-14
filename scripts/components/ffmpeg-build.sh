@@ -1,8 +1,36 @@
 #!/bin/sh
 set -e
 
+# Build FFmpeg for iOS
+
+FFMPEG_VERSION="${FFMPEG_VERSION:-8.1}"
+FFMPEG_URL="https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n${FFMPEG_VERSION}.tar.gz"
+
+# 确保 src 和 downloads 目录存在
+mkdir -p "$SRC" "$ROOT/downloads"
+
+FFMPEG_SRC="$SRC/FFmpeg-n$FFMPEG_VERSION"
+FFMPEG_TARNAME="FFmpeg-n$FFMPEG_VERSION.tar.gz"
+
+# 下载源码（如果不存在）
+if [ ! -d "$FFMPEG_SRC" ]; then
+    echo "=== Downloading FFmpeg $FFMPEG_VERSION ==="
+    if [ ! -f "$ROOT/downloads/$FFMPEG_TARNAME" ]; then
+        echo "Downloading from $FFMPEG_URL..."
+        curl -f -L -- "$FFMPEG_URL" > "$ROOT/downloads/$FFMPEG_TARNAME"
+        if [ $? -ne 0 ]; then
+            echo "ERROR: Failed to download FFmpeg"
+            exit 1
+        fi
+    fi
+    echo "Extracting..."
+    tar xvf "$ROOT/downloads/$FFMPEG_TARNAME" -C "$SRC"
+fi
+
 # 确保 configure 脚本有执行权限
-chmod +x $SRC/FFmpeg*/configure 2>/dev/null || true
+chmod +x "$FFMPEG_SRC/configure" 2>/dev/null || true
+
+cd "$FFMPEG_SRC"
 
 FFMPEG_OPTIONS="${COMMON_OPTIONS%% *} \
 		--enable-cross-compile \
@@ -44,8 +72,7 @@ CC="xcrun -sdk $XCRUN_SDK clang"
 
 AS="$CC"
 
-
-cd $SRC/FFmpeg* && ./configure $FFMPEG_OPTIONS \
+./configure $FFMPEG_OPTIONS \
 		--target-os=darwin \
 		--arch=$ARCH \
 		--cc="$CC" \
