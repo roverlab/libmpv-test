@@ -288,7 +288,7 @@ ARGS=(
     # Apple 平台核心
     -Davfoundation=disabled
     -Dvideotoolbox-pl=enabled
-    -Dvideotoolbox-gl=disabled
+    -Dvideotoolbox-gl=enabled
 
     # 音频（iOS 必备）
     -Daudiounit=enabled
@@ -318,7 +318,7 @@ ARGS=(
 
     # libplacebo
     -Dlibplacebo:vulkan=enabled
-    -Dlibplacebo:opengl=disabled
+    -Dlibplacebo:opengl=enabled
     -Dlibplacebo:glslang=disabled
     -Dlibplacebo:shaderc=disabled
     -Dlibplacebo:lcms=disabled
