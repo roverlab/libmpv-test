@@ -156,6 +156,8 @@ jobs:
           ls -la "scratch/$ARCH_DIR/include/vulkan/" | head -10
           
           # 创建 pkgconfig 文件
+          # 注意：Cflags 只需要 -I${includedir}，这样 #include "vulkan/vulkan_core.h" 
+          # 才能正确找到 ${includedir}/vulkan/vulkan_core.h
           mkdir -p "scratch/$ARCH_DIR/lib/pkgconfig"
           cat > "scratch/$ARCH_DIR/lib/pkgconfig/vulkan.pc" << EOF
           prefix=${{ github.workspace }}/scratch/$ARCH_DIR
@@ -167,7 +169,7 @@ jobs:
           Description: Vulkan (MoltenVK) static library
           Version: 1.3.280
           Libs: -L\${libdir} -lMoltenVK -framework Metal -framework QuartzCore -framework Foundation -framework CoreGraphics -framework IOSurface
-          Cflags: -I\${includedir}/MoltenVK -I\${includedir}/vulkan
+          Cflags: -I\${includedir}
           EOF
           
           echo "=== MoltenVK installed ==="
@@ -180,6 +182,13 @@ jobs:
           ls -la scratch/$ARCH_DIR/lib/libav*.a scratch/$ARCH_DIR/lib/libsw*.a 2>/dev/null || echo "No FFmpeg libs"
           echo "=== MoltenVK ==="
           ls -la scratch/$ARCH_DIR/lib/libMoltenVK.a 2>/dev/null || echo "No MoltenVK"
+          echo "=== Vulkan headers ==="
+          ls -la scratch/$ARCH_DIR/include/vulkan/ 2>/dev/null || echo "No Vulkan headers"
+          echo "=== Check vulkan_core.h ==="
+          head -50 scratch/$ARCH_DIR/include/vulkan/vulkan_core.h 2>/dev/null | grep -E "VK_VERSION|define" || echo "Cannot read vulkan_core.h"
+          echo "=== pkg-config vulkan ==="
+          export PKG_CONFIG_LIBDIR="$(pwd)/scratch/$ARCH_DIR/lib/pkgconfig"
+          pkg-config --cflags vulkan 2>&1 || echo "pkg-config failed"
 
       - name: Build libmpv (+ subprojects)
         run: |
@@ -317,7 +326,7 @@ jobs:
         with:
           name: Libmpv-xcframework
           path: lib/Libmpv.xcframework
-          retention-days: 30
+          retention-days: 1
 
   # Job 4: 测试 XCFramework
   test-xcframework:

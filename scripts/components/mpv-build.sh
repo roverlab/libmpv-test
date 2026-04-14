@@ -194,10 +194,10 @@ has_function_printf = true
 
 [built-in options]
 default_library = 'static'
-c_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-I$SCRATCH/$ARCH_DIR/include/MoltenVK', '-I$SCRATCH/$ARCH_DIR/include/vulkan']
-cpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-I$SCRATCH/$ARCH_DIR/include/MoltenVK', '-I$SCRATCH/$ARCH_DIR/include/vulkan']
-objc_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-I$SCRATCH/$ARCH_DIR/include/MoltenVK', '-I$SCRATCH/$ARCH_DIR/include/vulkan']
-objcpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-I$SCRATCH/$ARCH_DIR/include/MoltenVK', '-I$SCRATCH/$ARCH_DIR/include/vulkan']
+c_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-I$SCRATCH/$ARCH_DIR/include']
+cpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-I$SCRATCH/$ARCH_DIR/include']
+objc_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-I$SCRATCH/$ARCH_DIR/include']
+objcpp_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-I$SCRATCH/$ARCH_DIR/include']
 c_link_args = ['-target', '$TARGET_TRIPLE', '-isysroot', '$SDKPATH', '$MIN_VERSION_FLAG', '-lc++']
 cpp_link_args = c_link_args
 objc_link_args = c_link_args
