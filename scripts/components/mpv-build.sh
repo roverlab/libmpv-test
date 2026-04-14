@@ -145,10 +145,9 @@ ARGS=(
     -Dlua=disabled
     -Djavascript=disabled
 
-    # Apple 平台核心（对齐 MPVKit：iOS 上禁用 avfoundation）
-    # videotoolbox-pl: pixel buffer 方式，不依赖 OpenGL ES（推荐 iOS 使用）
-    # videotoolbox-gl: 依赖 CVOpenGLESTextureCache（iOS 12 已废弃，mpv 0.41 结构不兼容）
-    # ios-gl: iOS OpenGL ES 后端（同样依赖已废弃 API）
+    # Apple 平台核心（完全对齐 MPVKit）
+    # 渲染链路: mpv gpu → libplacebo → Vulkan → MoltenVK → Metal
+    # 硬解链路: VideoToolbox → videotoolbox-pl → Vulkan texture
     -Davfoundation=disabled
     -Dvideotoolbox-pl=enabled
     -Dvideotoolbox-gl=disabled
@@ -157,12 +156,13 @@ ARGS=(
     -Daudiounit=enabled
     -Dcoreaudio=disabled
 
-    # 图形（禁用 ios-gl 避免编译 hwdec_ios_gl.m 的结构错误）
+    # 图形（MPVKit 方案: Vulkan/MoltenVK 为核心后端）
     -Dgl=enabled
     -Dplain-gl=enabled
-    -Dios-gl=disabled
+    -Dios-gl=enabled
     -Degl=disabled
-    -Dvulkan=disabled
+    -Dvulkan=enabled
+    -Dmoltenvk=enabled
     
 
     # 窗口系统
@@ -180,9 +180,10 @@ ARGS=(
     -Dhtml-build=disabled
     -Dpdf-build=disabled
 
-    # libplacebo（metal 后端已在 v6.x 中移除，不再需要）
-    -Dlibplacebo:opengl=enabled
-    -Dlibplacebo:vulkan=disabled
+    # libplacebo（MPVKit 用 Vulkan/MoltenVK 作为 GPU 后端）
+    # libplacebo v7.x 内置 Vulkan 支持，通过 MoltenVK 转到 Metal
+    -Dlibplacebo:vulkan=enabled
+    -Dlibplacebo:opengl=disabled
     -Dlibplacebo:glslang=disabled
     -Dlibplacebo:shaderc=disabled
     -Dlibplacebo:lcms=disabled
