@@ -5,7 +5,7 @@ set -e
 # 版本定义
 # =========================================================================
 MPV_VERSION="${MPV_VERSION:-0.41.0}"
-LIBPLACEBO_VERSION="${LIBPLACEBO_VERSION:-6.338.2}"
+LIBPLACEBO_VERSION="${LIBPLACEBO_VERSION:-7.360.1}"
 LIBASS_VERSION="${LIBASS_VERSION:-0.17.3}"
 FREETYPE_VERSION="${FREETYPE_VERSION:-2.13.2}"
 HARFBUZZ_VERSION="${HARFBUZZ_VERSION:-8.4.0}"
@@ -320,7 +320,7 @@ ARGS=(
 
     # libplacebo
     -Dlibplacebo:vulkan=enabled
-    -Dlibplacebo:opengl=disabled
+    -Dlibplacebo:opengl=enabled
     -Dlibplacebo:glslang=disabled
     -Dlibplacebo:shaderc=enabled
     -Dlibplacebo:lcms=disabled
