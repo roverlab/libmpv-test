@@ -148,8 +148,6 @@ ARGS=(
     -Dios-gl=enabled
     -Degl=disabled
     -Dvulkan=disabled
-    # 开启 Metal (iOS 硬解高性能的关键)
-    -Dmetal=enabled
     
 
     # 窗口系统
