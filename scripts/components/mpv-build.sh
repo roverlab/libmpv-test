@@ -49,6 +49,12 @@ echo "=== Preparing subprojects ==="
 mkdir -p subprojects
 cd subprojects
 
+# Vulkan-Loader: mpv -Dvulkan=enabled 需要 vulkan.pc (dependency('vulkan'))
+# 从 KhronosGroup 官方仓库克隆，使用 meson 作为构建系统
+[ ! -d "vulkan-loader" ] && git clone --depth 1 https://github.com/KhronosGroup/Vulkan-Loader.git vulkan-loader
+# Vulkan-Headers: Vulkan-Loader 的依赖（头文件 only）
+[ ! -d "vulkan-headers" ] && git clone --depth 1 https://github.com/KhronosGroup/Vulkan-Headers.git vulkan-headers
+
 [ ! -d "libplacebo" ] && git clone --depth 1 https://code.videolan.org/videolan/libplacebo.git && (cd libplacebo && git submodule update --init --depth 1)
 [ ! -d "libass" ] && git clone --depth 1 https://github.com/libass/libass.git
 # fribidi 现在单独编译，不再作为子项目
@@ -191,6 +197,13 @@ ARGS=(
     -Dlibplacebo:dovi=disabled
     -Dlibplacebo:libdovi=disabled
     -Dlibplacebo:xxhash=disabled
+
+    # Vulkan-Loader（作为 mpv 子项目编译，提供 vulkan.pc）
+    # 编译为静态库，禁用测试/示例/层等不需要的组件
+    -Dvulkan-loader:enable_loader=false
+    -Dvulkan-loader:enable_install=true
+    -Dvulkan-loader:buildtype=release
+    -Dvulkan-loader:default_library=both
 
     # 字符/容器
     -Diconv=enabled
