@@ -277,6 +277,11 @@ ARGS=(
     -Dharfbuzz:icu=disabled
     -Dharfbuzz:cairo=disabled
     -Dharfbuzz:freetype=enabled
+
+    # fribidi（禁用 bin/tests/docs，避免交叉编译时需要构建机器编译器）
+    -Dfribidi:bin=false
+    -Dfribidi:tests=false
+    -Dfribidi:docs=false
 )
 
 # 运行命令
