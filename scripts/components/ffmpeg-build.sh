@@ -27,13 +27,6 @@ FFMPEG_OPTIONS="${COMMON_OPTIONS%% *} \
 		# FFmpeg has its own internal MJPEG codec that does not require
 		# external libjpeg, so disabling it is safe.
 
-if [[ ! `which gas-preprocessor.pl` ]]; then
-	# Use montoyo's fork which supports FFmpeg 8+ aarch64 assembly
-	# (e.g. VVC ALF neon code with expression indices like v0.h[8 - 8])
-	curl -L https://github.com/montoyo/gas-preprocessor/raw/master/gas-preprocessor.pl -o /usr/local/bin/gas-preprocessor.pl \
-		&& chmod +x /usr/local/bin/gas-preprocessor.pl
-fi
-
 if [[ "$ARCH" = "arm64" ]]; then
 	EXPORT="GASPP_FIX_XCODE5=1"
 	if [[ "$ENVIRONMENT" = "simulator" ]]; then
@@ -49,11 +42,7 @@ fi
 XCRUN_SDK=`echo $PLATFORM | tr '[:upper:]' '[:lower:]'`
 CC="xcrun -sdk $XCRUN_SDK clang"
 
-if [[ "$ARCH" = "arm64" ]]; then
-	AS="gas-preprocessor.pl -arch aarch64 -- $CC"
-else
-	AS="gas-preprocessor.pl -- $CC"
-fi
+AS="$CC"
 
 
 cd $SRC/FFmpeg* && ./configure $FFMPEG_OPTIONS \
