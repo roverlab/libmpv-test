@@ -153,8 +153,9 @@ make -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
 make install
 cd "$MPV_SRC"
 
-# 返回 mpv 源码根目录（meson.build 在这里）
-cd ..
+# 确保当前目录是 mpv 源码根目录（meson.build 所在位置）
+# 注意：此时可能已经在 $MPV_SRC（fribidi 编完后 cd 回来的），
+# 也可能在 subprojects/ 下，统一 cd 到 $MPV_SRC 确保正确
 
 # =========================================================================
 # 4. 生成 Cross-file
