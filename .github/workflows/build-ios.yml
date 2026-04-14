@@ -12,6 +12,7 @@ permissions:
 env:
   # 缓存 key — 版本号变更时自动失效
   FFMPEG_CACHE_KEY: "ffmpeg-v8.1-ios-static"
+  SHADERC_CACHE_KEY: "shaderc-v2026.1-ios-static"
 
 jobs:
   # =========================================================================
@@ -95,23 +96,34 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 检查 shaderc 编译产物缓存
+      - id: cache-shaderc
+        uses: actions/cache@v4
+        with:
+          path: scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/
+          key: ${{ env.SHADERC_CACHE_KEY }}-${{ matrix.environment }}-${{ runner.os }}
+
       - name: Setup Xcode
+        if: steps.cache-shaderc.outputs.cache-hit != 'true'
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
 
       - name: Install dependencies
+        if: steps.cache-shaderc.outputs.cache-hit != 'true'
         run: |
           brew install cmake
           brew install python@3.13
 
       - name: Make build scripts executable
+        if: steps.cache-shaderc.outputs.cache-hit != 'true'
         run: |
           chmod +x scripts/*.sh scripts/components/*.sh
 
       - name: Build libshaderc
+        if: steps.cache-shaderc.outputs.cache-hit != 'true'
         run: |
-          echo "=== Building libshaderc for ${{ matrix.environment }} ==="
+          echo "=== Building libshaderc for ${{ matrix.environment }} (cache miss) ==="
           ./scripts/build.sh -e ${{ matrix.environment }} -s shaderc
 
       - name: Verify shaderc build
@@ -121,6 +133,12 @@ jobs:
           ls -la scratch/$ARCH_DIR/lib/libshaderc*.a 2>/dev/null || true
           echo "=== shaderc headers ==="
           ls -la scratch/$ARCH_DIR/include/shaderc/ 2>/dev/null || true
+          echo "=== Cache status ==="
+          if [ "${{ steps.cache-shaderc.outputs.cache-hit }}" = "true" ]; then
+            echo "Using cached shaderc build"
+          else
+            echo "Fresh shaderc build completed"
+          fi
 
       - name: Upload shaderc artifact
         uses: actions/upload-artifact@v4
