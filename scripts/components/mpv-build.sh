@@ -199,10 +199,10 @@ if [ -f "$PATCH_FILE" ] && ! grep -q "context_moltenvk" meson.build; then
     fi
 fi
 
-# 添加 moltenvk meson 选项（patch 引用了该选项，需要在 meson_options.txt 中定义）
-if ! grep -q "moltenvk" meson_options.txt 2>/dev/null; then
-    echo "Adding 'moltenvk' option to meson_options.txt..."
-    echo "option('moltenvk', type: 'feature', value: 'auto', description: 'MoltenVK support for Vulkan on macOS/iOS')" >> meson_options.txt
+# 添加 moltenvk meson 选项（patch 引用了该选项，需要在 meson.options 中定义）
+if ! grep -q "moltenvk" meson.options 2>/dev/null; then
+    echo "Adding 'moltenvk' option to meson.options..."
+    echo "option('moltenvk', type: 'feature', value: 'auto', description: 'MoltenVK support for Vulkan on macOS/iOS')" >> meson.options
 fi
 
 
