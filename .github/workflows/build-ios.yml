@@ -10,16 +10,96 @@ permissions:
   contents: write
 
 env:
-  # FFmpeg 缓存 key — 版本号变更时自动失效
-  FFMPEG_CACHE_KEY: "ffmpeg-v8.0-ios-static"
+  # 缓存 key — 版本号变更时自动失效
+  FFMPEG_CACHE_KEY: "ffmpeg-v8.1-ios-static"
+  MOLTENVK_CACHE_KEY: "moltenvk-v1-ios-static"
 
 jobs:
   # =========================================================================
-  # Job 0: 编译 FFmpeg (device + simulator) 并缓存
-  # 拆分为独立 job 的好处：
-  #   1. 利用 matrix 同时编译两份，节省总 wall-clock 时间
-  #   2. 编译产物通过 actions/cache 持久化，后续构建直接复用
-  #   3. FFmpeg 版本不变时，后续 CI run 几乎零成本（缓存命中）
+  # Job 0: 编译 MoltenVK (device + simulator) 并缓存
+  # =========================================================================
+  build-moltenvk:
+    name: Build MoltenVK (${{ matrix.environment }})
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        environment: [distribution, simulator]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 检查 MoltenVK 编译产物缓存
+      - id: cache-moltenvk
+        uses: actions/cache@v4
+        with:
+          path: |
+            scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/lib/libMoltenVK.a
+            scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/lib/pkgconfig/vulkan.pc
+            scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/include/MoltenVK/
+            scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/include/vulkan/
+          key: ${{ env.MOLTENVK_CACHE_KEY }}-${{ matrix.environment }}-${{ runner.os }}
+
+      - name: Setup Xcode
+        if: steps.cache-moltenvk.outputs.cache-hit != 'true'
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install dependencies
+        if: steps.cache-moltenvk.outputs.cache-hit != 'true'
+        run: |
+          brew install pkg-config
+          brew install meson
+          brew install python@3.13
+
+      - name: Make build scripts executable
+        if: steps.cache-moltenvk.outputs.cache-hit != 'true'
+        run: |
+          chmod +x scripts/*.sh scripts/components/*.sh
+
+      - name: Build MoltenVK
+        if: steps.cache-moltenvk.outputs.cache-hit != 'true'
+        env:
+          ENVIRONMENT: ${{ matrix.environment }}
+          ARCH: arm64
+          SCRATCH: ${{ github.workspace }}/scratch
+          SRC: ${{ github.workspace }}/src
+          ROOT: ${{ github.workspace }}
+        run: |
+          ARCH_DIR="${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}"
+          mkdir -p "scratch/$ARCH_DIR"
+          
+          # 设置 SDK 路径
+          if [ "${{ matrix.environment }}" = "simulator" ]; then
+            export SDKPATH="$(xcodebuild -sdk iphonesimulator -version Path)"
+          else
+            export SDKPATH="$(xcodebuild -sdk iphoneos -version Path)"
+          fi
+          
+          echo "=== Building MoltenVK for ${{ matrix.environment }} ==="
+          ./scripts/components/moltenvk-build.sh
+
+      - name: Verify MoltenVK build
+        run: |
+          ARCH_DIR="${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}"
+          echo "=== MoltenVK for ${{ matrix.environment }} ==="
+          ls -la scratch/$ARCH_DIR/lib/libMoltenVK.a
+          ls -la scratch/$ARCH_DIR/lib/pkgconfig/vulkan.pc
+
+      - name: Upload MoltenVK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: moltenvk-${{ matrix.environment }}
+          path: |
+            scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/lib/libMoltenVK.a
+            scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/lib/pkgconfig/vulkan.pc
+            scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/include/MoltenVK/
+            scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/include/vulkan/
+          retention-days: 1
+
+  # =========================================================================
+  # Job 1: 编译 FFmpeg (device + simulator) 并缓存
   # =========================================================================
   build-ffmpeg:
     name: Build FFmpeg (${{ matrix.environment }})
@@ -32,14 +112,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── 第一步：检查 FFmpeg 编译产物缓存（放在最前面，命中则跳过所有构建步骤）──
+      # 检查 FFmpeg 编译产物缓存
       - id: cache-ffmpeg
         uses: actions/cache@v4
         with:
           path: scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/
           key: ${{ env.FFMPEG_CACHE_KEY }}-${{ matrix.environment }}-${{ runner.os }}
 
-      # ── 以下步骤仅在缓存未命中时执行 ──
       - name: Setup Xcode
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
         uses: maxim-lobanov/setup-xcode@v1
@@ -86,11 +165,13 @@ jobs:
             scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/include/
           retention-days: 1
 
-  # Job 1: 编译 libmpv (device + simulator) — FFmpeg 从缓存恢复，matrix 并行
+  # =========================================================================
+  # Job 2: 编译 libmpv (device + simulator)
+  # =========================================================================
   build-libmpv:
     name: Build libmpv (${{ matrix.environment }})
     runs-on: macos-latest
-    needs: build-ffmpeg
+    needs: [build-ffmpeg, build-moltenvk]
     strategy:
       matrix:
         environment: [distribution, simulator]
@@ -99,7 +180,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── 安装构建依赖 ──
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
@@ -116,26 +196,32 @@ jobs:
         run: |
           chmod +x scripts/*.sh scripts/components/*.sh
 
-      # ── 从 FFmpeg job 的 artifact 获取已编译好的 FFmpeg ──
+      # 下载 FFmpeg artifacts
       - name: Download FFmpeg artifact
         uses: actions/download-artifact@v4
         with:
           name: ffmpeg-${{ matrix.environment }}
           path: scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/
 
-      - name: Verify FFmpeg libraries
+      # 下载 MoltenVK artifacts
+      - name: Download MoltenVK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: moltenvk-${{ matrix.environment }}
+          path: scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/
+
+      - name: Verify dependencies
         run: |
           ARCH_DIR="${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}"
-          echo "=== FFmpeg libraries (restored from cache/artifact) ==="
-          ls -la scratch/$ARCH_DIR/lib/libav*.a scratch/$ARCH_DIR/lib/libsw*.a 2>/dev/null || echo "No FFmpeg libs found"
-          echo "=== FFmpeg headers ==="
-          ls -la scratch/$ARCH_DIR/include/libavutil/frame.h 2>/dev/null || echo "FFmpeg headers not found"
+          echo "=== FFmpeg libraries ==="
+          ls -la scratch/$ARCH_DIR/lib/libav*.a scratch/$ARCH_DIR/lib/libsw*.a 2>/dev/null || echo "No FFmpeg libs"
+          echo "=== MoltenVK ==="
+          ls -la scratch/$ARCH_DIR/lib/libMoltenVK.a 2>/dev/null || echo "No MoltenVK"
 
       - name: Build libmpv (+ subprojects)
         run: |
           echo "=== Building libmpv for ${{ matrix.environment }} (arm64) ==="
           echo "    Subprojects: libass, freetype2, harfbuzz, fribidi, libplacebo"
-          echo "    FFmpeg: restored from cache (skipped rebuild)"
           ./scripts/build.sh -e ${{ matrix.environment }} -s 2
 
       - name: Verify build
@@ -154,7 +240,9 @@ jobs:
             ${{ matrix.environment == 'distribution' && 'scratch/arm64/include/' || '' }}
           retention-days: 1
 
+  # =========================================================================
   # Job 3: 创建 XCFramework 并验证
+  # =========================================================================
   create-xcframework:
     name: Create XCFramework
     runs-on: macos-latest
@@ -192,21 +280,6 @@ jobs:
 
       - name: Create fat libraries
         run: |
-          # Use 'libtool -static' instead of 'ar -x + ar -rcs' to merge archives.
-          # The ar approach has a fatal flaw: when multiple .a files contain object
-          # files with the same filename (e.g. utils.o, config.o appear in FFmpeg,
-          # libass, and mpv), 'ar -x' silently overwrites the earlier file, causing
-          # "Undefined symbol" linker errors. libtool handles this correctly.
-          #
-          # NOTE: Xcode 26+ removed -force_load support from libtool -static.
-          # To ensure all symbols from certain libs (e.g. libplacebo's ra_* symbols
-          # that are referenced indirectly via function pointers) are included,
-          # we use a two-step approach:
-          #   1. Merge "force-load" libs separately into a combined archive.
-          #   2. Merge that combined archive with all other libs into the final output.
-          # This works because libtool -static includes ALL object files when merging
-          # static archives (unlike the linker which does dead-code stripping).
-
           # Helper function to create fat library for a given architecture
           create_fat_lib() {
               local arch_dir="$1"
@@ -220,11 +293,6 @@ jobs:
               ALL_LIBS=$(ls "${arch_dir}"lib/*.a)
               echo "All libs to merge:$ALL_LIBS"
 
-              # Merge ALL static libraries into the final fat library.
-              # libtool -static includes ALL object files from every input archive,
-              # so no symbol can ever be missed (unlike the linker which does dead-code
-              # stripping). This is critical for indirect/referenced-via-function-pointer
-              # symbols like libplacebo's ra_* and lcms2's _cms_* .
               libtool -static -o "${output_dir}/libmpv_full.a" $ALL_LIBS
 
               echo "${label} fat library size:"
@@ -241,17 +309,11 @@ jobs:
         run: |
           echo "=== Creating Libmpv.xcframework ==="
           
-          # 创建头文件目录结构（XCFramework + SPM binaryTarget 兼容格式）
-          # 关键：headers 必须放在以模块名命名的子目录中
-          # 结构：
-          #   headers_dir/
-          #     Libmpv/           ← 模块名子目录（SPM 要求）
-          #       module.modulemap
-          #       *.h            ← 所有头文件
+          # 创建头文件目录结构
           mkdir -p include_temp/Libmpv
           cp scratch/arm64/include/mpv/*.h include_temp/Libmpv/
           
-          # 创建 module.modulemap（Swift/SPM 识别 C 模块所必需）
+          # 创建 module.modulemap
           echo 'module Libmpv {' > include_temp/Libmpv/module.modulemap
           for header in include_temp/Libmpv/*.h; do
               filename=$(basename "$header")
@@ -265,7 +327,6 @@ jobs:
           ls -la include_temp/
           
           # 创建 XCFramework
-          # -allow-internal-distribution: 允许不含签名信息的分发用 framework
           mkdir -p lib
           xcodebuild -create-xcframework \
             -library lib_device/libmpv_full.a \
@@ -280,7 +341,7 @@ jobs:
           echo "=== Full XCFramework structure ==="
           find lib/Libmpv.xcframework -type f | sort
           
-          # 验证 module.modulemap 是否被正确打包进 XCFramework
+          # 验证 module.modulemap
           echo "=== Verify module.modulemap in XCFramework ==="
           find lib/Libmpv.xcframework -name "module.modulemap" -exec echo "Found: {}" \;
           if [ -z "$(find lib/Libmpv.xcframework -name 'module.modulemap')" ]; then
@@ -295,7 +356,7 @@ jobs:
           path: lib/Libmpv.xcframework
           retention-days: 30
 
-  # Job 4: 测试 XCFramework（调用独立工作流）
+  # Job 4: 测试 XCFramework
   test-xcframework:
     name: Test XCFramework
     uses: ./.github/workflows/test-xcframework.yml
@@ -304,5 +365,3 @@ jobs:
     with:
       artifact_name: Libmpv-xcframework
     secrets: inherit
-
-

@@ -1,11 +1,6 @@
 #!/bin/sh
 set -e
 
-if [ -z "$SCRIPTS" ]; then
-    echo "ERROR: SCRIPTS is not set"
-    exit 1
-fi
-
 # =========================================================================
 # 版本定义
 # =========================================================================
@@ -35,11 +30,6 @@ MPV_SRC="$SRC/mpv"
 if [ ! -d "$MPV_SRC" ]; then
     echo "=== Cloning mpv $MPV_VERSION ==="
     git clone --depth 1 --branch "v$MPV_VERSION" "$MPV_GIT_URL" "$MPV_SRC"
-fi
-
-# Build MoltenVK (Vulkan on Apple platforms) and install into scratch so mpv can find vulkan.pc
-if [ "${ENABLE_MOLTENVK:-1}" = "1" ]; then
-    "$SCRIPTS/components/moltenvk-build.sh"
 fi
 
 cd "$MPV_SRC"
