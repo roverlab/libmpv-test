@@ -148,6 +148,9 @@ ARGS=(
     -Dios-gl=enabled
     -Degl=disabled
     -Dvulkan=disabled
+    # 开启 Metal (iOS 硬解高性能的关键)
+    -Dmetal=enabled
+    
 
     # 窗口系统
     -Dcocoa=disabled
@@ -165,6 +168,7 @@ ARGS=(
     -Dpdf-build=disabled
 
     # libplacebo（建议保留最小功能）
+    -Dlibplacebo:metal=enabled
     -Dlibplacebo:opengl=enabled
     -Dlibplacebo:vulkan=disabled
     -Dlibplacebo:glslang=disabled

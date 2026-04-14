@@ -2,7 +2,7 @@
 
 # Change to preferred versions
 # Updated versions for compatibility with modern Xcode/Clang
-MPV_VERSION="0.39.0"
+MPV_VERSION="0.41.0"
 LIBPLACEBO_VERSION="6.338.2"
 FFMPEG_VERSION="8.1"
 # Subproject versions (git tags) — built as mpv subprojects via meson
