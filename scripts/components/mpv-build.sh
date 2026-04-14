@@ -132,23 +132,19 @@ download_tarball "fribidi" "$FRIBIDI_URL" "fribidi"
 
 echo "=== Building fribidi with autotools ==="
 cd "$SRC/fribidi"
-# gen.tab 中的工具需要在宿主机上运行，先用原生编译器生成头文件
-make clean 2>/dev/null || true
-distclean_cmd=""
-if [ -f Makefile ]; then
-    distclean_cmd="make distclean"
-fi
-$distclean_cmd
+chmod +x configure 2>/dev/null || true
+# 用简单的 host triplet，避免旧 config.sub 不认识 arm64-apple-ios*-simulator
+# 实际交叉编译通过 CFLAGS/LDFLAGS 中的 -target 控制
 ./configure \
-    --host="$TARGET_TRIPLE" \
+    --host="aarch64-apple-darwin" \
     --prefix="$SCRATCH/$ARCH_DIR" \
     --disable-shared \
     --enable-static \
     --disable-bin \
     --disable-docs \
     --disable-tests \
-    CFLAGS="$MIN_VERSION_FLAG -isysroot $SDKPATH" \
-    LDFLAGS="$MIN_VERSION_FLAG -isysroot $SDKPATH"
+    CFLAGS="-target $TARGET_TRIPLE $MIN_VERSION_FLAG -isysroot $SDKPATH" \
+    LDFLAGS="-target $TARGET_TRIPLE $MIN_VERSION_FLAG -isysroot $SDKPATH"
 make -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
 make install
 cd "$MPV_SRC"
