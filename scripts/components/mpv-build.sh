@@ -145,19 +145,22 @@ ARGS=(
     -Dlua=disabled
     -Djavascript=disabled
 
-    # Apple 平台核心（对齐 MPVKit：iOS 上禁用 avfoundation，启用 videotoolbox-pl）
+    # Apple 平台核心（对齐 MPVKit：iOS 上禁用 avfoundation）
+    # videotoolbox-pl: pixel buffer 方式，不依赖 OpenGL ES（推荐 iOS 使用）
+    # videotoolbox-gl: 依赖 CVOpenGLESTextureCache（iOS 12 已废弃，mpv 0.41 结构不兼容）
+    # ios-gl: iOS OpenGL ES 后端（同样依赖已废弃 API）
     -Davfoundation=disabled
-    -Dvideotoolbox-pl=disabled
-    -Dvideotoolbox-gl=enabled
+    -Dvideotoolbox-pl=enabled
+    -Dvideotoolbox-gl=disabled
 
     # 音频（iOS 必备）
     -Daudiounit=enabled
     -Dcoreaudio=disabled
 
-    # 图形
+    # 图形（禁用 ios-gl 避免编译 hwdec_ios_gl.m 的结构错误）
     -Dgl=enabled
     -Dplain-gl=enabled
-    -Dios-gl=enabled
+    -Dios-gl=disabled
     -Degl=disabled
     -Dvulkan=disabled
     
