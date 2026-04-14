@@ -17,7 +17,6 @@ LIBPLACEBO_GIT_URL="https://github.com/haasn/libplacebo.git"
 LIBASS_GIT_URL="https://github.com/libass/libass.git"
 FREETYPE_GIT_URL="https://github.com/freetype/freetype.git"
 HARFBUZZ_GIT_URL="https://github.com/harfbuzz/harfbuzz.git"
-FRIBIDI_GIT_URL="https://github.com/fribidi/fribidi.git"
 
 # 确保 src 目录存在
 mkdir -p "$SRC"
@@ -98,11 +97,38 @@ clone_subproject() {
     fi
 }
 
+# Helper function to download and extract tarball
+download_tarball() {
+    local name="$1"
+    local url="$2"
+    local target_dir="$3"
+
+    if [ ! -d "$target_dir" ]; then
+        echo "Downloading $name..."
+        local tarname="${url##*/}"
+        if [ ! -f "$ROOT/downloads/$tarname" ]; then
+            curl -f -L -- "$url" > "$ROOT/downloads/$tarname"
+        fi
+        echo "Extracting $name..."
+        tar xvf "$ROOT/downloads/$tarname" -C "$SRC"
+        # Find extracted directory and rename to target_dir
+        local extracted_dir=$(ls -d "$SRC"/${name}* 2>/dev/null | grep -v "$target_dir" | head -1)
+        if [ -n "$extracted_dir" ] && [ "$extracted_dir" != "$SRC/$target_dir" ]; then
+            mv "$extracted_dir" "$SRC/$target_dir"
+        fi
+    fi
+}
+
+mkdir -p "$ROOT/downloads"
+
 clone_subproject "libplacebo" "$LIBPLACEBO_GIT_URL" "v$LIBPLACEBO_VERSION" "libplacebo" "--recurse-submodules"
 clone_subproject "libass"     "$LIBASS_GIT_URL"     "$LIBASS_VERSION"     "libass"
 clone_subproject "freetype"  "$FREETYPE_GIT_URL"    "VER-${FREETYPE_VERSION//./-}" "freetype2"
 clone_subproject "harfbuzz"  "$HARFBUZZ_GIT_URL"    "$HARFBUZZ_VERSION"   "harfbuzz"
-clone_subproject "fribidi"   "$FRIBIDI_GIT_URL"     "v$FRIBIDI_VERSION"   "fribidi"
+
+# fribidi 使用 tarball（已预生成 gen.tab 输出，避免交叉编译时需要构建机器编译器）
+FRIBIDI_URL="https://github.com/fribidi/fribidi/releases/download/v$FRIBIDI_VERSION/fribidi-$FRIBIDI_VERSION.tar.xz"
+download_tarball "fribidi" "$FRIBIDI_URL" "fribidi"
 
 # 返回 mpv 源码根目录（meson.build 在这里）
 cd ..
