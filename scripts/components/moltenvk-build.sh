@@ -31,11 +31,26 @@ echo "Building MoltenVK for $ENVIRONMENT..."
 
 # 根据目标环境只编译需要的平台
 # (CI 中 distribution 和 simulator 本身就是并行 job)
-# make ios / make iossim 会同时生成 dynamic 和 static 产物到 Package/ 目录
+#
+# 注意：simulator 默认 make iossim 会编译双架构 (arm64 + x86_64)，
+#       但 GitHub Actions runner 是 Apple Silicon (macos-latest)，
+#       模拟器只需要 arm64 即可。这里用 xcodebuild 直接指定 ARCHS=arm64
+#       来跳过 x86_64，编译时间减少约一半。
 if [ "$ENVIRONMENT" = "simulator" ]; then
-    echo "  Target: iOS Simulator"
+    echo "  Target: iOS Simulator (arm64 only, skipping x86_64)"
     ./fetchDependencies --iossim
-    make iossim
+    # 用 xcodebuild 替代 make iossim，显式指定只编 arm64
+    # make iossim 内部会调用 xcodebuild 编译 MoltenVKPackaging.xcodeproj 的
+    # "MoltenVK Package (iOS only)" scheme，并打包成包含双架构的 xcframework。
+    # 我们直接调用 xcodebuild 并设置 ARCHS=arm64 EXCLUDED_ARCHS=x86_64
+    # 来只编译 arm64-simulator，跳过 x86_64。
+    xcodebuild build \
+        -project MoltenVKPackaging.xcodeproj \
+        -scheme "MoltenVK Package (iOS only)" \
+        -destination 'generic/platform=iOS Simulator' \
+        ARCHS=arm64 \
+        EXCLUDED_ARCHS=x86_64 \
+        GCC_PREPROCESSOR_DEFINITIONS='$${inherited}'
 else
     echo "  Target: iOS Device"
     ./fetchDependencies --ios
@@ -55,17 +70,19 @@ fi
 #       dynamic xcframework 内是 MoltenVK.framework/
 
 if [ "$ENVIRONMENT" = "simulator" ]; then
-    # MoltenVK 不同版本生成的 simulator 切片名称可能不同:
-    #   - 旧版: ios-arm64-simulator
-    #   - 新版: ios-arm64_x86_64-simulator (同时包含 x86_64)
-    XCFRAMEWORK_BASE="Package/Release/MoltenVK/static/MoltenVK.xcframework"
-    XCFRAMEWORK_SLICE=""
-    for candidate in "ios-arm64-simulator" "ios-arm64_x86_64-simulator"; do
-        if [ -d "$XCFRAMEWORK_BASE/$candidate" ]; then
-            XCFRAMEWORK_SLICE="$XCFRAMEWORK_BASE/$candidate"
-            break
-        fi
-    done
+    # 单架构 simulator 产物路径 (arm64 only)
+    # 使用 xcodebuild ARCHS=arm64 后，生成的切片名为 ios-arm64-simulator
+    XCFRAMEWORK_SLICE="Package/Release/MoltenVK/static/MoltenVK.xcframework/ios-arm64-simulator"
+    # 兜底：如果找不到单架构版本，尝试双架构版本（兼容旧行为）
+    if [ ! -d "$XCFRAMEWORK_SLICE" ]; then
+        XCFRAMEWORK_BASE="Package/Release/MoltenVK/static/MoltenVK.xcframework"
+        for candidate in "ios-arm64_x86_64-simulator" "ios-arm64-simulator"; do
+            if [ -d "$XCFRAMEWORK_BASE/$candidate" ]; then
+                XCFRAMEWORK_SLICE="$XCFRAMEWORK_BASE/$candidate"
+                break
+            fi
+        done
+    fi
 else
     XCFRAMEWORK_SLICE="Package/Release/MoltenVK/static/MoltenVK.xcframework/ios-arm64"
 fi
