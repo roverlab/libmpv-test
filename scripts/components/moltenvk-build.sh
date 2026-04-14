@@ -44,13 +44,17 @@ if [ "$ENVIRONMENT" = "simulator" ]; then
     # "MoltenVK Package (iOS only)" scheme，并打包成包含双架构的 xcframework。
     # 我们直接调用 xcodebuild 并设置 ARCHS=arm64 EXCLUDED_ARCHS=x86_64
     # 来只编译 arm64-simulator，跳过 x86_64。
+    #
+    # 注意：需要设置 CURRENT_PROJECT_VERSION 匹配 MoltenVK 版本，否则 static_assert 会失败
+    MOLTENVK_VERSION=$(grep 'MVK_VERSION_STRING' MoltenVK/MoltenVK/API/mvk_config.h | head -1 | sed 's/.*"\(.*\)".*/\1/')
+    echo "  MoltenVK version: $MOLTENVK_VERSION"
     xcodebuild build \
         -project MoltenVKPackaging.xcodeproj \
         -scheme "MoltenVK Package (iOS only)" \
         -destination 'generic/platform=iOS Simulator' \
         ARCHS=arm64 \
         EXCLUDED_ARCHS=x86_64 \
-        GCC_PREPROCESSOR_DEFINITIONS='$${inherited}'
+        CURRENT_PROJECT_VERSION="$MOLTENVK_VERSION"
 else
     echo "  Target: iOS Device"
     ./fetchDependencies --ios
