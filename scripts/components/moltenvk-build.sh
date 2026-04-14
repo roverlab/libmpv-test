@@ -41,26 +41,37 @@ else
     make ios
 fi
 
-# 直接从 Xcode 编译产物中定位 MoltenVK.framework（不需要 xcframework 打包）
-# make ios / make iossim 编译后 framework 位于 build/ 目录下
+# make ios / make iossim 使用 MoltenVKPackaging.xcodeproj 编译，
+# 通过 "Package MoltenVK" Build Phase 脚本将产物输出到 Package/ 目录。
+# 目录结构: Package/{Latest,Release}/MoltenVK/{dynamic,static}/{framework,dylib}/{platform}/
+#
+# 注意：MoltenVK 的 framework 可能是动态库（.dylib）或静态库（.a），
+# 取决于 Xcode project 配置。我们需要找到并提取静态库。
+
+echo "Locating MoltenVK build output..."
+echo "  Package/ directory contents:"
+find Package -maxdepth 5 -type d 2>/dev/null | head -40 || echo "  (Package/ dir not found or empty)"
+
 FRAMEWORK_SRC=""
 if [ "$ENVIRONMENT" = "simulator" ]; then
-    # iOS Simulator 编译产物路径
+    # iOS Simulator — 查找 simulator 对应的 framework
     for candidate in \
-        "build/Release-iphonesimulator/MoltenVK.framework" \
-        "build/Debug-iphonesimulator/MoltenVK.framework" \
-        "build/Release-iphonesimulator/MoltenVK.xcframework/ios-arm64-simulator/MoltenVK.framework"; do
+        "Package/Latest/MoltenVK/dynamic/framework/iOS Simulator/MoltenVK.framework" \
+        "Package/Latest/MoltenVK/static/framework/iOS Simulator/MoltenVK.framework" \
+        "Package/Release/MoltenVK/dynamic/framework/iOS Simulator/MoltenVK.framework" \
+        "Package/Release/MoltenVK/static/framework/iOS Simulator/MoltenVK.framework"; do
         if [ -d "$candidate" ]; then
             FRAMEWORK_SRC="$candidate"
             break
         fi
     done
 else
-    # iOS Device 编译产物路径
+    # iOS Device — 查找 device 对应的 framework
     for candidate in \
-        "build/Release-iphoneos/MoltenVK.framework" \
-        "build/Debug-iphoneos/MoltenVK.framework" \
-        "build/Release-iphoneos/MoltenVK.xcframework/ios-arm64/MoltenVK.framework"; do
+        "Package/Latest/MoltenVK/dynamic/framework/iOS/MoltenVK.framework" \
+        "Package/Latest/MoltenVK/static/framework/iOS/MoltenVK.framework" \
+        "Package/Release/MoltenVK/dynamic/framework/iOS/MoltenVK.framework" \
+        "Package/Release/MoltenVK/static/framework/iOS/MoltenVK.framework"; do
         if [ -d "$candidate" ]; then
             FRAMEWORK_SRC="$candidate"
             break
@@ -68,12 +79,20 @@ else
     done
 fi
 
+# 如果上面的精确路径没命中，用 find 广泛搜索
+if [ -z "$FRAMEWORK_SRC" ]; then
+    echo "  Precise path lookup failed, searching with find..."
+    FOUND=$(find Package -name "MoltenVK.framework" -type d 2>/dev/null | head -1)
+    if [ -n "$FOUND" ]; then
+        FRAMEWORK_SRC="$FOUND"
+        echo "  Found via find: $FRAMEWORK_SRC"
+    fi
+fi
+
 if [ -z "$FRAMEWORK_SRC" ]; then
     echo "ERROR: MoltenVK.framework not found after build"
-    echo "Searched in build/ directory:"
-    find build -name "MoltenVK.framework" -type d 2>/dev/null || true
-    echo "Build output tree:"
-    find build -maxdepth 4 -type d 2>/dev/null | head -30 || true
+    echo "  Full Package/ tree:"
+    find Package -type f -o -type d 2>/dev/null | head -50 || true
     exit 1
 fi
 
