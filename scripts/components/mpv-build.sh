@@ -276,7 +276,7 @@ fi
 ARGS=(
     --cross-file "$CROSS_FILE"
     --buildtype=release
-    --wrap-mode=nodownload
+    --wrap-mode=default
     -Ddefault_library=static
     -Dcplayer=false
     -Dgpl=false

@@ -177,62 +177,7 @@ jobs:
           echo "=== MoltenVK installed ==="
           ls -la "scratch/$ARCH_DIR/"
 
-      # 下载预编译的 libshaderc (SPIR-V 编译器，gpu-next + vulkan 必需)
-      - name: Download libshaderc
-        run: |
-          ARCH_DIR="${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}"
-          SHADERC_VERSION="2025.5.0"
-          
-          # 下载 MPVKit 预编译的 libshaderc (使用单独的 xcframework zip)
-          SHADERC_URL="https://github.com/mpvkit/libshaderc-build/releases/download/${SHADERC_VERSION}/Libshaderc_combined.xcframework.zip"
-          echo "Downloading libshaderc from $SHADERC_URL"
-          curl -L -o /tmp/shaderc_xcframework.zip "$SHADERC_URL"
-          
-          # 解压 xcframework
-          unzip -q /tmp/shaderc_xcframework.zip -d /tmp/shaderc
-          
-          echo "=== libshaderc xcframework structure ==="
-          find /tmp/shaderc -type d | head -20
-          find /tmp/shaderc -name "*.a" | head -20
-          
-          # 复制对应平台的库文件到 lib/ 目录
-          mkdir -p "scratch/$ARCH_DIR/lib"
-          if [ "${{ matrix.environment }}" = "simulator" ]; then
-            cp /tmp/shaderc/Libshaderc_combined.xcframework/ios-arm64_x86_64-simulator/libshaderc_combined.a "scratch/$ARCH_DIR/lib/"
-          else
-            cp /tmp/shaderc/Libshaderc_combined.xcframework/ios-arm64/libshaderc_combined.a "scratch/$ARCH_DIR/lib/"
-          fi
-          
-          # 下载头文件 (从单独的头文件 zip 或从 all zip 中提取)
-          SHADERC_HEADERS_URL="https://github.com/mpvkit/libshaderc-build/releases/download/${SHADERC_VERSION}/libshaderc-all.zip"
-          echo "Downloading libshaderc headers from $SHADERC_HEADERS_URL"
-          curl -L -o /tmp/shaderc_all.zip "$SHADERC_HEADERS_URL"
-          unzip -q /tmp/shaderc_all.zip -d /tmp/shaderc_all
-          
-          echo "=== Copying libshaderc headers ==="
-          cp -R /tmp/shaderc_all/include/shaderc "scratch/$ARCH_DIR/include/"
-          
-          echo "=== libshaderc installed ==="
-          ls -la "scratch/$ARCH_DIR/lib/libshaderc_combined.a"
-          ls -la "scratch/$ARCH_DIR/include/shaderc/"
-          
-          # 创建 pkgconfig 文件
-          mkdir -p "scratch/$ARCH_DIR/lib/pkgconfig"
-          cat > "scratch/$ARCH_DIR/lib/pkgconfig/shaderc.pc" << EOF
-          prefix=${{ github.workspace }}/scratch/$ARCH_DIR
-          exec_prefix=\${prefix}
-          libdir=\${exec_prefix}/lib
-          includedir=\${prefix}/include
-          
-          Name: shaderc
-          Description: SPIR-V shader compiler
-          Version: ${SHADERC_VERSION}
-          Libs: -L\${libdir} -lshaderc_combined
-          Cflags: -I\${includedir}
-          EOF
-          
-          echo "=== shaderc.pc created ==="
-          cat "scratch/$ARCH_DIR/lib/pkgconfig/shaderc.pc"
+      # libshaderc 由 mpv 子项目 libplacebo 自动编译，无需预下载
 
       - name: Verify dependencies
         run: |
@@ -241,19 +186,13 @@ jobs:
           ls -la scratch/$ARCH_DIR/lib/libav*.a scratch/$ARCH_DIR/lib/libsw*.a 2>/dev/null || echo "No FFmpeg libs"
           echo "=== MoltenVK ==="
           ls -la scratch/$ARCH_DIR/lib/libMoltenVK.a 2>/dev/null || echo "No MoltenVK"
-          echo "=== libshaderc ==="
-          ls -la scratch/$ARCH_DIR/lib/libshaderc_combined.a 2>/dev/null || echo "No libshaderc"
           echo "=== Vulkan headers ==="
           ls -la scratch/$ARCH_DIR/include/vulkan/ 2>/dev/null || echo "No Vulkan headers"
-          echo "=== shaderc headers ==="
-          ls -la scratch/$ARCH_DIR/include/shaderc/ 2>/dev/null || echo "No shaderc headers"
           echo "=== Check vulkan_core.h ==="
           head -50 scratch/$ARCH_DIR/include/vulkan/vulkan_core.h 2>/dev/null | grep -E "VK_VERSION|define" || echo "Cannot read vulkan_core.h"
           echo "=== pkg-config vulkan ==="
           export PKG_CONFIG_LIBDIR="$(pwd)/scratch/$ARCH_DIR/lib/pkgconfig"
           pkg-config --cflags vulkan 2>&1 || echo "pkg-config failed"
-          echo "=== pkg-config shaderc ==="
-          pkg-config --cflags shaderc 2>&1 || echo "pkg-config failed"
 
       - name: Build libmpv (+ subprojects)
         run: |
