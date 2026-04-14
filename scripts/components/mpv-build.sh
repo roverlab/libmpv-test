@@ -400,10 +400,19 @@ find "$SCRATCH/$ARCH_DIR" -name "libmpv.a" -exec cp {} "$SCRATCH/$ARCH_DIR/lib/"
 # Copy mpv public API headers
 MPV_INCLUDE_DIR="$SCRATCH/$ARCH_DIR/include/mpv"
 mkdir -p "$MPV_INCLUDE_DIR"
-cp libmpv/client.h    "$MPV_INCLUDE_DIR/" 2>/dev/null || true
-cp libmpv/render.h    "$MPV_INCLUDE_DIR/" 2>/dev/null || true
-cp libmpv/render_gl.h "$MPV_INCLUDE_DIR/" 2>/dev/null || true
-cp libmpv/stream_cb.h "$MPV_INCLUDE_DIR/" 2>/dev/null || true
+
+# 确保从正确的 mpv 源码目录复制头文件
+echo "=== Copying mpv headers from $MPV_SRC/libmpv/ ==="
+if [ -d "$MPV_SRC/libmpv" ]; then
+    cp "$MPV_SRC/libmpv/client.h"    "$MPV_INCLUDE_DIR/" 2>/dev/null || echo "Warning: client.h not found"
+    cp "$MPV_SRC/libmpv/render.h"    "$MPV_INCLUDE_DIR/" 2>/dev/null || echo "Warning: render.h not found"
+    cp "$MPV_SRC/libmpv/render_gl.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || echo "Warning: render_gl.h not found"
+    cp "$MPV_SRC/libmpv/stream_cb.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || echo "Warning: stream_cb.h not found"
+    echo "=== mpv headers copied ==="
+    ls -la "$MPV_INCLUDE_DIR/"
+else
+    echo "ERROR: $MPV_SRC/libmpv directory not found!"
+fi
 
 
 echo "Build complete!"
