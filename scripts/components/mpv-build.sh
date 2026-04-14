@@ -97,7 +97,7 @@ clone_subproject() {
     fi
 }
 
-# Helper function to download and extract tarball
+# Helper function to download and extract tarball into current directory (subprojects/)
 download_tarball() {
     local name="$1"
     local url="$2"
@@ -110,11 +110,11 @@ download_tarball() {
             curl -f -L -- "$url" > "$ROOT/downloads/$tarname"
         fi
         echo "Extracting $name..."
-        tar xvf "$ROOT/downloads/$tarname" -C "$SRC"
+        tar xvf "$ROOT/downloads/$tarname" -C .
         # Find extracted directory and rename to target_dir
-        local extracted_dir=$(ls -d "$SRC"/${name}* 2>/dev/null | grep -v "$target_dir" | head -1)
-        if [ -n "$extracted_dir" ] && [ "$extracted_dir" != "$SRC/$target_dir" ]; then
-            mv "$extracted_dir" "$SRC/$target_dir"
+        local extracted_dir=$(ls -d ${name}* 2>/dev/null | grep -v "^${target_dir}$" | head -1)
+        if [ -n "$extracted_dir" ]; then
+            mv "$extracted_dir" "$target_dir"
         fi
     fi
 }
@@ -129,12 +129,6 @@ clone_subproject "harfbuzz"  "$HARFBUZZ_GIT_URL"    "$HARFBUZZ_VERSION"   "harfb
 # fribidi 使用 tarball（已预生成 gen.tab 输出，避免交叉编译时需要构建机器编译器）
 FRIBIDI_URL="https://github.com/fribidi/fribidi/releases/download/v$FRIBIDI_VERSION/fribidi-$FRIBIDI_VERSION.tar.xz"
 download_tarball "fribidi" "$FRIBIDI_URL" "fribidi"
-
-# 将 fribidi 作为 subproject 注册到 meson（创建符号链接或复制到 subprojects/）
-if [ -d "$SRC/fribidi" ] && [ ! -e "subprojects/fribidi" ]; then
-    echo "Registering fribidi as meson subproject..."
-    ln -s "$SRC/fribidi" "subprojects/fribidi"
-fi
 
 # 返回 mpv 源码根目录（meson.build 在这里）
 cd ..
