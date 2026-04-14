@@ -181,29 +181,36 @@ jobs:
       - name: Download libshaderc
         run: |
           ARCH_DIR="${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}"
+          SHADERC_VERSION="2025.5.0"
           
-          # 下载 MPVKit 预编译的 libshaderc
-          SHADERC_URL="https://github.com/mpvkit/libshaderc-build/releases/download/2025.5.0/libshaderc-all.zip"
+          # 下载 MPVKit 预编译的 libshaderc (使用单独的 xcframework zip)
+          SHADERC_URL="https://github.com/mpvkit/libshaderc-build/releases/download/${SHADERC_VERSION}/Libshaderc_combined.xcframework.zip"
           echo "Downloading libshaderc from $SHADERC_URL"
-          curl -L -o /tmp/shaderc.zip "$SHADERC_URL"
+          curl -L -o /tmp/shaderc_xcframework.zip "$SHADERC_URL"
           
-          # 解压到临时目录
-          unzip -q /tmp/shaderc.zip -d /tmp/shaderc
+          # 解压 xcframework
+          unzip -q /tmp/shaderc_xcframework.zip -d /tmp/shaderc
           
-          echo "=== libshaderc directory structure ==="
+          echo "=== libshaderc xcframework structure ==="
           find /tmp/shaderc -type d | head -20
+          find /tmp/shaderc -name "*.a" | head -20
           
           # 复制对应平台的库文件到 lib/ 目录
           mkdir -p "scratch/$ARCH_DIR/lib"
           if [ "${{ matrix.environment }}" = "simulator" ]; then
-            cp /tmp/shaderc/lib/libshaderc_combined.xcframework/ios-arm64_x86_64-simulator/libshaderc_combined.a "scratch/$ARCH_DIR/lib/"
+            cp /tmp/shaderc/Libshaderc_combined.xcframework/ios-arm64_x86_64-simulator/libshaderc_combined.a "scratch/$ARCH_DIR/lib/"
           else
-            cp /tmp/shaderc/lib/libshaderc_combined.xcframework/ios-arm64/libshaderc_combined.a "scratch/$ARCH_DIR/lib/"
+            cp /tmp/shaderc/Libshaderc_combined.xcframework/ios-arm64/libshaderc_combined.a "scratch/$ARCH_DIR/lib/"
           fi
           
-          # 复制头文件
+          # 下载头文件 (从单独的头文件 zip 或从 all zip 中提取)
+          SHADERC_HEADERS_URL="https://github.com/mpvkit/libshaderc-build/releases/download/${SHADERC_VERSION}/libshaderc-all.zip"
+          echo "Downloading libshaderc headers from $SHADERC_HEADERS_URL"
+          curl -L -o /tmp/shaderc_all.zip "$SHADERC_HEADERS_URL"
+          unzip -q /tmp/shaderc_all.zip -d /tmp/shaderc_all
+          
           echo "=== Copying libshaderc headers ==="
-          cp -R /tmp/shaderc/include/shaderc "scratch/$ARCH_DIR/include/"
+          cp -R /tmp/shaderc_all/include/shaderc "scratch/$ARCH_DIR/include/"
           
           echo "=== libshaderc installed ==="
           ls -la "scratch/$ARCH_DIR/lib/libshaderc_combined.a"
@@ -219,7 +226,7 @@ jobs:
           
           Name: shaderc
           Description: SPIR-V shader compiler
-          Version: 2025.5.0
+          Version: ${SHADERC_VERSION}
           Libs: -L\${libdir} -lshaderc_combined
           Cflags: -I\${includedir}
           EOF
