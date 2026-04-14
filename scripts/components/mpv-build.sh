@@ -247,8 +247,10 @@ sed -i '' "s/1\.3\.238/1.0.0/" meson.build && echo "Patched: vulkan version 1.3.
 # 修改为：features += {'vulkan': vulkan.found()}
 if grep -q "VK_VERSION_1_3" meson.build; then
     echo "Patching meson.build to bypass VK_VERSION_1_3 check..."
-    # 使用 perl 进行多行替换，因为 sed 在 macOS 上处理多行很困难
-    perl -i -0pe 's/features\s*\+=\s*\{\'vulkan\':\s*vulkan\.found\(\)\s*and\s*\(vulkan\.type_name\(\)\s*==\s*\'internal\'\s*or\s*cc\.has_header_symbol\([^)]+VK_VERSION_1_3[^)]+\)\)\}/features += {\'vulkan\': vulkan.found()}/gs' meson.build
+    # 使用 sed 替换，将复杂的 VK_VERSION_1_3 检测简化
+    # 匹配: features += {'vulkan': vulkan.found() and (vulkan.type_name() == 'internal' or cc.has_header_symbol('vulkan/vulkan_core.h', 'VK_VERSION_1_3', dependencies: vulkan))}
+    # 替换为: features += {'vulkan': vulkan.found()}
+    sed -i '' "s/features += {'vulkan': vulkan.found() and (vulkan.type_name() == 'internal' or cc.has_header_symbol('vulkan\/vulkan_core.h', 'VK_VERSION_1_3', dependencies: vulkan))}/features += {'vulkan': vulkan.found()}/" meson.build
     echo "Patch applied."
 fi
 
