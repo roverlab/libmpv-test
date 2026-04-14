@@ -239,6 +239,19 @@ fi
 # MoltenVK 的 vulkan.pc 报告的版本号无法满足 mpv 的默认检查
 sed -i '' "s/1\.3\.238/1.0.0/" meson.build && echo "Patched: vulkan version 1.3.238 -> 1.0.0"
 
+# 临时修复：绕过 VK_VERSION_1_3 检测
+# meson 的 has_header_symbol() 在交叉编译时可能无法正确检测到宏定义
+# 即使头文件中已定义了 VK_VERSION_1_3
+# 这个 patch 直接将 vulkan feature 设为已找到（当 vulkan 依赖存在时）
+# 原始代码：features += {'vulkan': vulkan.found() and (vulkan.type_name() == 'internal' or cc.has_header_symbol(...))}
+# 修改为：features += {'vulkan': vulkan.found()}
+if grep -q "VK_VERSION_1_3" meson.build; then
+    echo "Patching meson.build to bypass VK_VERSION_1_3 check..."
+    # 使用 perl 进行多行替换，因为 sed 在 macOS 上处理多行很困难
+    perl -i -0pe 's/features\s*\+=\s*\{\'vulkan\':\s*vulkan\.found\(\)\s*and\s*\(vulkan\.type_name\(\)\s*==\s*\'internal\'\s*or\s*cc\.has_header_symbol\([^)]+VK_VERSION_1_3[^)]+\)\)\}/features += {\'vulkan\': vulkan.found()}/gs' meson.build
+    echo "Patch applied."
+fi
+
 
 # 定义编译参数数组
 ARGS=(
