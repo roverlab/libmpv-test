@@ -26,9 +26,27 @@ mkdir -p "$SRC"
 # =========================================================================
 MPV_SRC="$SRC/mpv"
 
+echo "=== MPV Source Directory ==="
+echo "  SRC=$SRC"
+echo "  MPV_SRC=$MPV_SRC"
+
 if [ ! -d "$MPV_SRC" ]; then
     echo "=== Cloning mpv $MPV_VERSION ==="
     git clone --depth 1 --branch "v$MPV_VERSION" "$MPV_GIT_URL" "$MPV_SRC"
+else
+    echo "=== mpv source already exists at $MPV_SRC ==="
+fi
+
+# 验证 mpv 源码目录结构
+echo "=== Verifying mpv source structure ==="
+if [ -d "$MPV_SRC/include/mpv" ]; then
+    echo "  mpv headers found at: $MPV_SRC/include/mpv/"
+elif [ -d "$MPV_SRC/libmpv" ]; then
+    echo "  mpv headers found at: $MPV_SRC/libmpv/ (legacy structure)"
+else
+    echo "WARNING: Neither include/mpv/ nor libmpv/ found!"
+    echo "Contents of $MPV_SRC:"
+    ls -la "$MPV_SRC" 2>/dev/null || echo "  Directory does not exist"
 fi
 
 cd "$MPV_SRC"
@@ -401,17 +419,19 @@ find "$SCRATCH/$ARCH_DIR" -name "libmpv.a" -exec cp {} "$SCRATCH/$ARCH_DIR/lib/"
 MPV_INCLUDE_DIR="$SCRATCH/$ARCH_DIR/include/mpv"
 mkdir -p "$MPV_INCLUDE_DIR"
 
-# 确保从正确的 mpv 源码目录复制头文件
-echo "=== Copying mpv headers from $MPV_SRC/libmpv/ ==="
-if [ -d "$MPV_SRC/libmpv" ]; then
-    cp "$MPV_SRC/libmpv/client.h"    "$MPV_INCLUDE_DIR/" 2>/dev/null || echo "Warning: client.h not found"
-    cp "$MPV_SRC/libmpv/render.h"    "$MPV_INCLUDE_DIR/" 2>/dev/null || echo "Warning: render.h not found"
-    cp "$MPV_SRC/libmpv/render_gl.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || echo "Warning: render_gl.h not found"
-    cp "$MPV_SRC/libmpv/stream_cb.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || echo "Warning: stream_cb.h not found"
+# mpv 头文件在 include/mpv/ 目录，不是 libmpv/
+echo "=== Copying mpv headers from $MPV_SRC/include/mpv/ ==="
+if [ -d "$MPV_SRC/include/mpv" ]; then
+    cp "$MPV_SRC/include/mpv/client.h"    "$MPV_INCLUDE_DIR/" 2>/dev/null || echo "Warning: client.h not found"
+    cp "$MPV_SRC/include/mpv/render.h"    "$MPV_INCLUDE_DIR/" 2>/dev/null || echo "Warning: render.h not found"
+    cp "$MPV_SRC/include/mpv/render_gl.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || echo "Warning: render_gl.h not found"
+    cp "$MPV_SRC/include/mpv/stream_cb.h" "$MPV_INCLUDE_DIR/" 2>/dev/null || echo "Warning: stream_cb.h not found"
     echo "=== mpv headers copied ==="
     ls -la "$MPV_INCLUDE_DIR/"
 else
-    echo "ERROR: $MPV_SRC/libmpv directory not found!"
+    echo "ERROR: $MPV_SRC/include/mpv directory not found!"
+    echo "Looking for headers in $MPV_SRC..."
+    find "$MPV_SRC" -name "client.h" -type f 2>/dev/null | head -5
 fi
 
 
