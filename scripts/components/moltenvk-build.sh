@@ -29,32 +29,11 @@ cd "$MOLTENVK_SRC"
 
 echo "Building MoltenVK for $ENVIRONMENT..."
 
-# 根据目标环境只编译需要的平台
-# (CI 中 distribution 和 simulator 本身就是并行 job)
-#
-# 注意：simulator 默认 make iossim 会编译双架构 (arm64 + x86_64)，
-#       但 GitHub Actions runner 是 Apple Silicon (macos-latest)，
-#       模拟器只需要 arm64 即可。这里用 xcodebuild 直接指定 ARCHS=arm64
-#       来跳过 x86_64，编译时间减少约一半。
+# 根据目标环境使用官方 make 命令编译
 if [ "$ENVIRONMENT" = "simulator" ]; then
-    echo "  Target: iOS Simulator (arm64 only, skipping x86_64)"
+    echo "  Target: iOS Simulator"
     ./fetchDependencies --iossim
-    # 用 xcodebuild 替代 make iossim，显式指定只编 arm64
-    # make iossim 内部会调用 xcodebuild 编译 MoltenVKPackaging.xcodeproj 的
-    # "MoltenVK Package (iOS only)" scheme，并打包成包含双架构的 xcframework。
-    # 我们直接调用 xcodebuild 并设置 ARCHS=arm64 EXCLUDED_ARCHS=x86_64
-    # 来只编译 arm64-simulator，跳过 x86_64。
-    #
-    # 注意：需要设置 CURRENT_PROJECT_VERSION 匹配 MoltenVK 版本，否则 static_assert 会失败
-    MOLTENVK_VERSION=$(grep 'MVK_VERSION_STRING' MoltenVK/MoltenVK/API/mvk_config.h | head -1 | sed 's/.*"\(.*\)".*/\1/')
-    echo "  MoltenVK version: $MOLTENVK_VERSION"
-    xcodebuild build \
-        -project MoltenVKPackaging.xcodeproj \
-        -scheme "MoltenVK Package (iOS only)" \
-        -destination 'generic/platform=iOS Simulator' \
-        ARCHS=arm64 \
-        EXCLUDED_ARCHS=x86_64 \
-        CURRENT_PROJECT_VERSION="$MOLTENVK_VERSION"
+    make iossim
 else
     echo "  Target: iOS Device"
     ./fetchDependencies --ios
