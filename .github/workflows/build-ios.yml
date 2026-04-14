@@ -133,26 +133,30 @@ jobs:
           # 解压到临时目录
           unzip -q /tmp/moltenvk.zip -d /tmp/moltenvk
           
+          # 查看解压后的目录结构
+          echo "=== MoltenVK directory structure ==="
+          find /tmp/moltenvk -type d | head -20
+          
           # 复制对应平台的文件
           if [ "${{ matrix.environment }}" = "simulator" ]; then
-            cp -R /tmp/moltenvk/MoltenVK.xcframework/ios-arm64_x86_64-simulator/* "scratch/$ARCH_DIR/"
+            cp -R /tmp/moltenvk/lib/MoltenVK.xcframework/ios-arm64_x86_64-simulator/* "scratch/$ARCH_DIR/"
           else
-            cp -R /tmp/moltenvk/MoltenVK.xcframework/ios-arm64/* "scratch/$ARCH_DIR/"
+            cp -R /tmp/moltenvk/lib/MoltenVK.xcframework/ios-arm64/* "scratch/$ARCH_DIR/"
           fi
           
           # 创建 pkgconfig 文件
           mkdir -p "scratch/$ARCH_DIR/lib/pkgconfig"
-          cat > "scratch/$ARCH_DIR/lib/pkgconfig/vulkan.pc" << 'EOF'
-          prefix=${{ github.workspace }}/scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}
-          exec_prefix=${prefix}
-          libdir=${exec_prefix}/lib
-          includedir=${prefix}/include
+          cat > "scratch/$ARCH_DIR/lib/pkgconfig/vulkan.pc" << EOF
+          prefix=${{ github.workspace }}/scratch/$ARCH_DIR
+          exec_prefix=\${prefix}
+          libdir=\${exec_prefix}/lib
+          includedir=\${prefix}/include
           
           Name: Vulkan
           Description: Vulkan (MoltenVK) static library
           Version: 1.3.280
-          Libs: -L${libdir} -lMoltenVK -framework Metal -framework QuartzCore -framework Foundation -framework CoreGraphics -framework IOSurface
-          Cflags: -I${includedir}/MoltenVK -I${includedir}/vulkan
+          Libs: -L\${libdir} -lMoltenVK -framework Metal -framework QuartzCore -framework Foundation -framework CoreGraphics -framework IOSurface
+          Cflags: -I\${includedir}/MoltenVK -I\${includedir}/vulkan
           EOF
           
           echo "=== MoltenVK installed ==="

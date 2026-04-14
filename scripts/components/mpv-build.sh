@@ -235,47 +235,47 @@ if ! grep -q "moltenvk" meson.options 2>/dev/null; then
     echo "option('moltenvk', type: 'feature', value: 'auto', description: 'MoltenVK support for Vulkan on macOS/iOS')" >> meson.options
 fi
 
-# 临时修复：替换 meson.build 中 vulkan 版本要求 1.3.238 -> 1.0.0
-# MoltenVK 的 vulkan.pc 报告的版本号无法满足 mpv 的默认检查
-sed -i '' "s/1\.3\.238/1.0.0/" meson.build && echo "Patched: vulkan version 1.3.238 -> 1.0.0"
+# # 临时修复：替换 meson.build 中 vulkan 版本要求 1.3.238 -> 1.0.0
+# # MoltenVK 的 vulkan.pc 报告的版本号无法满足 mpv 的默认检查
+# sed -i '' "s/1\.3\.238/1.0.0/" meson.build && echo "Patched: vulkan version 1.3.238 -> 1.0.0"
 
-# 临时修复：绕过 VK_VERSION_1_3 检测
-# 使用 Python 进行多行替换（更可靠）
-if grep -q "VK_VERSION_1_3" meson.build; then
-    echo "Patching meson.build to bypass VK_VERSION_1_3 check..."
-    python3 << 'PYTHON_EOF'
-import re
-with open('meson.build', 'r') as f:
-    content = f.read()
+# # 临时修复：绕过 VK_VERSION_1_3 检测
+# # 使用 Python 进行多行替换（更可靠）
+# if grep -q "VK_VERSION_1_3" meson.build; then
+#     echo "Patching meson.build to bypass VK_VERSION_1_3 check..."
+#     python3 << 'PYTHON_EOF'
+# import re
+# with open('meson.build', 'r') as f:
+#     content = f.read()
 
-# 替换多行的 VK_VERSION_1_3 检测
-pattern = r"features \+= \{'vulkan': vulkan\.found\(\) and \(vulkan\.type_name\(\) == 'internal' or\s+cc\.has_header_symbol\('vulkan/vulkan_core\.h',\s+'VK_VERSION_1_3',\s+dependencies: vulkan\)\)\}"
-replacement = "features += {'vulkan': vulkan.found()}"
-content = re.sub(pattern, replacement, content)
+# # 替换多行的 VK_VERSION_1_3 检测
+# pattern = r"features \+= \{'vulkan': vulkan\.found\(\) and \(vulkan\.type_name\(\) == 'internal' or\s+cc\.has_header_symbol\('vulkan/vulkan_core\.h',\s+'VK_VERSION_1_3',\s+dependencies: vulkan\)\)\}"
+# replacement = "features += {'vulkan': vulkan.found()}"
+# content = re.sub(pattern, replacement, content)
 
-with open('meson.build', 'w') as f:
-    f.write(content)
-print("Python patch applied")
-PYTHON_EOF
-    echo "Patch applied."
-fi
+# with open('meson.build', 'w') as f:
+#     f.write(content)
+# print("Python patch applied")
+# PYTHON_EOF
+#     echo "Patch applied."
+# fi
 
 # =========================================================================
 # 修复 libplacebo utils_gen.py 的 Python 3.14 兼容性问题
 # Python 3.14 中 ElementTree.__init__() 不再接受 ElementTree 对象
 # 需要将 ET.parse(xmlfile) 改为 ET.parse(xmlfile).getroot()
 # =========================================================================
-UTILS_GEN_PY="subprojects/libplacebo/src/vulkan/utils_gen.py"
-if [ -f "$UTILS_GEN_PY" ]; then
-    echo "Checking libplacebo utils_gen.py for Python 3.14 compatibility..."
-    if grep -q "ET.parse(xmlfile))" "$UTILS_GEN_PY" 2>/dev/null; then
-        echo "Patching utils_gen.py for Python 3.14 compatibility..."
-        sed -i '' 's/ET.parse(xmlfile))/ET.parse(xmlfile).getroot())/g' "$UTILS_GEN_PY"
-        echo "utils_gen.py patched."
-    else
-        echo "utils_gen.py already compatible or pattern not found."
-    fi
-fi
+# UTILS_GEN_PY="subprojects/libplacebo/src/vulkan/utils_gen.py"
+# if [ -f "$UTILS_GEN_PY" ]; then
+#     echo "Checking libplacebo utils_gen.py for Python 3.14 compatibility..."
+#     if grep -q "ET.parse(xmlfile))" "$UTILS_GEN_PY" 2>/dev/null; then
+#         echo "Patching utils_gen.py for Python 3.14 compatibility..."
+#         sed -i '' 's/ET.parse(xmlfile))/ET.parse(xmlfile).getroot())/g' "$UTILS_GEN_PY"
+#         echo "utils_gen.py patched."
+#     else
+#         echo "utils_gen.py already compatible or pattern not found."
+#     fi
+# fi
 
 # 定义编译参数数组
 ARGS=(
