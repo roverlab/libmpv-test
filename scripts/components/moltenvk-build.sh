@@ -129,14 +129,38 @@ cp "$STATIC_LIB" "$DEST_LIB/libMoltenVK.a"
 echo "Installed: $DEST_LIB/libMoltenVK.a"
 ls -lh "$DEST_LIB/libMoltenVK.a"
 
-# 复制头文件（从 Package/Release/MoltenVK/include/ 取，比 framework Headers 更全）
+# 复制 MoltenVK 特有头文件
 rm -rf "$DEST_INCLUDE/MoltenVK" "$DEST_INCLUDE/vulkan"
 mkdir -p "$DEST_INCLUDE/MoltenVK" "$DEST_INCLUDE/vulkan"
 if [ -d "Package/Release/MoltenVK/include/MoltenVK" ]; then
     cp -R Package/Release/MoltenVK/include/MoltenVK/* "$DEST_INCLUDE/MoltenVK/"
 fi
-if [ -d "Package/Release/MoltenVK/include/vulkan" ]; then
+
+# ── 用 Vulkan-Headers 覆盖 vulkan/ 头文件 ──
+# MoltenVK 自带的 vulkan_core.h 可能缺少 VK_VERSION_1_3 等宏定义，
+# 导致 meson 的 cc.has_header_symbol() 检测失败。
+# 使用标准的 Vulkan-Headers 确保头文件完整。
+VULKAN_HEADERS_VERSION="1.3.280"
+VULKAN_HEADERS_URL="https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v${VULKAN_HEADERS_VERSION}.tar.gz"
+VULKAN_HEADERS_SRC="$SRC/Vulkan-Headers-${VULKAN_HEADERS_VERSION}"
+
+if [ ! -d "$VULKAN_HEADERS_SRC" ]; then
+    echo "Downloading Vulkan-Headers v${VULKAN_HEADERS_VERSION}..."
+    mkdir -p "$SRC"
+    curl -fSL "$VULKAN_HEADERS_URL" -o "$SRC/vulkan-headers.tar.gz"
+    tar xzf "$SRC/vulkan-headers.tar.gz" -C "$SRC"
+    rm -f "$SRC/vulkan-headers.tar.gz"
+fi
+
+if [ -d "$VULKAN_HEADERS_SRC/include/vulkan" ]; then
+    echo "Using Vulkan-Headers v${VULKAN_HEADERS_VERSION} for vulkan/ headers"
+    cp -R "$VULKAN_HEADERS_SRC/include/vulkan/"* "$DEST_INCLUDE/vulkan/"
+elif [ -d "Package/Release/MoltenVK/include/vulkan" ]; then
+    echo "WARNING: Falling back to MoltenVK's bundled vulkan headers (may lack VK_VERSION_1_3)"
     cp -R Package/Release/MoltenVK/include/vulkan/* "$DEST_INCLUDE/vulkan/"
+else
+    echo "ERROR: No vulkan headers found!"
+    exit 1
 fi
 
 # 生成 pkg-config 文件（meson 编译 mpv 时通过 pkg-config 查找 vulkan）
