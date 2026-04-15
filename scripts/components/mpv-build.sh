@@ -410,3 +410,20 @@ fi
 
 
 echo "Build complete!"
+
+# =========================================================================
+# 7. 验证 gpu-next 是否编译成功
+# =========================================================================
+echo ""
+echo "=== Verifying gpu-next symbols ==="
+MPV_LIB="$SCRATCH/$ARCH_DIR/lib/libmpv.a"
+if [ -f "$MPV_LIB" ]; then
+    echo "Checking for gpu-next symbols in libmpv.a:"
+    nm "$MPV_LIB" 2>/dev/null | grep -i "gpu_next" | head -10 || echo "  No gpu_next symbols found"
+    nm "$MPV_LIB" 2>/dev/null | grep -i "vo_gpu_next" | head -5 || echo "  No vo_gpu_next symbols found"
+    echo ""
+    echo "Checking for vulkan symbols:"
+    nm "$MPV_LIB" 2>/dev/null | grep -i "vulkan" | head -5 || echo "  No vulkan symbols found"
+else
+    echo "WARNING: libmpv.a not found at $MPV_LIB"
+fi
