@@ -252,26 +252,6 @@ if ! grep -q "moltenvk" meson.options 2>/dev/null; then
     echo "Adding 'moltenvk' option to meson.options..."
     echo "option('moltenvk', type: 'feature', value: 'auto', description: 'MoltenVK support for Vulkan on macOS/iOS')" >> meson.options
 fi
-
-
-
-# =========================================================================
-# 修复 libplacebo utils_gen.py 的 Python 3.14 兼容性问题
-# Python 3.14 中 ElementTree.__init__() 不再接受 ElementTree 对象
-# 需要将 ET.parse(xmlfile) 改为 ET.parse(xmlfile).getroot()
-# =========================================================================
-UTILS_GEN_PY="subprojects/libplacebo/src/vulkan/utils_gen.py"
-if [ -f "$UTILS_GEN_PY" ]; then
-    echo "Checking libplacebo utils_gen.py for Python 3.14 compatibility..."
-    if grep -q "ET.parse(xmlfile))" "$UTILS_GEN_PY" 2>/dev/null; then
-        echo "Patching utils_gen.py for Python 3.14 compatibility..."
-        sed -i '' 's/ET.parse(xmlfile))/ET.parse(xmlfile).getroot())/g' "$UTILS_GEN_PY"
-        echo "utils_gen.py patched."
-    else
-        echo "utils_gen.py already compatible or pattern not found."
-    fi
-fi
-
 # 定义编译参数数组
 ARGS=(
     --cross-file "$CROSS_FILE"
