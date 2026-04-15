@@ -92,19 +92,6 @@ mpv_set_option_string(mpv, "vo", "gpu")
 mpv_set_option_string(mpv, "gpu-context", "moltenvk")
 ```
 
-或使用 libplacebo 的 GPU-next 渲染器：
-
-```swift
-mpv_set_option_string(mpv, "vo", "gpu-next")
-mpv_set_option_string(mpv, "gpu-context", "moltenvk")
-```
-
-MoltenVK 依赖以下系统框架（已自动链接）：
-- Metal
-- QuartzCore (CoreAnimation)
-- IOSurface
-- CoreFoundation
-
 ## CI/CD 流水线
 
 | 工作流 | 触发条件 | 说明 |
@@ -140,8 +127,9 @@ libmpv-ios/
 
 ## 相关项目
 
+- [mpv](https://github.com/mpv-player/mpv) - mpv 官方
 - [MPVKit](https://github.com/mpvkit/MPVKit) - 完整的 mpv iOS/macOS 封装
-- [libmpv-native-ios](https://github.com/mpv-player/mpv) - mpv 官方
+
 
 ## 许可证
 
