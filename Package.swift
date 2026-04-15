@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "Libmpv",
+    name: "libmpv-ios",
     platforms: [
         .iOS(.v13),
         .macOS(.v11)
@@ -16,7 +16,7 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "LibmpvBinary",
-            url: "https://github.com/roverlab/libmpv-test/releases/download/v0.1.60/Libmpv.xcframework.zip",
+            url: "https://github.com/roverlab/libmpv-ios/releases/download/v0.1.60/Libmpv.xcframework.zip",
             checksum: "647ad2b3fd0266b7993e3ad01cf8055b7846cee6eef0f0be5810ad6283a63806"
         ),
         .target(

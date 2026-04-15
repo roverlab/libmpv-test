@@ -5,6 +5,12 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      run_tests:
+        description: 'Run XCFramework tests'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -427,12 +433,12 @@ jobs:
           path: lib/Libmpv.xcframework
           retention-days: 1
 
-  # # Job 4: 测试 XCFramework
-  # test-xcframework:
-  #   name: Test XCFramework
-  #   uses: ./.github/workflows/test-xcframework.yml
-  #   needs: create-xcframework
-  #   if: "!startsWith(github.ref, 'refs/tags/')"
-  #   with:
-  #     artifact_name: Libmpv-xcframework
-  #   secrets: inherit
+  # Job 4: 测试 XCFramework
+  test-xcframework:
+    name: Test XCFramework
+    uses: ./.github/workflows/test-xcframework.yml
+    needs: create-xcframework
+    if: inputs.run_tests == true
+    with:
+      artifact_name: Libmpv-xcframework
+    secrets: inherit
