@@ -10,6 +10,7 @@ LIBASS_VERSION="${LIBASS_VERSION:-0.17.3}"
 FREETYPE_VERSION="${FREETYPE_VERSION:-2.13.2}"
 HARFBUZZ_VERSION="${HARFBUZZ_VERSION:-8.4.0}"
 FRIBIDI_VERSION="${FRIBIDI_VERSION:-1.0.16}"
+LCMS2_VERSION="${LCMS2_VERSION:-2.16}"
 
 # Git URLs
 MPV_GIT_URL="https://github.com/mpv-player/mpv.git"
@@ -17,6 +18,7 @@ LIBPLACEBO_GIT_URL="https://github.com/haasn/libplacebo.git"
 LIBASS_GIT_URL="https://github.com/libass/libass.git"
 FREETYPE_GIT_URL="https://github.com/freetype/freetype.git"
 HARFBUZZ_GIT_URL="https://github.com/harfbuzz/harfbuzz.git"
+LCMS2_GIT_URL="https://github.com/mm2/Little-CMS.git"
 
 # 确保 src 目录存在
 mkdir -p "$SRC"
@@ -143,6 +145,7 @@ clone_subproject "libplacebo" "$LIBPLACEBO_GIT_URL" "v$LIBPLACEBO_VERSION" "libp
 clone_subproject "libass"     "$LIBASS_GIT_URL"     "$LIBASS_VERSION"     "libass"
 clone_subproject "freetype"  "$FREETYPE_GIT_URL"    "VER-${FREETYPE_VERSION//./-}" "freetype2"
 clone_subproject "harfbuzz"  "$HARFBUZZ_GIT_URL"    "$HARFBUZZ_VERSION"   "harfbuzz"
+clone_subproject "lcms2"     "$LCMS2_GIT_URL"       "lcms$LCMS2_VERSION"  "lcms2"
 
 # fribidi 使用 autotools 单独编译（不用 meson subproject，避免 gen.tab 需要构建机器编译器）
 FRIBIDI_URL="https://github.com/fribidi/fribidi/releases/download/v$FRIBIDI_VERSION/fribidi-$FRIBIDI_VERSION.tar.xz"
@@ -300,7 +303,7 @@ ARGS=(
     -Dlibplacebo:opengl=enabled
     -Dlibplacebo:glslang=disabled
     -Dlibplacebo:shaderc=enabled
-    -Dlibplacebo:lcms=disabled
+    -Dlibplacebo:lcms=enabled
     -Dlibplacebo:dovi=disabled
     -Dlibplacebo:libdovi=disabled
     -Dlibplacebo:xxhash=disabled
@@ -311,7 +314,7 @@ ARGS=(
     -Duchardet=disabled
 
     # 颜色管理
-    -Dlcms2=disabled
+    -Dlcms2=enabled
 
     # 图片
     -Djpeg=disabled
