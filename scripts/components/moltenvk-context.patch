@@ -1,3 +1,15 @@
+# MoltenVK context support patch for mpv
+# Compatible with mpv version: v0.41.0
+# Source: https://github.com/mpvkit/MPVKit
+#
+# This patch adds MoltenVK (Vulkan on macOS/iOS) context support to mpv,
+# enabling gpu-next vo to work on iOS/macOS via Vulkan/Metal.
+#
+# When upgrading mpv version, verify that:
+# 1. Line numbers in meson.build still match (search for "features['vulkan'] and features['x11']")
+# 2. video/out/gpu/context.c still has ra_ctx_vulkan_display declaration
+# 3. video/out/vulkan/common.h still has HAVE_WIN32_DESKTOP block
+
 diff --git forkSrcPrefix/meson.build forkDstPrefix/meson.build
 index 7572769e0e6f280391668c6797d67e37e2dea30f..e6109987a3d38025a5eede04441c03ee23413255 100644
 --- forkSrcPrefix/meson.build
