@@ -209,6 +209,7 @@ endian = 'little'
 [properties]
 needs_exe_wrapper = true
 has_function_printf = true
+pkg_config_path = ['$SCRATCH/$ARCH_DIR/lib/pkgconfig']
 
 [built-in options]
 default_library = 'static'
@@ -236,22 +237,18 @@ export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
 # =========================================================================
 # 5. Meson 构建
 # =========================================================================
-# Apply MoltenVK patch (from Thirds/MPVKit) once to enable moltenvk context.
-PATCH_FILE="$ROOT/Thirds/MPVKit/Sources/BuildScripts/patch/libmpv/0001-player-add-moltenvk-context.patch"
-if [ -f "$PATCH_FILE" ] && ! grep -q "context_moltenvk" meson.build; then
-    echo "Applying MoltenVK patch: $PATCH_FILE"
-    if command -v git >/dev/null 2>&1; then
-        git apply "$PATCH_FILE"
-    else
-        patch -p1 < "$PATCH_FILE"
-    fi
+# Apply MoltenVK patch - convert forkSrcPrefix paths to standard git diff format
+PATCH_FILE="$ROOT/scripts/components/moltenvk-context.patch"
+
+if [ -f "$PATCH_FILE" ] && ! grep -q "context_moltenvk" meson.build 2>/dev/null; then
+    echo "=== Applying MoltenVK patch ==="
+    # Convert patch paths: forkSrcPrefix -> a/, forkDstPrefix -> b/
+    # This makes it compatible with standard git apply
+    FIXED_PATCH="/tmp/moltenvk-fixed.patch"
+    sed 's|forkSrcPrefix/|a/|g; s|forkDstPrefix/|b/|g' "$PATCH_FILE" > "$FIXED_PATCH"
+    git apply "$FIXED_PATCH" || patch -p1 < "$FIXED_PATCH" || echo "Warning: patch may have already been applied"
 fi
 
-# 添加 moltenvk meson 选项（patch 引用了该选项，需要在 meson.options 中定义）
-if ! grep -q "moltenvk" meson.options 2>/dev/null; then
-    echo "Adding 'moltenvk' option to meson.options..."
-    echo "option('moltenvk', type: 'feature', value: 'auto', description: 'MoltenVK support for Vulkan on macOS/iOS')" >> meson.options
-fi
 # 定义编译参数数组
 ARGS=(
     --cross-file "$CROSS_FILE"
@@ -386,6 +383,30 @@ with open('build/meson-info/intro-buildoptions.json') as f:
         if any(x in name for x in ['vulkan', 'moltenvk', 'gpu', 'libplacebo', 'shaderc', 'gl']):
             print(f\"  {name}: {opt.get('value', 'N/A')}\")
 " 2>/dev/null || echo "  (could not parse meson config)"
+fi
+
+# 检查构建日志中关于 vulkan 的检测信息
+echo ""
+echo "=== Checking vulkan detection in build log ==="
+if [ -f "build/meson-logs/meson-log.txt" ]; then
+    echo "Vulkan related log entries:"
+    grep -i "vulkan\|moltenvk" build/meson-logs/meson-log.txt 2>/dev/null | tail -30 || echo "  No vulkan mentions in log"
+fi
+
+# 检查 libplacebo 子项目的构建配置
+echo ""
+echo "=== Checking libplacebo subproject config ==="
+if [ -f "build/subprojects/libplacebo/meson-info/intro-buildoptions.json" ]; then
+    echo "libplacebo build options:"
+    python3 -c "
+import json
+with open('build/subprojects/libplacebo/meson-info/intro-buildoptions.json') as f:
+    opts = json.load(f)
+    for opt in opts:
+        name = opt.get('name', '')
+        if any(x in name for x in ['vulkan', 'shaderc', 'glslang']):
+            print(f\"  {name}: {opt.get('value', 'N/A')}\")
+" 2>/dev/null || echo "  (could not parse)"
 fi
 echo ""
 echo "=== Meson Targets (checking for gpu-next) ==="
