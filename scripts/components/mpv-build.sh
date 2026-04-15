@@ -18,7 +18,6 @@ LIBPLACEBO_GIT_URL="https://github.com/haasn/libplacebo.git"
 LIBASS_GIT_URL="https://github.com/libass/libass.git"
 FREETYPE_GIT_URL="https://github.com/freetype/freetype.git"
 HARFBUZZ_GIT_URL="https://github.com/harfbuzz/harfbuzz.git"
-LCMS2_GIT_URL="https://github.com/mm2/Little-CMS.git"
 
 # 确保 src 目录存在
 mkdir -p "$SRC"
@@ -145,7 +144,24 @@ clone_subproject "libplacebo" "$LIBPLACEBO_GIT_URL" "v$LIBPLACEBO_VERSION" "libp
 clone_subproject "libass"     "$LIBASS_GIT_URL"     "$LIBASS_VERSION"     "libass"
 clone_subproject "freetype"  "$FREETYPE_GIT_URL"    "VER-${FREETYPE_VERSION//./-}" "freetype2"
 clone_subproject "harfbuzz"  "$HARFBUZZ_GIT_URL"    "$HARFBUZZ_VERSION"   "harfbuzz"
-clone_subproject "lcms2"     "$LCMS2_GIT_URL"       "lcms$LCMS2_VERSION"  "lcms2"
+
+# lcms2 使用 autotools 单独编译（Little-CMS 没有 meson 支持）
+LCMS2_URL="https://github.com/mm2/Little-CMS/releases/download/lcms$LCMS2_VERSION/lcms2-$LCMS2_VERSION.tar.gz"
+download_tarball "lcms2" "$LCMS2_URL" "lcms2"
+
+echo "=== Building lcms2 with autotools ==="
+cd "$SRC/lcms2"
+chmod +x configure 2>/dev/null || true
+./configure \
+    --host="aarch64-apple-darwin" \
+    --prefix="$SCRATCH/$ARCH_DIR" \
+    --disable-shared \
+    --enable-static \
+    CFLAGS="-target $TARGET_TRIPLE $MIN_VERSION_FLAG -isysroot $SDKPATH" \
+    LDFLAGS="-target $TARGET_TRIPLE $MIN_VERSION_FLAG -isysroot $SDKPATH"
+make -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
+make install
+cd "$MPV_SRC"
 
 # fribidi 使用 autotools 单独编译（不用 meson subproject，避免 gen.tab 需要构建机器编译器）
 FRIBIDI_URL="https://github.com/fribidi/fribidi/releases/download/v$FRIBIDI_VERSION/fribidi-$FRIBIDI_VERSION.tar.xz"
