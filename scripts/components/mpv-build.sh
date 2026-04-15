@@ -282,6 +282,7 @@ ARGS=(
     -Degl=disabled
     -Dvulkan=enabled
     -Dmoltenvk=enabled
+    -Dshaderc=enabled
 
     # 窗口系统
     -Dcocoa=disabled
@@ -343,12 +344,28 @@ ARGS=(
 echo "=== pkg-config debug info ==="
 echo "  PKG_CONFIG_LIBDIR=$PKG_CONFIG_LIBDIR"
 echo "  PKG_CONFIG_PATH=${PKG_CONFIG_PATH:-<unset>}"
+echo ""
 echo "  vulkan.pc:"
 pkg-config --modversion vulkan 2>&1 || echo "  WARNING: pkg-config cannot find vulkan!"
 echo "  vulkan cflags:"
 pkg-config --cflags vulkan 2>&1 || true
 echo "  vulkan libs:"
 pkg-config --libs vulkan 2>&1 || true
+echo ""
+echo "  shaderc_combined.pc (for gpu-next):"
+pkg-config --modversion shaderc_combined 2>&1 || echo "  WARNING: pkg-config cannot find shaderc_combined!"
+echo "  shaderc_combined cflags:"
+pkg-config --cflags shaderc_combined 2>&1 || true
+echo "  shaderc_combined libs:"
+pkg-config --libs shaderc_combined 2>&1 || true
+echo ""
+echo "  libplacebo.pc:"
+pkg-config --modversion libplacebo 2>&1 || echo "  WARNING: pkg-config cannot find libplacebo!"
+echo "  libplacebo cflags:"
+pkg-config --cflags libplacebo 2>&1 || true
+echo "  libplacebo libs:"
+pkg-config --libs libplacebo 2>&1 || true
+echo ""
 echo "  Working directory: $(pwd)"
 echo "  meson.build exists: $(test -f meson.build && echo YES || echo NO)"
 echo "============================="
