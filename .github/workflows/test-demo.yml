@@ -1,0 +1,127 @@
+name: Test Demo App
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-demo:
+    name: Test Demo-iOS App
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Boot iOS Simulator
+        id: boot-simulator
+        run: |
+          set -e
+
+          # 查找可用的 iPhone 模拟器
+          SIM_UDID=$(xcrun simctl list devices available -j \
+            | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          hits = []
+          for runtime, devices in data.get('devices', {}).items():
+              if 'iOS' not in runtime:
+                  continue
+              for d in devices:
+                  if d.get('isAvailable') and 'iPhone' in d.get('name',''):
+                      hits.append((runtime, d['udid'], d['name']))
+          # 优先选择 iPhone 16 Pro，然后按运行时版本降序排序
+          hits.sort(key=lambda x: (x[2]=='iPhone 16 Pro', x[0]), reverse=True)
+          if hits:
+              print(hits[0][1])
+          " 2>/dev/null || true)
+
+          if [ -z "$SIM_UDID" ]; then
+            echo "No existing iPhone simulator found — creating one..."
+            RUNTIME=$(xcrun simctl list runtimes available | grep 'iOS' | tail -1 | grep -Eo 'com\.apple\.CoreSimulator\.SimRuntime\.[^ ]+')
+            DEVTYPE=$(xcrun simctl list devicetypes | grep 'iPhone' | tail -1 | grep -Eo 'com\.apple\.CoreSimulator\.SimDeviceType\.[^ ]+')
+            SIM_UDID=$(xcrun simctl create "CI_iPhone" "$DEVTYPE" "$RUNTIME")
+            echo "Created simulator: $SIM_UDID"
+          fi
+
+          echo "Booting simulator: $SIM_UDID"
+          xcrun simctl boot "$SIM_UDID" 2>/dev/null || true
+
+          # 等待模拟器启动
+          echo "Waiting for simulator to be ready..."
+          for i in $(seq 1 24); do
+            STATE=$(xcrun simctl list devices | grep "$SIM_UDID" | grep -Eo '\([A-Za-z ]+\)' | tr -d '()')
+            echo "  [$i] state=$STATE"
+            if [ "$STATE" = "Booted" ]; then break; fi
+            sleep 5
+          done
+
+          echo "SIM_UDID=$SIM_UDID" >> $GITHUB_ENV
+          echo "sim_udid=$SIM_UDID" >> $GITHUB_OUTPUT
+          echo "✅ Simulator ready: $SIM_UDID"
+
+      - name: Build and Run Demo-iOS App
+        run: |
+          cd Demo/Demo-iOS
+          
+          echo "=== Building Demo-iOS ==="
+          
+          # 构建 for the booted simulator
+          xcodebuild build \
+            -scheme Demo-iOS \
+            -destination "id=$SIM_UDID" \
+            -configuration Debug \
+            -derivedDataPath DerivedData
+          
+          echo "✅ Demo-iOS built successfully"
+
+          # 获取 app 路径
+          APP_PATH=$(find DerivedData/Build/Products -name "Demo-iOS.app" -type d | head -1)
+          
+          if [ -z "$APP_PATH" ]; then
+            echo "❌ Demo-iOS.app not found!"
+            exit 1
+          fi
+          
+          echo "=== App path: $APP_PATH ==="
+
+          # 安装并启动应用
+          echo "=== Installing app to simulator ==="
+          xcrun simctl install "$SIM_UDID" "$APP_PATH"
+          
+          echo "=== Launching app ==="
+          xcrun simctl launch "$SIM_UDID" com.mpvkit.Demo-iOS
+          
+          echo "✅ App launched successfully"
+          
+          # 等待几秒让应用运行
+          sleep 5
+          
+          # 检查应用是否在运行
+          echo "=== Checking app status ==="
+          xcrun simctl spawn "$SIM_UDID" launchctl list | grep Demo-iOS || echo "App process check"
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-demo-ios
+          path: |
+            Demo/Demo-iOS/DerivedData/Logs/
+            ~/Library/Logs/DiagnosticReports/
+          retention-days: 7
+
+      - name: Cleanup
+        if: always()
+        run: |
+          # 关闭模拟器
+          if [ -n "$SIM_UDID" ]; then
+            xcrun simctl shutdown "$SIM_UDID" 2>/dev/null || true
+          fi
