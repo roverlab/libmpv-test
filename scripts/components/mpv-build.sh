@@ -282,7 +282,6 @@ ARGS=(
     -Degl=disabled
     -Dvulkan=enabled
     -Dmoltenvk=enabled
-    -Dshaderc=enabled
 
     # 窗口系统
     -Dcocoa=disabled
@@ -352,12 +351,12 @@ pkg-config --cflags vulkan 2>&1 || true
 echo "  vulkan libs:"
 pkg-config --libs vulkan 2>&1 || true
 echo ""
-echo "  shaderc_combined.pc (for gpu-next):"
-pkg-config --modversion shaderc_combined 2>&1 || echo "  WARNING: pkg-config cannot find shaderc_combined!"
-echo "  shaderc_combined cflags:"
-pkg-config --cflags shaderc_combined 2>&1 || true
-echo "  shaderc_combined libs:"
-pkg-config --libs shaderc_combined 2>&1 || true
+echo "  shaderc.pc (for libplacebo vulkan):"
+pkg-config --modversion shaderc 2>&1 || echo "  WARNING: pkg-config cannot find shaderc!"
+echo "  shaderc cflags:"
+pkg-config --cflags shaderc 2>&1 || true
+echo "  shaderc libs:"
+pkg-config --libs shaderc 2>&1 || true
 echo ""
 echo "  libplacebo.pc:"
 pkg-config --modversion libplacebo 2>&1 || echo "  WARNING: pkg-config cannot find libplacebo!"
