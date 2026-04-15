@@ -371,6 +371,37 @@ echo "============================="
 
 meson setup build "${ARGS[@]}"
 
+# 打印 meson 构建配置中的关键 feature 状态
+echo ""
+echo "=== Meson Build Configuration ==="
+if [ -f "build/meson-info/intro-buildoptions.json" ]; then
+    echo "Feature status from meson config:"
+    # 使用 python 解析 JSON 来获取关键选项的状态
+    python3 -c "
+import json
+with open('build/meson-info/intro-buildoptions.json') as f:
+    opts = json.load(f)
+    for opt in opts:
+        name = opt.get('name', '')
+        if any(x in name for x in ['vulkan', 'moltenvk', 'gpu', 'libplacebo', 'shaderc', 'gl']):
+            print(f\"  {name}: {opt.get('value', 'N/A')}\")
+" 2>/dev/null || echo "  (could not parse meson config)"
+fi
+echo ""
+echo "=== Meson Targets (checking for gpu-next) ==="
+if [ -f "build/meson-info/intro-targets.json" ]; then
+    python3 -c "
+import json
+with open('build/meson-info/intro-targets.json') as f:
+    targets = json.load(f)
+    for t in targets:
+        name = t.get('name', '')
+        if 'mpv' in name or 'gpu' in name or 'vulkan' in name:
+            print(f\"  Target: {name}\")
+" 2>/dev/null || true
+fi
+echo "============================="
+
 ninja -C build -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
 ninja -C build install
 
