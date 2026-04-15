@@ -446,15 +446,28 @@ echo "Build complete!"
 # 7. 验证 gpu-next 是否编译成功
 # =========================================================================
 echo ""
-echo "=== Verifying gpu-next symbols ==="
+echo "=== Verifying gpu-next and vulkan symbols ==="
 MPV_LIB="$SCRATCH/$ARCH_DIR/lib/libmpv.a"
 if [ -f "$MPV_LIB" ]; then
     echo "Checking for gpu-next symbols in libmpv.a:"
     nm "$MPV_LIB" 2>/dev/null | grep -i "gpu_next" | head -10 || echo "  No gpu_next symbols found"
     nm "$MPV_LIB" 2>/dev/null | grep -i "vo_gpu_next" | head -5 || echo "  No vo_gpu_next symbols found"
     echo ""
-    echo "Checking for vulkan symbols:"
-    nm "$MPV_LIB" 2>/dev/null | grep -i "vulkan" | head -5 || echo "  No vulkan symbols found"
+    echo "Checking for vulkan context symbols:"
+    nm "$MPV_LIB" 2>/dev/null | grep -i "ra_ctx_vulkan" | head -10 || echo "  No ra_ctx_vulkan symbols found"
+    echo ""
+    echo "Checking for moltenvk context symbol (THIS IS CRITICAL):"
+    nm "$MPV_LIB" 2>/dev/null | grep -i "ra_ctx_vulkan_moltenvk" || echo "  ❌ NO moltenvk context symbol found!"
+    echo ""
+    echo "Checking for Vulkan instance functions:"
+    nm "$MPV_LIB" 2>/dev/null | grep -i "vkCreateInstance" | head -3 || echo "  No vkCreateInstance found"
+    nm "$MPV_LIB" 2>/dev/null | grep -i "vkCreateMetalSurface" | head -3 || echo "  No vkCreateMetalSurface found"
 else
     echo "WARNING: libmpv.a not found at $MPV_LIB"
 fi
+
+# 检查编译产物中是否有 context_moltenvk.o
+echo ""
+echo "=== Checking for compiled context_moltenvk.o ==="
+find "$(pwd)/build" -name "*moltenvk*" -type f 2>/dev/null | head -10 || echo "  No moltenvk object files found"
+find "$(pwd)/build" -name "context_vulkan*.o" -type f 2>/dev/null | head -10 || echo "  No vulkan context object files found"
