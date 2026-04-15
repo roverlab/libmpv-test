@@ -32,29 +32,6 @@ chmod +x "$FFMPEG_SRC/configure" 2>/dev/null || true
 
 cd "$FFMPEG_SRC"
 
-# Extra dependencies from scratch directory
-EXTRA_CFLAGS=""
-EXTRA_LDFLAGS=""
-EXTRA_OPTIONS=""
-
-# Check for vulkan (MoltenVK)
-if [ -f "$SCRATCH/$ARCH_DIR/lib/pkgconfig/vulkan.pc" ]; then
-    echo "=== Enabling Vulkan/MoltenVK for FFmpeg ==="
-    EXTRA_OPTIONS="$EXTRA_OPTIONS --enable-libvulkan"
-fi
-
-# Check for libplacebo
-if [ -f "$SCRATCH/$ARCH_DIR/lib/pkgconfig/libplacebo.pc" ]; then
-    echo "=== Enabling libplacebo for FFmpeg ==="
-    EXTRA_OPTIONS="$EXTRA_OPTIONS --enable-libplacebo"
-fi
-
-# Check for shaderc
-if [ -f "$SCRATCH/$ARCH_DIR/lib/pkgconfig/shaderc.pc" ]; then
-    echo "=== Enabling libshaderc for FFmpeg ==="
-    EXTRA_OPTIONS="$EXTRA_OPTIONS --enable-libshaderc"
-fi
-
 FFMPEG_OPTIONS="${COMMON_OPTIONS%% *} \
 		--enable-cross-compile \
 		--disable-lzma \
@@ -70,8 +47,7 @@ FFMPEG_OPTIONS="${COMMON_OPTIONS%% *} \
 		--enable-videotoolbox \
 		--enable-libdav1d \
 		--disable-coreimage \
-		--disable-metal \
-		$EXTRA_OPTIONS"
+		--disable-metal"
 		# ^ --disable-libjpeg: libjpeg is NOT a system library on iOS.
 		# FFmpeg auto-detects the macOS host libjpeg during cross-compile
 		# configure and then tries to reference it in the iOS product, causing
