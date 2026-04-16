@@ -15,7 +15,7 @@ final class MPVMetalViewController: UIViewController {
     var hdrAvailable : Bool = false
     var hdrEnabled = false {
         didSet {
-            // FIXME: target-colorspace-hint does not support being changed at runtime.
+            // FIXME: target-colorspace-hint does not support being changed at runtime.
             // this option should be set as early as possible otherwise can cause issues
             // not recommended to use this way.
             if hdrEnabled {

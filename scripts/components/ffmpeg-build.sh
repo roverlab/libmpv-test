@@ -35,7 +35,7 @@ cd "$FFMPEG_SRC"
 FFMPEG_OPTIONS="${COMMON_OPTIONS%% *} \
 		--enable-cross-compile \
 		--disable-lzma \
-		--disable-securetransport \
+		--enable-securetransport \
 		--disable-sdl2 \
 		--disable-debug \
 		--disable-programs \

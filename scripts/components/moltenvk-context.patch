@@ -125,7 +125,22 @@ index 0000000000000000000000000000000000000000..445b907f795b24b8df80389394d4ae7b
 +    if (!mpvk_init(vk, ctx, VK_EXT_METAL_SURFACE_EXTENSION_NAME))
 +        goto fail;
 +
-+    p->layer = (__bridge CAMetalLayer *)(intptr_t)ctx->vo->opts->WinID;
++    intptr_t wid_val = ctx->vo->opts->WinID;
++    p->layer = (__bridge CAMetalLayer *)wid_val;
++
++    // Validate the bridged layer pointer before using it.
++    // On iOS, WinID is set via mpv_set_option(mpv, "wid", MPV_FORMAT_INT64, &metalLayer)
++    // which stores the Objective-C object pointer address as int64_t.
++    // The __bridge cast restores the original pointer without changing reference counting.
++    if (!p->layer) {
++        MP_MSG(ctx, msgl, "CAMetalLayer is null from WinID (value: 0x%llx)\n",
++               (unsigned long long)wid_val);
++        goto fail;
++    }
++
++    MP_MSG(ctx, MSGL_DEBUG, "MoltenVK: using CAMetalLayer %p (from WinID 0x%llx)\n",
++           (__bridge void *)p->layer, (unsigned long long)wid_val);
++
 +    VkMetalSurfaceCreateInfoEXT info = {
 +         .sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT,
 +         .pLayer = p->layer,
