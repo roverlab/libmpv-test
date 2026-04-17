@@ -8,12 +8,19 @@ let package = Package(
         .macOS(.v11)
     ],
     products: [
+        // libmpv — 视频播放器核心 (需要 Libffmpeg 作为依赖)
         .library(
             name: "Libmpv",
             targets: ["LibmpvWrapper"]
-        )
+        ),
+        // libffmpeg — 音视频编解码库 (FFmpeg + dav1d, 可独立使用)
+        .library(
+            name: "Libffmpeg",
+            targets: ["LibffmpegWrapper"]
+        ),
     ],
     targets: [
+        // ========== Libmpv: mpv 播放器核心 ==========
         .binaryTarget(
             name: "LibmpvBinary",
             url: "https://github.com/roverlab/libmpv-ios/releases/download/v0.1.66/Libmpv.xcframework.zip",
@@ -21,9 +28,12 @@ let package = Package(
         ),
         .target(
             name: "LibmpvWrapper",
-            dependencies: ["LibmpvBinary"],
-            path: "Sources/LibmpvWrapper",  // ← path 放在前面
-            linkerSettings: [                // ← linkerSettings 放在后面
+            dependencies: [
+                "LibmpvBinary",
+                "LibffmpegBinary",   // libmpv 依赖 libffmpeg 提供编解码能力
+            ],
+            path: "Sources/LibmpvWrapper",
+            linkerSettings: [
                 .linkedFramework("AVFoundation"),
                 .linkedFramework("AudioToolbox"),
                 .linkedFramework("CoreMedia"),
@@ -39,6 +49,26 @@ let package = Package(
                 .linkedLibrary("iconv"),
                 .linkedLibrary("c++"),              // libc++ 是必需的
             ]
-        )
+        ),
+
+        // ========== Libffmpeg: FFmpeg 编解码库 ==========
+        .binaryTarget(
+            name: "LibffmpegBinary",
+            url: "https://github.com/roverlab/libmpv-ios/releases/download/v0.1.63/Libffmpeg.xcframework.zip",
+            checksum: "PLACEHOLDER"  // TODO: 替换为实际 checksum（首次构建后更新）
+        ),
+        .target(
+            name: "LibffmpegWrapper",
+            dependencies: ["LibffmpegBinary"],
+            path: "Sources/LibffmpegWrapper",
+            linkerSettings: [
+                .linkedFramework("AudioToolbox"),
+                .linkedFramework("CoreMedia"),
+                .linkedFramework("VideoToolbox"),
+                .linkedLibrary("bz2"),
+                .linkedLibrary("z"),
+                .linkedLibrary("iconv"),
+            ]
+        ),
     ]
 )

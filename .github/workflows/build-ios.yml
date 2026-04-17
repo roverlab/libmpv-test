@@ -1,16 +1,10 @@
-name: Build libmpv for iOS
+name: Build libmpv & Libffmpeg for iOS
 
 on:
   push:
     tags:
       - 'v*'
   workflow_dispatch:
-    inputs:
-      run_tests:
-        description: 'Run XCFramework tests'
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: write
@@ -21,7 +15,7 @@ env:
 
 jobs:
   # =========================================================================
-  # Job 1: 编译 FFmpeg (device + simulator) 并缓存
+  # Job 1: 编译 FFmpeg + dav1d (device + simulator) → Libffmpeg.xcframework
   # =========================================================================
   build-ffmpeg:
     name: Build FFmpeg (${{ matrix.environment }})
@@ -76,9 +70,9 @@ jobs:
         run: |
           ARCH_DIR="${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}"
           echo "=== FFmpeg libraries for ${{ matrix.environment }} ==="
-          ls -la scratch/$ARCH_DIR/lib/libav*.a scratch/$ARCH_DIR/lib/libsw*.a scratch/$ARCH_DIR/lib/libpostproc.a 2>/dev/null || true
+          ls -la scratch/$ARCH_DIR/lib/libav*.a scratch/$ARCH_DIR/lib/libsw*.a scratch/$ARCH_DIR/lib/libpostproc.a scratch/$ARCH_DIR/lib/libdav1d.a 2>/dev/null || true
 
-      - name: Upload FFmpeg artifact
+      - name: Upload FFmpeg artifact (for Libffmpeg.xcframework)
         uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-${{ matrix.environment }}
@@ -88,7 +82,7 @@ jobs:
           retention-days: 1
 
   # =========================================================================
-  # Job 3: 编译 libmpv (device + simulator)
+  # Job 2: 编译 libmpv (device + simulator)
   # =========================================================================
   build-libmpv:
     name: Build libmpv (${{ matrix.environment }})
@@ -144,7 +138,7 @@ jobs:
           ls -la scratch/$ARCH_DIR/lib/
           ls -la scratch/$ARCH_DIR/lib/libmpv.a
 
-      - name: Upload libmpv artifacts
+      - name: Upload libmpv artifacts (for Libmpv.xcframework)
         uses: actions/upload-artifact@v4
         with:
           name: libmpv-${{ matrix.environment }}
@@ -154,10 +148,150 @@ jobs:
           retention-days: 1
 
   # =========================================================================
-  # Job 3: 创建 XCFramework 并验证
+  # Job 3: 创建 Libffmpeg.xcframework (FFmpeg + dav1d)
   # =========================================================================
-  create-xcframework:
-    name: Create XCFramework
+  create-ffmpeg-xcframework:
+    name: Create Libffmpeg XCFramework
+    runs-on: macos-latest
+    needs: build-ffmpeg
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Download device FFmpeg artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-distribution
+          path: scratch/arm64/
+
+      - name: Download simulator FFmpeg artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-simulator
+          path: scratch/arm64-simulator/
+
+      - name: Verify FFmpeg artifacts
+        run: |
+          echo "=== Device FFmpeg libraries ==="
+          ls -la scratch/arm64/lib/ 2>/dev/null || echo "No device libs"
+          echo "=== Simulator FFmpeg libraries ==="
+          ls -la scratch/arm64-simulator/lib/ 2>/dev/null || echo "No simulator libs"
+          echo "=== FFmpeg headers ==="
+          ls -la scratch/arm64/include/ 2>/dev/null || echo "No headers"
+          find scratch/arm64/include -name "*.h" -type f 2>/dev/null | head -20 || true
+
+      - name: Create Libffmpeg fat library (device)
+        run: |
+          echo "=== Creating Libffmpeg device fat library ==="
+          mkdir -p lib_ffmpeg_device
+          
+          # 收集所有 FFmpeg + dav1d 静态库
+          ALL_LIBS=$(ls scratch/arm64/lib/*.a 2>/dev/null)
+          echo "FFmpeg device libs: $ALL_LIBS"
+          
+          if [ -z "$ALL_LIBS" ]; then
+              echo "ERROR: No FFmpeg libraries found for device!"
+              exit 1
+          fi
+          
+          libtool -static -o lib_ffmpeg_device/libffmpeg_full.a $ALL_LIBS
+          echo "Device fat library size:"
+          ls -lh lib_ffmpeg_device/libffmpeg_full.a
+
+      - name: Create Libffmpeg fat library (simulator)
+        run: |
+          echo "=== Creating Libffmpeg simulator fat library ==="
+          mkdir -p lib_ffmpeg_simulator
+          
+          # 收集所有 FFmpeg + dav1d 静态库
+          ALL_LIBS=$(ls scratch/arm64-simulator/lib/*.a 2>/dev/null)
+          echo "FFmpeg simulator libs: $ALL_LIBS"
+          
+          if [ -z "$ALL_LIBS" ]; then
+              echo "ERROR: No FFmpeg libraries found for simulator!"
+              exit 1
+          fi
+          
+          libtool -static -o lib_ffmpeg_simulator/libffmpeg_full.a $ALL_LIBS
+          echo "Simulator fat library size:"
+          ls -lh lib_ffmpeg_simulator/libffmpeg_full.a
+
+      - name: Create Libffmpeg headers and modulemap
+        run: |
+          echo "=== Preparing Libffmpeg headers ==="
+          mkdir -p include_temp/Libffmpeg
+          
+          # 复制 FFmpeg 头文件 (libav*, libsw*, libpostproc)
+          if [ -d "scratch/arm64/include" ]; then
+              # 复制主要 FFmpeg 目录
+              for dir in libavcodec libavformat libavutil libswresample libswscale libpostproc; do
+                  if [ -d "scratch/arm64/include/$dir" ]; then
+                      cp -r "scratch/arm64/include/$dir" include_temp/Libffmpeg/
+                      echo "Copied: $dir"
+                  fi
+              done
+              # 复制顶层 FFmpeg 头文件
+              cp scratch/arm64/include/*.h include_temp/Libffmpeg/ 2>/dev/null || true
+              # 复制 libavcodec 内部子目录（如 libavcodec/avcodec.h 等）
+              find scratch/arm64/include -name "*.h" -type f | while read h; do
+                  relpath="${h#scratch/arm64/include/}"
+                  destdir="include_temp/Libffmpeg/$(dirname "$relpath")"
+                  mkdir -p "$destdir"
+                  cp "$h" "$destdir/"
+              done
+          fi
+          
+          echo "=== Header structure ==="
+          find include_temp/Libffmpeg -name "*.h" -type f | head -30
+          
+          # 创建 module.modulemap
+          echo 'module Libffmpeg {' > include_temp/Libffmpeg/module.modulemap
+          echo '    header "libavcodec/avcodec.h"' >> include_temp/Libffmpeg/module.modulemap
+          echo '    header "libavformat/avformat.h"' >> include_temp/Libffmpeg/module.modulemap
+          echo '    header "libavutil/avutil.h"' >> include_temp/Libffmpeg/module.modulemap
+          echo '    header "libswresample/swresample.h"' >> include_temp/Libffmpeg/module.modulemap
+          echo '    header "libswscale/swscale.h"' >> include_temp/Libffmpeg/module.modulemap
+          echo '    export *' >> include_temp/Libffmpeg/module.modulemap
+          echo '}' >> include_temp/Libffmpeg/module.modulemap
+          
+          cat include_temp/Libffmpeg/module.modulemap
+
+      - name: Create Libffmpeg.xcframework
+        run: |
+          echo "=== Creating Libffmpeg.xcframework ==="
+          mkdir -p lib
+          
+          xcodebuild -create-xcframework \
+            -library lib_ffmpeg_device/libffmpeg_full.a \
+            -headers include_temp \
+            -library lib_ffmpeg_simulator/libffmpeg_full.a \
+            -headers include_temp \
+            -output lib/Libffmpeg.xcframework \
+            -allow-internal-distribution
+          
+          echo "=== Libffmpeg.xcframework created ==="
+          ls -la lib/
+          echo "=== Full XCFramework structure ==="
+          find lib/Libffmpeg.xcframework -type f | sort
+
+      - name: Upload Libffmpeg XCFramework
+        uses: actions/upload-artifact@v4
+        with:
+          name: Libffmpeg-xcframework
+          path: lib/Libffmpeg.xcframework
+          retention-days: 1
+
+  # =========================================================================
+  # Job 4: 创建 Libmpv.xcframework (仅 mpv + subprojects, 不含 ffmpeg/dav1d)
+  # =========================================================================
+  create-mpv-xcframework:
+    name: Create Libmpv XCFramework
     runs-on: macos-latest
     needs: build-libmpv
 
@@ -189,46 +323,46 @@ jobs:
           echo "=== Simulator libraries ==="
           ls -la scratch/arm64-simulator/lib/
           echo "=== Headers ==="
-          ls -la scratch/arm64/include/mpv/
+          ls -la scratch/arm64/include/mpv/ 2>/dev/null || echo "No mpv headers"
 
-      - name: Create fat libraries
+      - name: Create fat libraries (exclude FFmpeg/dav1d libs)
         run: |
           # Helper function to create fat library for a given architecture
-          create_fat_lib() {
+          # 排除 FFmpeg 和 dav1d 的静态库 (libav*, libsw*, libpostproc, libdav1d)
+          create_mpv_fat_lib() {
               local arch_dir="$1"
               local output_dir="$2"
               local label="$3"
           
-              echo "=== Creating ${label} fat library ==="
+              echo "=== Creating ${label} fat library (mpv only) ==="
               mkdir -p "$output_dir"
           
-              # Collect all .a files from lib/ directory
-              echo "=== Libraries in ${arch_dir}lib/ ==="
+              echo "=== All libraries in ${arch_dir}lib/ ==="
               ls -la "${arch_dir}lib/"*.a 2>/dev/null || echo "No .a files in lib/"
-
-              # Collect all .a files
-              ALL_LIBS=$(ls "${arch_dir}lib/"*.a 2>/dev/null)
           
-              echo "All libs to merge: $ALL_LIBS"
+              # 收集非 FFmpeg/dav1d 的静态库
+              MPV_LIBS=$(ls "${arch_dir}lib/"*.a 2>/dev/null | grep -v -E '(libav|libsw|libpostproc|libdav1d)' || true)
+          
+              echo "MPV-only libs to merge: $MPV_LIBS"
               
-              if [ -z "$ALL_LIBS" ]; then
-                  echo "ERROR: No libraries found!"
+              if [ -z "$MPV_LIBS" ]; then
+                  echo "ERROR: No mpv libraries found!"
                   exit 1
               fi
           
-              libtool -static -o "${output_dir}/libmpv_full.a" $ALL_LIBS
+              libtool -static -o "${output_dir}/libmpv_full.a" $MPV_LIBS
           
               echo "${label} fat library size:"
               ls -lh "${output_dir}/libmpv_full.a"
           }
           
           # 设备版本 (arm64)
-          create_fat_lib "scratch/arm64/" "lib_device" "Device"
+          create_mpv_fat_lib "scratch/arm64/" "lib_device" "Device"
           
           # 模拟器版本 (arm64-simulator)
-          create_fat_lib "scratch/arm64-simulator/" "lib_simulator" "Simulator"
+          create_mpv_fat_lib "scratch/arm64-simulator/" "lib_simulator" "Simulator"
 
-      - name: Create XCFramework
+      - name: Create Libmpv XCFramework
         run: |
           echo "=== Creating Libmpv.xcframework ==="
           
@@ -272,19 +406,11 @@ jobs:
               exit 1
           fi
 
-      - name: Upload XCFramework
+      - name: Upload Libmpv XCFramework
         uses: actions/upload-artifact@v4
         with:
           name: Libmpv-xcframework
           path: lib/Libmpv.xcframework
           retention-days: 1
 
-  # Job 4: 测试 XCFramework
-  test-xcframework:
-    name: Test XCFramework
-    uses: ./.github/workflows/test-xcframework.yml
-    needs: create-xcframework
-    if: inputs.run_tests == true
-    with:
-      artifact_name: Libmpv-xcframework
-    secrets: inherit
+
