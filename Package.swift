@@ -30,6 +30,7 @@ let package = Package(
             name: "LibmpvWrapper",
             dependencies: [
                 "LibmpvBinary",
+                "LibffmpegBinary",   // libmpv 依赖 libffmpeg 提供编解码能力
             ],
             path: "Sources/LibmpvWrapper",
             linkerSettings: [
@@ -51,9 +52,14 @@ let package = Package(
         ),
 
         // ========== Libffmpeg: FFmpeg 编解码库 ==========
+        .binaryTarget(
+            name: "LibffmpegBinary",
+            url: "https://github.com/roverlab/libmpv-ios/releases/download/v0.1.66/Libffmpeg.xcframework.zip",
+            checksum: "PLACEHOLDER"  // 需要触发 release 工作流后更新
+        ),
         .target(
             name: "LibffmpegWrapper",
-            dependencies: [],
+            dependencies: ["LibffmpegBinary"],
             path: "Sources/LibffmpegWrapper",
             linkerSettings: [
                 .linkedFramework("AudioToolbox"),
