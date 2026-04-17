@@ -267,19 +267,18 @@ ARGS=(
     -Dlua=disabled
     -Djavascript=disabled
 
-    # Apple 平台核心 (使用 OpenGL 路径的 videotoolbox)
+    # Apple 平台核心 (禁用 videotoolbox-gl/pl，因 ios-gl 在新 SDK 中不兼容)
     -Davfoundation=disabled
     -Dvideotoolbox-pl=disabled
-    -Dvideotoolbox-gl=enabled
+    -Dvideotoolbox-gl=disabled
 
     # 音频（iOS 必备）
     -Daudiounit=enabled
     -Dcoreaudio=disabled
 
-    # 图形 (使用 OpenGL ES for iOS, 禁用 ios-gl 因其依赖已废弃的 CVOpenGL ES API)
     -Dgl=enabled
+    -Dios-gl=enabled
     -Dplain-gl=enabled
-    -Dios-gl=disabled
     -Degl=disabled
 
     # 窗口系统
