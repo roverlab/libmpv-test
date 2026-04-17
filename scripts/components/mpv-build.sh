@@ -267,10 +267,10 @@ ARGS=(
     -Dlua=disabled
     -Djavascript=disabled
 
-    # Apple 平台核心
+    # Apple 平台核心 (使用 OpenGL 路径的 videotoolbox)
     -Davfoundation=disabled
-    -Dvideotoolbox-pl=enabled
-    -Dvideotoolbox-gl=disabled
+    -Dvideotoolbox-pl=disabled
+    -Dvideotoolbox-gl=enabled
 
     # 音频（iOS 必备）
     -Daudiounit=enabled
