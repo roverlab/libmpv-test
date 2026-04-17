@@ -23,8 +23,8 @@ let package = Package(
         // ========== Libmpv: mpv 播放器核心 ==========
         .binaryTarget(
             name: "LibmpvBinary",
-            url: "https://github.com/roverlab/libmpv-ios/releases/download/v0.1.66/Libmpv.xcframework.zip",
-            checksum: "71d3c3d5599cecd880dcb1fcadc0a2ba1a6a9e6f6a0882196114a5b01894b209"
+            url: "https://github.com/roverlab/libmpv-ios/releases/download/v0.1.69/Libmpv.xcframework.zip",
+            checksum: "642d797f1ff54e8643c9b5194a0db35d2d88e314e823191ff9399fddae7b6eb0"
         ),
         .target(
             name: "LibmpvWrapper",
