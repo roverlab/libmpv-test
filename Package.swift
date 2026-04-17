@@ -23,8 +23,8 @@ let package = Package(
         // ========== Libmpv: mpv 播放器核心 ==========
         .binaryTarget(
             name: "LibmpvBinary",
-            url: "https://github.com/roverlab/libmpv-ios/releases/download/v0.1.66/Libmpv.xcframework.zip",
-            checksum: "71d3c3d5599cecd880dcb1fcadc0a2ba1a6a9e6f6a0882196114a5b01894b209"
+            url: "https://github.com/roverlab/libmpv-ios/releases/download/v0.1.67/Libmpv.xcframework.zip",
+            checksum: "2340afa0a234283fa435df4d5cb989353fb67f141b77fe93187194dfbbff43e2"
         ),
         .target(
             name: "LibmpvWrapper",
@@ -54,8 +54,8 @@ let package = Package(
         // ========== Libffmpeg: FFmpeg 编解码库 ==========
         .binaryTarget(
             name: "LibffmpegBinary",
-            url: "https://github.com/roverlab/libmpv-ios/releases/download/v0.1.63/Libffmpeg.xcframework.zip",
-            checksum: "PLACEHOLDER"  // TODO: 替换为实际 checksum（首次构建后更新）
+            url: "https://github.com/roverlab/libmpv-ios/releases/download/v0.1.67/Libffmpeg.xcframework.zip",
+            checksum: "e9c68c37c88e07a279ee5a7e3dee050a8e4ddf73d794272caa6a7a9ee6825622"  // TODO: 替换为实际 checksum（首次构建后更新）
         ),
         .target(
             name: "LibffmpegWrapper",
