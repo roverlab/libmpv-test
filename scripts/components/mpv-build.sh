@@ -202,9 +202,6 @@ else
     SUBSYSTEM="ios"
 fi
 
-# 将 Vulkan/MoltenVK 头文件路径添加到编译参数中
-# 这对于 meson 的 cc.has_header_symbol() 检测至关重要
-# 因为检测时会编译测试程序，需要能找到 vulkan/vulkan_core.h
 # 注意：meson cross-file 中数组元素必须单独列出
 
 cat > "$CROSS_FILE" << EOF
@@ -256,18 +253,6 @@ export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
 # =========================================================================
 # 5. Meson 构建
 # =========================================================================
-# Apply MoltenVK patch - convert forkSrcPrefix paths to standard git diff format
-PATCH_FILE="$ROOT/scripts/components/moltenvk-context.patch"
-
-if [ -f "$PATCH_FILE" ] && ! grep -q "context_moltenvk" meson.build 2>/dev/null; then
-    echo "=== Applying MoltenVK patch ==="
-    # Convert patch paths: forkSrcPrefix -> a/, forkDstPrefix -> b/
-    # This makes it compatible with standard git apply
-    FIXED_PATCH="/tmp/moltenvk-fixed.patch"
-    sed 's|forkSrcPrefix/|a/|g; s|forkDstPrefix/|b/|g' "$PATCH_FILE" > "$FIXED_PATCH"
-    git apply "$FIXED_PATCH" || patch -p1 < "$FIXED_PATCH" || echo "Warning: patch may have already been applied"
-fi
-
 # 定义编译参数数组
 ARGS=(
     --cross-file "$CROSS_FILE"
@@ -291,13 +276,11 @@ ARGS=(
     -Daudiounit=enabled
     -Dcoreaudio=disabled
 
-    # 图形
+    # 图形 (使用 OpenGL ES for iOS)
     -Dgl=enabled
     -Dplain-gl=enabled
     -Dios-gl=enabled
     -Degl=disabled
-    -Dvulkan=enabled
-    -Dmoltenvk=enabled
 
     # 窗口系统
     -Dcocoa=disabled
@@ -314,11 +297,11 @@ ARGS=(
     -Dhtml-build=disabled
     -Dpdf-build=disabled
 
-    # libplacebo
-    -Dlibplacebo:vulkan=enabled
+    # libplacebo (仅 OpenGL, 不使用 vulkan/shaderc)
+    -Dlibplacebo:vulkan=disabled
     -Dlibplacebo:opengl=enabled
     -Dlibplacebo:glslang=disabled
-    -Dlibplacebo:shaderc=enabled
+    -Dlibplacebo:shaderc=disabled
     -Dlibplacebo:lcms=enabled
     -Dlibplacebo:dovi=disabled
     -Dlibplacebo:libdovi=disabled
@@ -360,20 +343,6 @@ echo "=== pkg-config debug info ==="
 echo "  PKG_CONFIG_LIBDIR=$PKG_CONFIG_LIBDIR"
 echo "  PKG_CONFIG_PATH=${PKG_CONFIG_PATH:-<unset>}"
 echo ""
-echo "  vulkan.pc:"
-pkg-config --modversion vulkan 2>&1 || echo "  WARNING: pkg-config cannot find vulkan!"
-echo "  vulkan cflags:"
-pkg-config --cflags vulkan 2>&1 || true
-echo "  vulkan libs:"
-pkg-config --libs vulkan 2>&1 || true
-echo ""
-echo "  shaderc.pc (for libplacebo vulkan):"
-pkg-config --modversion shaderc 2>&1 || echo "  WARNING: pkg-config cannot find shaderc!"
-echo "  shaderc cflags:"
-pkg-config --cflags shaderc 2>&1 || true
-echo "  shaderc libs:"
-pkg-config --libs shaderc 2>&1 || true
-echo ""
 echo "  libplacebo.pc:"
 pkg-config --modversion libplacebo 2>&1 || echo "  WARNING: pkg-config cannot find libplacebo!"
 echo "  libplacebo cflags:"
@@ -399,36 +368,13 @@ with open('build/meson-info/intro-buildoptions.json') as f:
     opts = json.load(f)
     for opt in opts:
         name = opt.get('name', '')
-        if any(x in name for x in ['vulkan', 'moltenvk', 'gpu', 'libplacebo', 'shaderc', 'gl']):
+        if any(x in name for x in ['gl', 'libplacebo', 'ios-gl', 'plain-gl']):
             print(f\"  {name}: {opt.get('value', 'N/A')}\")
 " 2>/dev/null || echo "  (could not parse meson config)"
 fi
 
-# 检查构建日志中关于 vulkan 的检测信息
 echo ""
-echo "=== Checking vulkan detection in build log ==="
-if [ -f "build/meson-logs/meson-log.txt" ]; then
-    echo "Vulkan related log entries:"
-    grep -i "vulkan\|moltenvk" build/meson-logs/meson-log.txt 2>/dev/null | tail -30 || echo "  No vulkan mentions in log"
-fi
-
-# 检查 libplacebo 子项目的构建配置
-echo ""
-echo "=== Checking libplacebo subproject config ==="
-if [ -f "build/subprojects/libplacebo/meson-info/intro-buildoptions.json" ]; then
-    echo "libplacebo build options:"
-    python3 -c "
-import json
-with open('build/subprojects/libplacebo/meson-info/intro-buildoptions.json') as f:
-    opts = json.load(f)
-    for opt in opts:
-        name = opt.get('name', '')
-        if any(x in name for x in ['vulkan', 'shaderc', 'glslang']):
-            print(f\"  {name}: {opt.get('value', 'N/A')}\")
-" 2>/dev/null || echo "  (could not parse)"
-fi
-echo ""
-echo "=== Meson Targets (checking for gpu-next) ==="
+echo "=== Meson Targets ==="
 if [ -f "build/meson-info/intro-targets.json" ]; then
     python3 -c "
 import json
@@ -436,7 +382,7 @@ with open('build/meson-info/intro-targets.json') as f:
     targets = json.load(f)
     for t in targets:
         name = t.get('name', '')
-        if 'mpv' in name or 'gpu' in name or 'vulkan' in name:
+        if 'mpv' in name or 'gl' in name:
             print(f\"  Target: {name}\")
 " 2>/dev/null || true
 fi
@@ -483,31 +429,19 @@ fi
 echo "Build complete!"
 
 # =========================================================================
-# 7. 验证 gpu-next 是否编译成功
+# 7. 验证 OpenGL 编译成功
 # =========================================================================
 echo ""
-echo "=== Verifying gpu-next and vulkan symbols ==="
+echo "=== Verifying OpenGL symbols ==="
 MPV_LIB="$SCRATCH/$ARCH_DIR/lib/libmpv.a"
 if [ -f "$MPV_LIB" ]; then
-    echo "Checking for gpu-next symbols in libmpv.a:"
-    nm "$MPV_LIB" 2>/dev/null | grep -i "gpu_next" | head -10 || echo "  No gpu_next symbols found"
-    nm "$MPV_LIB" 2>/dev/null | grep -i "vo_gpu_next" | head -5 || echo "  No vo_gpu_next symbols found"
-    echo ""
-    echo "Checking for vulkan context symbols:"
-    nm "$MPV_LIB" 2>/dev/null | grep -i "ra_ctx_vulkan" | head -10 || echo "  No ra_ctx_vulkan symbols found"
-    echo ""
-    echo "Checking for moltenvk context symbol (THIS IS CRITICAL):"
-    nm "$MPV_LIB" 2>/dev/null | grep -i "ra_ctx_vulkan_moltenvk" || echo "  ❌ NO moltenvk context symbol found!"
-    echo ""
-    echo "Checking for Vulkan instance functions:"
-    nm "$MPV_LIB" 2>/dev/null | grep -i "vkCreateInstance" | head -3 || echo "  No vkCreateInstance found"
-    nm "$MPV_LIB" 2>/dev/null | grep -i "vkCreateMetalSurface" | head -3 || echo "  No vkCreateMetalSurface found"
+    echo "Checking for OpenGL render symbols in libmpv.a:"
+    nm "$MPV_LIB" 2>/dev/null | grep -i "render_gl" | head -10 || echo "  No render_gl symbols found"
+    nm "$MPV_LIB" 2>/dev/null | grep -i "ra_ctx_gl" | head -5 || echo "  No ra_ctx_gl symbols found"
+    nm "$MPV_LIB" 2>/dev/null | grep -i "video_out_gl" | head -5 || echo "  No video_out_gl symbols found"
 else
     echo "WARNING: libmpv.a not found at $MPV_LIB"
 fi
 
-# 检查编译产物中是否有 context_moltenvk.o
 echo ""
-echo "=== Checking for compiled context_moltenvk.o ==="
-find "$(pwd)/build" -name "*moltenvk*" -type f 2>/dev/null | head -10 || echo "  No moltenvk object files found"
-find "$(pwd)/build" -name "context_vulkan*.o" -type f 2>/dev/null | head -10 || echo "  No vulkan context object files found"
+echo "Build complete!"

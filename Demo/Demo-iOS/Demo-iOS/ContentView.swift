@@ -1,13 +1,13 @@
 import SwiftUI
 
 struct ContentView: View {
-    @ObservedObject var coordinator = MPVMetalPlayerView.Coordinator()
+    @ObservedObject var coordinator = MPVPlayerView.Coordinator()
     @State var loading = false
-    
-    
+
+
     var body: some View {
         VStack {
-            MPVMetalPlayerView(coordinator: coordinator)
+            MPVPlayerView(coordinator: coordinator)
                 .play(URL(string: "https://github.com/mpvkit/video-test/raw/master/resources/HDR10_ToneMapping_Test_240_1000_nits.mp4")!)
                 .onPropertyChange{ player, propertyName, propertyData in
                     switch propertyName {

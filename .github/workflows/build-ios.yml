@@ -18,7 +18,6 @@ permissions:
 env:
   # 缓存 key — 版本号变更时自动失效
   FFMPEG_CACHE_KEY: "ffmpeg-v8.1-ios-static"
-  SHADERC_CACHE_KEY: "shaderc-v2026.1-ios-static"
 
 jobs:
   # =========================================================================
@@ -89,80 +88,12 @@ jobs:
           retention-days: 1
 
   # =========================================================================
-  # Job 2: 编译 libshaderc (device + simulator)
-  # =========================================================================
-  build-shaderc:
-    name: Build libshaderc (${{ matrix.environment }})
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        environment: [distribution, simulator]
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      # 检查 shaderc 编译产物缓存
-      - id: cache-shaderc
-        uses: actions/cache@v4
-        with:
-          path: scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/
-          key: ${{ env.SHADERC_CACHE_KEY }}-${{ matrix.environment }}-${{ runner.os }}
-
-      - name: Setup Xcode
-        if: steps.cache-shaderc.outputs.cache-hit != 'true'
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
-
-      - name: Install dependencies
-        if: steps.cache-shaderc.outputs.cache-hit != 'true'
-        run: |
-          brew install cmake
-          brew install python@3.13
-
-      - name: Make build scripts executable
-        if: steps.cache-shaderc.outputs.cache-hit != 'true'
-        run: |
-          chmod +x scripts/*.sh scripts/components/*.sh
-
-      - name: Build libshaderc
-        if: steps.cache-shaderc.outputs.cache-hit != 'true'
-        run: |
-          echo "=== Building libshaderc for ${{ matrix.environment }} (cache miss) ==="
-          ./scripts/build.sh -e ${{ matrix.environment }} -s shaderc
-
-      - name: Verify shaderc build
-        run: |
-          ARCH_DIR="${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}"
-          echo "=== libshaderc libraries for ${{ matrix.environment }} ==="
-          ls -la scratch/$ARCH_DIR/lib/libshaderc*.a 2>/dev/null || true
-          echo "=== shaderc headers ==="
-          ls -la scratch/$ARCH_DIR/include/shaderc/ 2>/dev/null || true
-          echo "=== Cache status ==="
-          if [ "${{ steps.cache-shaderc.outputs.cache-hit }}" = "true" ]; then
-            echo "Using cached shaderc build"
-          else
-            echo "Fresh shaderc build completed"
-          fi
-
-      - name: Upload shaderc artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: shaderc-${{ matrix.environment }}
-          path: |
-            scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/lib/libshaderc*.a
-            scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/include/shaderc/
-            scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/lib/pkgconfig/shaderc.pc
-          retention-days: 1
-
-  # =========================================================================
   # Job 3: 编译 libmpv (device + simulator)
   # =========================================================================
   build-libmpv:
     name: Build libmpv (${{ matrix.environment }})
     runs-on: macos-latest
-    needs: [build-ffmpeg, build-shaderc]
+    needs: [build-ffmpeg]
     strategy:
       matrix:
         environment: [distribution, simulator]
@@ -194,85 +125,11 @@ jobs:
           name: ffmpeg-${{ matrix.environment }}
           path: scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/
 
-      # 下载预编译的 MoltenVK
-      - name: Download MoltenVK
-        run: |
-          ARCH_DIR="${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}"
-          mkdir -p "scratch/$ARCH_DIR"
-          
-          # 下载 MPVKit 预编译的 MoltenVK
-          MOLTENVK_URL="https://github.com/mpvkit/moltenvk-build/releases/download/1.4.1/MoltenVK-all.zip"
-          echo "Downloading MoltenVK from $MOLTENVK_URL"
-          curl -L -o /tmp/moltenvk.zip "$MOLTENVK_URL"
-          
-          # 解压到临时目录
-          unzip -q /tmp/moltenvk.zip -d /tmp/moltenvk
-          
-          # 查看解压后的目录结构
-          echo "=== MoltenVK directory structure ==="
-          find /tmp/moltenvk -type d | head -20
-          
-          # 复制对应平台的库文件到 lib/ 目录
-          # MoltenVK xcframework 每个 slice 目录下直接是 libMoltenVK.a
-          mkdir -p "scratch/$ARCH_DIR/lib"
-          if [ "${{ matrix.environment }}" = "simulator" ]; then
-            cp /tmp/moltenvk/lib/MoltenVK.xcframework/ios-arm64_x86_64-simulator/libMoltenVK.a "scratch/$ARCH_DIR/lib/"
-          else
-            cp /tmp/moltenvk/lib/MoltenVK.xcframework/ios-arm64/libMoltenVK.a "scratch/$ARCH_DIR/lib/"
-          fi
-          
-          # 复制头文件 (关键！meson 需要 vulkan/vulkan_core.h)
-          echo "=== Copying MoltenVK headers ==="
-          mkdir -p "scratch/$ARCH_DIR/include"
-          cp -R /tmp/moltenvk/include/MoltenVK "scratch/$ARCH_DIR/include/"
-          cp -R /tmp/moltenvk/include/vulkan "scratch/$ARCH_DIR/include/"
-          cp -R /tmp/moltenvk/include/vk_video "scratch/$ARCH_DIR/include/"
-          
-          echo "=== Headers installed ==="
-          ls -la "scratch/$ARCH_DIR/include/"
-          ls -la "scratch/$ARCH_DIR/include/vulkan/" | head -10
-          
-          # 创建 pkgconfig 文件
-          # 注意：Cflags 只需要 -I${includedir}，这样 #include "vulkan/vulkan_core.h" 
-          # 才能正确找到 ${includedir}/vulkan/vulkan_core.h
-          mkdir -p "scratch/$ARCH_DIR/lib/pkgconfig"
-          cat > "scratch/$ARCH_DIR/lib/pkgconfig/vulkan.pc" << EOF
-          prefix=${{ github.workspace }}/scratch/$ARCH_DIR
-          exec_prefix=\${prefix}
-          libdir=\${exec_prefix}/lib
-          includedir=\${prefix}/include
-          
-          Name: Vulkan
-          Description: Vulkan (MoltenVK) static library
-          Version: 1.3.280
-          Libs: -L\${libdir} -lMoltenVK -framework Metal -framework QuartzCore -framework Foundation -framework CoreGraphics -framework IOSurface
-          Cflags: -I\${includedir}
-          EOF
-          
-          echo "=== MoltenVK installed ==="
-          ls -la "scratch/$ARCH_DIR/"
-
-      # libshaderc 由独立 job 编译
-      - name: Download shaderc artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: shaderc-${{ matrix.environment }}
-          path: scratch/${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}/
-
       - name: Verify dependencies
         run: |
           ARCH_DIR="${{ matrix.environment == 'distribution' && 'arm64' || 'arm64-simulator' }}"
           echo "=== FFmpeg libraries ==="
           ls -la scratch/$ARCH_DIR/lib/libav*.a scratch/$ARCH_DIR/lib/libsw*.a 2>/dev/null || echo "No FFmpeg libs"
-          echo "=== MoltenVK ==="
-          ls -la scratch/$ARCH_DIR/lib/libMoltenVK.a 2>/dev/null || echo "No MoltenVK"
-          echo "=== Vulkan headers ==="
-          ls -la scratch/$ARCH_DIR/include/vulkan/ 2>/dev/null || echo "No Vulkan headers"
-          echo "=== Check vulkan_core.h ==="
-          head -50 scratch/$ARCH_DIR/include/vulkan/vulkan_core.h 2>/dev/null | grep -E "VK_VERSION|define" || echo "Cannot read vulkan_core.h"
-          echo "=== pkg-config vulkan ==="
-          export PKG_CONFIG_LIBDIR="$(pwd)/scratch/$ARCH_DIR/lib/pkgconfig"
-          pkg-config --cflags vulkan 2>&1 || echo "pkg-config failed"
 
       - name: Build libmpv (+ subprojects)
         run: |
@@ -348,20 +205,9 @@ jobs:
               # Collect all .a files from lib/ directory
               echo "=== Libraries in ${arch_dir}lib/ ==="
               ls -la "${arch_dir}lib/"*.a 2>/dev/null || echo "No .a files in lib/"
-          
-              # Also check for MoltenVK.a in root or lib (different locations in different builds)
-              echo "=== Looking for MoltenVK ==="
-              find "${arch_dir}" -name "*.a" -type f 2>/dev/null | head -20
-          
+
               # Collect all .a files
               ALL_LIBS=$(ls "${arch_dir}lib/"*.a 2>/dev/null)
-              
-              # Check if MoltenVK is in a different location
-              MOLTENVK_LIB=$(find "${arch_dir}" -name "libMoltenVK.a" -o -name "MoltenVK.a" 2>/dev/null | head -1)
-              if [ -n "$MOLTENVK_LIB" ] && [ ! -f "${arch_dir}lib/libMoltenVK.a" ] && [ ! -f "${arch_dir}lib/MoltenVK.a" ]; then
-                  echo "Adding MoltenVK from: $MOLTENVK_LIB"
-                  ALL_LIBS="$ALL_LIBS $MOLTENVK_LIB"
-              fi
           
               echo "All libs to merge: $ALL_LIBS"
               
