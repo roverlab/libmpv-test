@@ -276,10 +276,10 @@ ARGS=(
     -Daudiounit=enabled
     -Dcoreaudio=disabled
 
-    # 图形 (使用 OpenGL ES for iOS)
+    # 图形 (使用 OpenGL ES for iOS, 禁用 ios-gl 因其依赖已废弃的 CVOpenGL ES API)
     -Dgl=enabled
     -Dplain-gl=enabled
-    -Dios-gl=enabled
+    -Dios-gl=disabled
     -Degl=disabled
 
     # 窗口系统
