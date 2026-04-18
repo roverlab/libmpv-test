@@ -250,12 +250,28 @@ jobs:
           echo "=== Header structure ==="
           find include_temp/Libffmpeg -name "*.h" -type f | head -30
           
-          # 创建 module.modulemap (使用 umbrella "." 格式，确保 FFmpeg 内部跨目录 #include 能正确解析)
-          # 关键：umbrella "." 将当前目录声明为 umbrella 头文件目录，
-          #       使得 libavcodec/avcodec.h 能找到 libavutil/samplefmt.h 等依赖
+          # 1️⃣ 创建 umbrella header (Libffmpeg.h)
+          # 将所有 FFmpeg 公共头文件集中到一个入口文件中，
+          # Clang 通过此文件建立完整的模块依赖图，解决跨目录 #include 问题
+          cat > include_temp/Libffmpeg/Libffmpeg.h << 'EOF'
+          #ifndef Libffmpeg_h
+          #define Libffmpeg_h
+
+          #include "libavutil/avutil.h"
+          #include "libavcodec/avcodec.h"
+          #include "libavformat/avformat.h"
+          #include "libswresample/swresample.h"
+          #include "libswscale/swscale.h"
+
+          #endif
+          EOF
+
+          # 2️⃣ 创建 module.modulemap (使用 umbrella header 格式)
+          # 关键：umbrella header "Libffmpeg.h" 让 Clang 从此入口开始扫描所有依赖头文件，
+          #       自动建立 libavcodec → libavutil 等跨目录引用关系
           cat > include_temp/Libffmpeg/module.modulemap << 'EOF'
-          framework module Libffmpeg [system] {
-              umbrella "."
+          module Libffmpeg [system] {
+              umbrella header "Libffmpeg.h"
               export *
           }
           EOF
