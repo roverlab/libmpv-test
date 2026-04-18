@@ -250,15 +250,15 @@ jobs:
           echo "=== Header structure ==="
           find include_temp/Libffmpeg -name "*.h" -type f | head -30
           
-          # 创建 module.modulemap
-          echo 'module Libffmpeg {' > include_temp/Libffmpeg/module.modulemap
-          echo '    header "libavcodec/avcodec.h"' >> include_temp/Libffmpeg/module.modulemap
-          echo '    header "libavformat/avformat.h"' >> include_temp/Libffmpeg/module.modulemap
-          echo '    header "libavutil/avutil.h"' >> include_temp/Libffmpeg/module.modulemap
-          echo '    header "libswresample/swresample.h"' >> include_temp/Libffmpeg/module.modulemap
-          echo '    header "libswscale/swscale.h"' >> include_temp/Libffmpeg/module.modulemap
-          echo '    export *' >> include_temp/Libffmpeg/module.modulemap
-          echo '}' >> include_temp/Libffmpeg/module.modulemap
+          # 创建 module.modulemap (使用 umbrella "." 格式，确保 FFmpeg 内部跨目录 #include 能正确解析)
+          # 关键：umbrella "." 将当前目录声明为 umbrella 头文件目录，
+          #       使得 libavcodec/avcodec.h 能找到 libavutil/samplefmt.h 等依赖
+          cat > include_temp/Libffmpeg/module.modulemap << 'EOF'
+          framework module Libffmpeg [system] {
+              umbrella "."
+              export *
+          }
+          EOF
           
           cat include_temp/Libffmpeg/module.modulemap
 
