@@ -23,8 +23,8 @@ let package = Package(
         // ========== Libmpv: mpv 播放器核心 ==========
         .binaryTarget(
             name: "LibmpvBinary",
-            url: "https://github.com/roverlab/libmpv-ios/releases/download/v0.1.72/Libmpv.xcframework.zip",
-            checksum: "c2302ea9721806463fcc339d27fd352e18877dcd297afe3d8402dcaea154c61d"
+            url: "https://github.com/roverlab/libmpv-ios/releases/download/v0.1.73/Libmpv.xcframework.zip",
+            checksum: "c1e686bc15348d77db78430cfa01f1f243d32d51634b9ff9296e4233bbcf2ffd"
         ),
         .target(
             name: "LibmpvWrapper",
@@ -54,8 +54,8 @@ let package = Package(
         // ========== Libffmpeg: FFmpeg 编解码库 ==========
         .binaryTarget(
             name: "LibffmpegBinary",
-            url: "https://github.com/roverlab/libmpv-ios/releases/download/v0.1.72/Libffmpeg.xcframework.zip",
-            checksum: "ef4a6520bff6036390935cc5eafd75ca04e3fd9b223bfa3be5eb686413e598ef"  // 需要触发 release 工作流后更新
+            url: "https://github.com/roverlab/libmpv-ios/releases/download/v0.1.73/Libffmpeg.xcframework.zip",
+            checksum: "f11788fdbd2101b0053521b16fe155a10629966ce57c9ead091495898c7e1677"  // 需要触发 release 工作流后更新
         ),
         .target(
             name: "LibffmpegWrapper",
