@@ -266,12 +266,17 @@ jobs:
           #endif
           EOF
 
-          # 2️⃣ 创建 module.modulemap (使用 umbrella header 格式)
-          # 关键：umbrella header "Libffmpeg.h" 让 Clang 从此入口开始扫描所有依赖头文件，
-          #       自动建立 libavcodec → libavutil 等跨目录引用关系
+          # 2️⃣ 创建 module.modulemap (使用 umbrella header + textual header)
+          # umbrella header "Libffmpeg.h" — 主入口，建立跨目录头文件依赖关系
+          # textual header "libavutil/avconfig.h" — 关键修复！
+          #   avconfig.h 是 FFmpeg ./configure 生成的文件，被 macros.h 以相对路径引用。
+          #   Swift 编译器调用的 Clang dependency scanner 在展开 umbrella header 时，
+          #   无法正确搜索到这种深层嵌套的 #include。textual header 告诉 Clang 将其
+          #   作为普通文本头文件处理（不做模块化检查），从而绕过此限制。
           cat > include_temp/Libffmpeg/module.modulemap << 'EOF'
           module Libffmpeg [system] {
               umbrella header "Libffmpeg.h"
+              textual header "libavutil/avconfig.h"
               export *
           }
           EOF
